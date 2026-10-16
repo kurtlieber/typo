@@ -2,7 +2,7 @@
 
 Written from black-box observation of Typora 1.14.9 for Linux (run in the
 headless sandbox), its shipped help documents, its UI string tables, and the
-public support site. No Typora code is copied into typo; this file describes
+public support site; the macOS sections from Typora 1.14.10 for macOS. No Typora code is copied into typo; this file describes
 behaviour in our own words. Reference screenshots are kept outside the repo.
 
 ## Window layout
@@ -97,6 +97,99 @@ Themes: list of installed themes (radio). In typo this lists Omarchy themes.
 Help: Quick Start, Markdown Reference, Install and Use Pandoc, Custom Themes,
 Use Images in Typora, Data Recovery and Version Control, What's New, Credits,
 Change Log, Privacy Policy, Website, Feedback, About.
+
+## Menus and shortcuts (macOS)
+
+From Typora 1.14.10 for macOS: its main menu as shipped (titles, key
+equivalents, actions) and its editor's key handling. The live menu bar wasn't
+read, so items macOS adds at run time are named as such, not observed. The
+menus live in the system menu bar, not in the window.
+
+Typora (the app menu): About Typora, My License…, Preferences… (⌘,; macOS 13
+and later title it Settings…), Check for Updates, Services ▸, Hide Typora
+(⌘H), Hide Others (⌥⌘H), Show All, Quit Typora (⌘Q). So File has no
+Preferences or Quit, and Help has no About.
+
+File: New (⌘N), New Tab (⌘T), New Window (⇧⌘N), Open… (⌘O; there is no
+separate Open Folder), Open Recent ▸ (Clear Menu), Reopen Closed File (⇧⌘T),
+Open Quickly… (⇧⌘O), Get Info…, Reveal in Library, Reveal in File Tree, Open
+File Location, Delete… (to the Trash), Close (⌘W), Save… (⌘S), Revert to
+Saved, Reload from Disk, Save All… (⌥⌘S), Import…, Export ▸ (filled at run
+time), Page Setup… (⇧⌘P), Print… (⌘P). The shipped menu has no Save As;
+whether macOS adds Duplicate, Rename and Move To for documents that autosave
+wasn't checked.
+
+Edit: Undo (⌘Z), Redo (⇧⌘Z), Cut, Copy, Paste, Copy as Plain Text, Copy as
+Markdown (⇧⌘C), Copy as HTML Code, Copy without Theme Styling, Paste as Plain
+Text (⇧⌘V), Paste and Match Style (⌥⇧⌘V), Selection ▸ (Select All ⌘A, Select
+Paragraph / Block ⌥⌘P, Select Line / Sentence ⌘L, Select Styled Scope ⌘E,
+Select Word ⌘D, Jump to Top ⌘↑, Jump to Selection ⌘J, Jump to Bottom ⌘↓, Jump
+to Line Start ⌃A, Jump to Line End ⌃E), Move Row Up (⌥↑), Move Row Down (⌥↓),
+Delete, Delete Range ▸ (Paragraph / Block ⌥⇧⌘P, Line / Sentence ⌥⇧⌘L, Styled
+Scope ⌥⇧⌘E, Word ⇧⌘D), Math Tools ▸, Line Endings ▸ (CRLF / LF, Insert Final
+New Line On Save), Whitespace and Line Breaks ▸, Substitutions ▸ (Smart Quotes,
+Smart Dashes, Text Replacement, …), Spelling and Grammar ▸ (Show ⌘:, Check
+Document Now ⌘;, …), Find ▸ (Find… ⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Find
+and Replace… ⌥⌘F, Replace Next ⌥⌘E, Jump to Selection ⌘J), Speech ▸. macOS
+appends its own items (AutoFill, Start Dictation, Emoji & Symbols).
+
+Paragraph: Heading 1–6 (⌘1…6), Paragraph (⌘0), Increase / Decrease Heading
+Level (⌘= / ⌘-), Table ▸ (Insert Table ⌥⌘T, Add Row Above, Add Row Below ⌘↩,
+Add Column Before / After, Move Table Row Up / Down ⌃⌘↑ / ⌃⌘↓, Move Table
+Column Left / Right ⌃⌘← / ⌃⌘→, Delete Row ⇧⌘⌫, Delete Column, Copy Table,
+Prettify Source Code, Delete Table), Math Block (⌥⌘B), Code Fences (⌥⌘C), Code
+Tools ▸, Alert ▸, Quote (⌥⌘Q), Ordered List (⌥⌘O), Unordered List (⌥⌘U), Task
+List (⌥⌘X), Task Status ▸ (Toggle ⌃X, Mark as Complete / Incomplete), List
+Indentation ▸ (Indent ⌘], Outdent ⌘[), Insert Paragraph Before / After, Link
+Reference (⌥⌘L), Footnotes (⌥⌘R), Horizontal Line (⌥⌘-), Table of Contents,
+YAML Front Matter.
+
+Format: Strong (⌘B), Emphasis (⌘I), Underline (⌘U), Code (⌃`), Inline Math
+(⌃M), Strike (⌃⇧`), Highlight (⇧⌘H), Superscript, Subscript, Comment (⌃-),
+Hyperlink (⌘K), Hyperlink Actions ▸, Image ▸ (Insert Image ⌃⌘I, …), Take
+Picture, Clear Format (⌘\).
+
+View: Source Code Mode (⌘/), Readonly Mode, Focus Mode (F8), Typewriter Mode
+(F9), Toolbar, Toggle Sidebar (⇧⌘L), Outline (⌃⌘1), Articles (⌃⌘2), File Tree
+(⌃⌘3), Search (⇧⌘F), Toggle Word Count Popover, Toggle Outline Popover, Allow
+Magnification, Actual Size (⇧⌘0), Zoom In (⇧⌘=), Zoom Out (⇧⌘-), Always on
+Top, Full Screen (⌃⌘F). No Show Status Bar.
+
+Themes: filled at run time, as on Linux.
+
+Window: Minimize (⌘M), Zoom, Bring All to Front. Documents open as the
+system's window tabs (New Tab ⌘T), and ⌃⇥ / ⌃⇧⇥ go to the next / previous tab
+(Linux's Switch Between Opened Documents). macOS adds its tab items and the
+window list.
+
+Help: What's New…, Quick Start (⌘?), Markdown Reference, Install and Use
+Pandoc, Custom Themes, Use Images in Typora, More Topics…, Welcome Guide,
+Credits, Change Log, Privacy Policy, Website, Feedback. macOS adds the search
+field.
+
+### Text navigation (macOS)
+
+The editor is the system's web text view, so it inherits macOS's standard text
+keys (AppKit's StandardKeyBinding.dict). Typora takes over only ⌘↑/⌘↓, ⌃A/⌃E
+and ⌥↑/⌥↓. Adding ⇧ to any move extends the selection.
+
+- ⌥← / ⌥→: the previous / next word. ⌘← / ⌘→: the start / end of the visual
+  line.
+- ⌘↑ / ⌘↓: the top / bottom of the document (Typora's Jump to Top / Bottom;
+  in source mode, the first / last line).
+- ⌥↑ / ⌥↓: Move Row Up / Down (Typora), in place of the system's paragraph
+  moves. ⌥⇧↑ / ⌥⇧↓ still extend the selection by paragraph.
+- ⌃A / ⌃E: the start / end of the current block (paragraph, heading, list
+  item). In a code block or source mode they go to the start / end of the code
+  line, and in front matter to the start / end of the line.
+- Emacs keys, from the system: ⌃F / ⌃B / ⌃N / ⌃P (right, left, down, up), ⌃D
+  (delete forward), ⌃H (delete back), ⌃K (delete to the end of the paragraph),
+  ⌃Y (paste what ⌃K deleted), ⌃T (swap characters), ⌃O (split the line, caret
+  stays), ⌃V (page down), ⌃L (centre the caret).
+- Deleting: ⌫ / ⌦ by character, ⌥⌫ / ⌥⌦ by word, ⌘⌫ to the start of the line.
+- Home / End and Page Up / Page Down scroll without moving the caret. ⇧Home /
+  ⇧End select to the document's start / end, and ⌥Page Up / ⌥Page Down move the
+  caret by a page.
 
 ## Preferences
 
