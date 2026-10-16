@@ -19,7 +19,7 @@ key Escape
 wait 300
 check Ui.prefsOpen && Ui.prefsQuery === "" && Ui.prefsSection === 0
 # Auto Save, which also saves on switching files.
-click 527 428
+clickItem prefsPanel.pref("autoSave")
 wait 200
 check Prefs.autoSave
 key Escape
@@ -30,10 +30,10 @@ wait 400
 check Ui.prefsOpen && Ui.prefsSection === 2 && Ui.prefsHighlight === "image-setting-group"
 shot @DIR@/image.png
 # Appearance: the status bar.
-click 90 385
+clickItem prefsPanel.nav.itemAt(5)
 wait 300
 check Ui.prefsSection === 5
-click 527 416
+clickItem prefsPanel.pref("statusBar")
 wait 200
 check !Ui.statusBar
 cmd preferences

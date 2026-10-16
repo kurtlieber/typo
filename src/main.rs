@@ -28,7 +28,9 @@ fn main() {
     qt::glue::ffi::set_desktop_file_name(&QString::from("typo"));
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {
-        // Settings live in ~/.config/typo/typo.conf.
+        // Settings live in ~/.config/typo/typo.conf (typo.ini on the Mac).
+        #[cfg(target_os = "macos")]
+        qt::glue::ffi::use_ini_settings();
         app.as_mut().set_organization_name(&QString::from("typo"));
         app.as_mut().set_application_name(&QString::from("typo"));
         app.as_mut().set_application_version(&QString::from(env!("CARGO_PKG_VERSION")));
@@ -47,6 +49,9 @@ fn main() {
     // A broken QML file leaves no window; Qt has already printed why.
     if !engine.as_ref().is_some_and(qt::glue::ffi::has_roots) {
         std::process::exit(1);
+    }
+    if let Some(engine) = engine.as_mut() {
+        qt::glue::ffi::open_file_events(engine);
     }
     if let Some(app) = app.as_mut() {
         app.exec();

@@ -478,7 +478,7 @@ Item {
             // highlighter leaves room for its padding and border.
             FontMetrics {
                 id: codeFm
-                font.family: "monospace"
+                font.family: Ui.monoFont
                 font.pixelSize: Math.max(1, Math.round(textItem.size * 0.9))
             }
             readonly property real codePad: 3 * size / 16

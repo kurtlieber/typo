@@ -116,7 +116,7 @@ Flickable {
         if (!edit || !focusRow(row, edit.length, edit.length))
             return false
         keyPressed(row, edit, event)
-        if (!event.accepted && event.text.charCodeAt(0) >= 32 && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+        if (!event.accepted && event.text.charCodeAt(0) >= 32 && !(event.modifiers & Ui.notTyping)) {
             edit.insert(edit.cursorPosition, event.text)
             event.accepted = true
         }
@@ -1165,12 +1165,12 @@ Flickable {
                 break
             }
             // Typing replaces the selection.
-            if (event.text !== "" && event.text.charCodeAt(0) >= 32 && !(mods & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+            if (event.text !== "" && event.text.charCodeAt(0) >= 32 && !(mods & Ui.notTyping)) {
                 event.accepted = run("typeText", 0, event.text)
                 return
             }
         }
-        if (edit && !multi && event.text.length === 1 && !(mods & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+        if (edit && !multi && event.text.length === 1 && !(mods & Ui.notTyping)
                 && (typeFenceLang(row, edit, event.text) || typeSmart(row, edit, event.text) || typePaired(row, edit, event.text))) {
             event.accepted = true
             return

@@ -14,9 +14,14 @@ QtObject {
     // Preferences ▸ Appearance ▸ Font Size is customized.
     property real zoom: 1.0
     readonly property real fontSize: (Prefs.useCustomFontSize ? Prefs.customFontSize : 16) * zoom
+    readonly property bool mac: Qt.platform.os === "osx" || Qt.platform.os === "macos"
     readonly property string textFont: pick(["Open Sans", "Noto Sans", "Clear Sans", "Helvetica Neue", "Liberation Sans"])
-    // fontconfig resolves "monospace" to the font Omarchy has set.
-    readonly property string monoFont: "monospace"
+    // fontconfig resolves "monospace" to the font Omarchy has set; the Mac
+    // has no such alias.
+    readonly property string monoFont: mac ? "Menlo" : "monospace"
+    // Modifiers that make a key a command rather than typing. On the Mac,
+    // Option types characters (é, ™, –).
+    readonly property int notTyping: Qt.ControlModifier | Qt.MetaModifier | (mac ? 0 : Qt.AltModifier)
     readonly property string uiFont: textFont
 
     property bool sidebar: false

@@ -20,7 +20,10 @@ cmd copyMathML
 check Desktop.clipboardText().indexOf("<msup>") > 0 && Desktop.clipboardText().indexOf("<mtext>(1)</mtext>") > 0
 cmd copyMathImage
 check Desktop.saveClipboardImage("@DIR@/clip") !== ""
-clickText 1 8 Right
+# In the inline formula, open with the caret in it.
+caret 1 10
+wait 200
+clickText 1 10 Right
 wait 300
 check contextMenu.inMath && !contextMenu.math.display
 key Escape

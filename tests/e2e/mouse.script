@@ -3,7 +3,8 @@
 type alpha\nbeta\ngamma\ndelta
 drag 0 2 2 3
 type Z
-# alZma / delta
+# alZma / delta (after a pause, so it is no double-click)
+wait 400
 clickText 0 1
 clickText 1 2 Shift
 key Delete

@@ -493,7 +493,7 @@ Rectangle {
         onAboutToShow: Prefs.refresh()
         TMenuItem { text: qsTr("New File"); enabled: sidebar.app.folder !== ""; onTriggered: sidebar.newFile(sidebar.app.folder) }
         TMenuItem { text: qsTr("Search"); enabled: sidebar.app.folder !== ""; onTriggered: sidebar.openSearch() }
-        TMenuItem { text: qsTr("Open File Location"); enabled: sidebar.app.folder !== ""; onTriggered: Qt.openUrlExternally("file://" + sidebar.app.folder) }
+        TMenuItem { text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); enabled: sidebar.app.folder !== ""; onTriggered: Qt.openUrlExternally("file://" + sidebar.app.folder) }
         TMenuItem { text: qsTr("Open Folder…"); onTriggered: sidebar.app.run("openFolder") }
         TMenuItem { text: qsTr("Refresh Folder"); enabled: sidebar.app.folder !== ""; onTriggered: sidebar.refresh() }
         TSep {}
@@ -580,7 +580,7 @@ Rectangle {
         TMenuItem { visible: fileMenu.file || (fileMenu.tree && fileMenu.folder); text: qsTr("Delete"); onTriggered: sidebar.remove(fileMenu.path) }
         TSep { visible: fileMenu.full && !fileMenu.blank }
         TMenuItem { visible: fileMenu.full && !fileMenu.blank; text: qsTr("Copy File Path"); onTriggered: Desktop.setClipboard(fileMenu.path, "", "") }
-        TMenuItem { visible: fileMenu.full && !fileMenu.blank; text: qsTr("Open File Location"); onTriggered: Desktop.showInFolder(fileMenu.path) }
+        TMenuItem { visible: fileMenu.full && !fileMenu.blank; text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); onTriggered: Desktop.showInFolder(fileMenu.path) }
         TSep { visible: fileMenu.search }
         TMenuItem { visible: fileMenu.search; text: qsTr("Expand All"); onTriggered: search.setAll(true) }
         TMenuItem { visible: fileMenu.search; text: qsTr("Collapse All"); onTriggered: search.setAll(false) }

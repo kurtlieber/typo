@@ -14,6 +14,11 @@ pub mod ffi {
         #[cxx_name = "typoSetDesktopFileName"]
         fn set_desktop_file_name(name: &QString);
 
+        /// Keep settings in an INI file under `$XDG_CONFIG_HOME` (as on
+        /// Linux) rather than the Mac's preferences, which ignore it.
+        #[cxx_name = "typoUseIniSettings"]
+        fn use_ini_settings();
+
         /// Whether the engine created any root object, i.e. Main.qml loaded.
         #[cxx_name = "typoHasRoots"]
         fn has_roots(engine: &QQmlApplicationEngine) -> bool;
@@ -21,6 +26,12 @@ pub mod ffi {
         /// Serves typeset math to QML as `image://math/…`.
         #[cxx_name = "typoAddMathProvider"]
         fn add_math_provider(engine: Pin<&mut QQmlApplicationEngine>);
+
+        /// Open each file the Mac hands over as an event (a double-click in
+        /// Finder, Open With, a drop on the Dock icon) with the window's
+        /// `openFile`, as one named on the command line.
+        #[cxx_name = "typoOpenFileEvents"]
+        fn open_file_events(engine: Pin<&mut QQmlApplicationEngine>);
 
         /// Serves drawn diagrams to QML as `image://diagram/…`.
         #[cxx_name = "typoAddDiagramProvider"]
@@ -35,6 +46,11 @@ pub mod ffi {
         /// exists, before any text is laid out.
         #[cxx_name = "typoAddStrutFonts"]
         fn add_strut_fonts();
+
+        /// Whether the desktop asks for light colours (the Mac's
+        /// Appearance); false when it doesn't say.
+        #[cxx_name = "typoPrefersLight"]
+        fn prefers_light() -> bool;
     }
 
     extern "Rust" {

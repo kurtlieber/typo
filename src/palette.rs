@@ -320,6 +320,24 @@ impl Scheme {
         s.accent_text = WHITE;
         s
     }
+
+    /// The dark page with no Omarchy theme (the Mac in Dark Mode): the
+    /// fallback greys, with GitHub's dark colours for code and alerts.
+    pub fn night() -> Scheme {
+        let raw: HashMap<String, String> = [
+            ("red", "#ff7b72"),
+            ("green", "#7ee787"),
+            ("yellow", "#d29922"),
+            ("blue", "#79c0ff"),
+            ("magenta", "#d2a8ff"),
+            ("cyan", "#56d4dd"),
+            ("color8", "#8b949e"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        Scheme::new(Palette::resolve(&raw, None))
+    }
 }
 
 /// An installed Omarchy theme.

@@ -524,6 +524,7 @@ Item {
         const shift = mods === Qt.ShiftModifier
         const ctrl = mods === Qt.ControlModifier
         const alt = mods === Qt.AltModifier
+        const typing = !(mods & Ui.notTyping)
         const edit = cell.edit
         const r = cell.r
         const c = cell.c
@@ -548,7 +549,7 @@ Item {
                 replaceSpan("")
                 return accept()
             }
-            if (event.text.length > 0 && event.text >= " " && (plain || shift)) {
+            if (event.text.length > 0 && event.text >= " " && typing) {
                 replaceSpan(event.text)
                 return accept()
             }
@@ -564,7 +565,7 @@ Item {
             return accept()
         }
         // Smart punctuation converted on input, as in paragraphs.
-        if (event.text.length === 1 && none && (plain || shift) && !Prefs.smartOnRendering && (Prefs.smartQuotes || Prefs.smartDashes)) {
+        if (event.text.length === 1 && none && typing && !Prefs.smartOnRendering && (Prefs.smartQuotes || Prefs.smartDashes)) {
             const r = editor.cellSmartTyped(edit.text, pos, event.text, Prefs.autoPairBrackets, Prefs.autoPairMarkdown)
             if (r === "skip") {
                 edit.cursorPosition = pos + 1
@@ -580,7 +581,7 @@ Item {
             }
         }
         // Auto-pairing (Preferences ▸ Editor), as in paragraphs.
-        if (event.text.length === 1 && none && Prefs.autoPairBrackets && (plain || shift)) {
+        if (event.text.length === 1 && none && Prefs.autoPairBrackets && typing) {
             const what = editor.cellPairTyped(edit.text, pos, event.text, Prefs.autoPairMarkdown)
             if (what === "skip") {
                 edit.cursorPosition = pos + 1

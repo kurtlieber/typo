@@ -1,6 +1,8 @@
 //! The `Theme` QML singleton: the Omarchy palette as semantic colours.
 //! QML polls it once a second; a theme switch rewrites the theme directory,
 //! so a changed `colors.toml` (mtime, size or inode) triggers a reload.
+//! With no Omarchy theme (as on the Mac), it follows the desktop's light or
+//! dark.
 //! A theme picked from the Themes menu applies to typo only.
 
 #[cxx_qt::bridge]
@@ -119,7 +121,7 @@ pub struct ThemeRust {
     chosen: QString,
     themes: QStringList,
     palette: Option<Palette>,
-    stamp: Option<(i64, i64, u64, u64)>,
+    stamp: Stamp,
 }
 
 impl Default for ThemeRust {
@@ -157,7 +159,7 @@ impl Default for ThemeRust {
             chosen: QString::default(),
             themes: QStringList::default(),
             palette: None,
-            stamp: None,
+            stamp: (None, false),
         };
         // Read the theme before QML first binds to it, so the window never
         // flashes the fallback colours.
@@ -211,14 +213,23 @@ fn source_dir(chosen: &str) -> PathBuf {
     palette::current_dir()
 }
 
-fn stamp(dir: &std::path::Path) -> Option<(i64, i64, u64, u64)> {
-    let m = fs::metadata(dir.join("colors.toml")).ok()?;
-    Some((m.mtime(), m.mtime_nsec(), m.size(), m.ino()))
+/// What tells a change: colors.toml's mtime, size and inode, and whether
+/// the desktop is light.
+type Stamp = (Option<(i64, i64, u64, u64)>, bool);
+
+fn stamp(dir: &std::path::Path) -> Stamp {
+    let m = fs::metadata(dir.join("colors.toml")).ok();
+    (m.map(|m| (m.mtime(), m.mtime_nsec(), m.size(), m.ino())), super::glue::ffi::prefers_light())
 }
 
 fn load(chosen: &str) -> (Scheme, String) {
     let dir = source_dir(chosen);
-    let palette = Palette::load(&dir).unwrap_or_else(|| Palette::resolve(&Default::default(), None));
+    let scheme = match Palette::load(&dir) {
+        Some(p) => Scheme::new(p),
+        // Typora's own light page, or a dark one.
+        None if super::glue::ffi::prefers_light() => Scheme::paper(),
+        None => Scheme::night(),
+    };
     let name = if chosen.is_empty() || dir == palette::current_dir() {
         fs::read_to_string(dir.parent().unwrap_or(&dir).join("theme.name"))
             .map(|n| palette::title_of(n.trim()))
@@ -226,7 +237,7 @@ fn load(chosen: &str) -> (Scheme, String) {
     } else {
         palette::title_of(chosen)
     };
-    (Scheme::new(palette), name)
+    (scheme, name)
 }
 
 fn theme_list() -> QStringList {

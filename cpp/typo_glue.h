@@ -12,6 +12,9 @@
 #include <QPainter>
 #include <QUrl>
 #include <QGuiApplication>
+#include <QFileOpenEvent>
+#include <QStyleHints>
+#include <QSettings>
 #include <QKeySequence>
 #include <QMimeData>
 #include <QWheelEvent>
@@ -154,7 +157,11 @@ public:
         if (flags & 2) f.setFontItalic(true);
         if (flags & 4) f.setFontUnderline(true);
         if (flags & 8) f.setFontStrikeOut(true);
+#ifdef Q_OS_MACOS
+        if (flags & 16) f.setFontFamilies({QStringLiteral("Menlo")});
+#else
         if (flags & 16) f.setFontFamilies({QStringLiteral("monospace")});
+#endif
         if (flags & 64) f.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
         if (flags & 128) f.setVerticalAlignment(QTextCharFormat::AlignSubScript);
         if (pixelSize > 0) f.setProperty(QTextFormat::FontPixelSize, pixelSize);
@@ -262,6 +269,29 @@ protected:
 };
 
 inline void typoSetDesktopFileName(const QString &name) { QGuiApplication::setDesktopFileName(name); }
+
+inline void typoUseIniSettings() { QSettings::setDefaultFormat(QSettings::IniFormat); }
+
+inline bool typoPrefersLight() { return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Light; }
+
+inline void typoOpenFileEvents(QQmlApplicationEngine &engine)
+{
+    struct Filter : QObject {
+        QQmlApplicationEngine *engine;
+        bool eventFilter(QObject *o, QEvent *e) override
+        {
+            if (e->type() != QEvent::FileOpen || engine->rootObjects().isEmpty())
+                return QObject::eventFilter(o, e);
+            const QVariant path = static_cast<QFileOpenEvent *>(e)->file();
+            QMetaObject::invokeMethod(engine->rootObjects().first(), "openFile", Q_ARG(QVariant, path));
+            return true;
+        }
+    };
+    auto *filter = new Filter;
+    filter->engine = &engine;
+    filter->setParent(&engine);
+    QGuiApplication::instance()->installEventFilter(filter);
+}
 
 inline bool typoHasRoots(const QQmlApplicationEngine &engine) { return !engine.rootObjects().isEmpty(); }
 

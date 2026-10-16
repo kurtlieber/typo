@@ -10,6 +10,8 @@ use zbus::blocking::{Connection, MessageIterator};
 use zbus::zvariant::{OwnedValue, Value};
 use zbus::{MatchRule, message};
 
+use crate::platform::{IMAGES, IMPORT, MARKDOWN};
+
 /// What the dialog is for.
 pub enum Pick<'a> {
     Open { folder: Option<&'a Path> },
@@ -30,27 +32,19 @@ pub enum Pick<'a> {
 
 /// Markdown first, as Typora's own dialogs offer it.
 fn filters() -> Vec<(String, Vec<(u32, String)>)> {
-    let md = ["md", "markdown", "mdown", "mmd", "mkd", "mkdn", "text", "txt"];
     vec![
-        ("Markdown".into(), md.iter().map(|e| (0, format!("*.{e}"))).collect()),
+        ("Markdown".into(), MARKDOWN.iter().map(|e| (0, format!("*.{e}"))).collect()),
         ("All Files".into(), vec![(0, "*".into())]),
     ]
 }
 
-/// The pictures Typora's Insert Local Images… offers.
 fn image_filters() -> Vec<(String, Vec<(u32, String)>)> {
-    let images = ["png", "jpg", "jpeg", "jfif", "bmp", "svg", "tiff", "webp", "gif"];
-    vec![("Images".into(), images.iter().map(|e| (0, format!("*.{e}"))).collect())]
+    vec![("Images".into(), IMAGES.iter().map(|e| (0, format!("*.{e}"))).collect())]
 }
 
-/// What File → Import… offers: what pandoc reads.
 fn import_filters() -> Vec<(String, Vec<(u32, String)>)> {
-    let kinds = [
-        "docx", "odt", "rtf", "epub", "html", "htm", "tex", "latex", "rst", "textile", "wiki", "mediawiki", "opml", "org", "ipynb",
-        "fb2", "dbk", "xml", "csv", "tsv", "typ", "md",
-    ];
     vec![
-        ("Supported Files".into(), kinds.iter().map(|e| (0, format!("*.{e}"))).collect()),
+        ("Supported Files".into(), IMPORT.iter().map(|e| (0, format!("*.{e}"))).collect()),
         ("All Files".into(), vec![(0, "*".into())]),
     ]
 }

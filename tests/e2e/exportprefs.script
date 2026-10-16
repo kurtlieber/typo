@@ -56,7 +56,7 @@ cmd export html
 wait 2000
 check dialog.visible && dialog.title === "Export Success!" && dialog.wide
 check dialog.text.indexOf("Command Arguments:") === 0 && dialog.text.indexOf("first\nLast line") > 0
-check dialog.buttons.length === 2 && dialog.buttons[0] === "Reveal in File Explorer"
+check dialog.buttons.length === 2 && dialog.buttons[0] === (Ui.mac ? "Reveal in Finder" : "Reveal in File Explorer")
 shot @SHOT@
 answer 1
 check !dialog.visible && !dialog.wide

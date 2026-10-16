@@ -3,6 +3,7 @@ use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 fn main() {
     let qml = [
         "qml/Main.qml",
+        "qml/MacDialogs.qml",
         "qml/AppMenuBar.qml",
         "qml/TMenu.qml",
         "qml/TMenuItem.qml",

@@ -9,7 +9,8 @@ if [ "${1:-}" = --update ]; then
     shift
 fi
 cargo build --quiet 2>&1 | grep -v "^warning: typo@0.1.0:" | grep -E "^error" -A8 || true
-work=$(mktemp -d)
+# The real path: the Mac's temp folder is behind the /var symlink.
+work=$(cd "$(mktemp -d)" && pwd -P)
 # KEEP=1 keeps the logs and screenshots, and says where.
 if [ -n "${KEEP:-}" ]; then echo "work: $work"; else trap 'rm -rf "$work"' EXIT; fi
 names=("$@")

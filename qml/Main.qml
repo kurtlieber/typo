@@ -1011,7 +1011,7 @@ ApplicationWindow {
     function afterExport(format, path, ran) {
         const o = Prefs.exportOptions[format] || {}
         const general = Prefs.exportOptions.general || {}
-        const reveal = qsTr("Reveal in File Explorer")
+        const reveal = Ui.mac ? qsTr("Reveal in Finder") : qsTr("Reveal in File Explorer")
         const lastLine = s => s.trim().split("\n").pop()
         if (ran.ran && (!ran.ok || o.showOutput)) {
             notice.close()
@@ -1095,6 +1095,12 @@ ApplicationWindow {
         settle()
         afterSave = then || null
         Desktop.chooseFile("save", qsTr("Save As"), startFolder(), suggestedName())
+    }
+
+    // The Mac's own file panels; on Linux the portal's open from Rust.
+    Loader {
+        active: Ui.mac
+        source: "MacDialogs.qml"
     }
 
     Connections {

@@ -187,6 +187,13 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "fileChosen"]
         fn file_chosen(self: Pin<&mut Desktop>, kind: QString, path: QString, error: QString);
+        /// On the Mac, `chooseFile` asks QML to open the system's panel:
+        /// `mode` is "open", "openMany", "save" or "folder", `folder` and
+        /// `file` (the suggested name) are URLs, and `filters` Qt name
+        /// filters, one a line. QML answers with `fileChosen`.
+        #[qsignal]
+        #[cxx_name = "dialogWanted"]
+        fn dialog_wanted(self: Pin<&mut Desktop>, kind: QString, title: QString, mode: QString, folder: QString, file: QString, filters: QString);
 
         /// The code language box's suggestions, one per line.
         #[qinvokable]
@@ -337,7 +344,23 @@ impl qobject::Desktop {
         if let Some((_, exts)) = export.and_then(|f| f.first()) {
             name = format!("{name}.{}", exts[0]);
         }
+        #[cfg(target_os = "macos")]
+        {
+            let (mode, filters) = platform::dialog(&kind, export);
+            let url = |p: PathBuf| if folder.is_empty() { String::new() } else { crate::image::file_url(&p) };
+            let (dir, file) = (url(PathBuf::from(&folder)), url(PathBuf::from(&folder).join(&name)));
+            self.dialog_wanted(
+                QString::from(&kind),
+                QString::from(&title),
+                QString::from(mode),
+                QString::from(&dir),
+                QString::from(&file),
+                QString::from(&filters.join("\n")),
+            );
+        }
+        #[cfg(target_os = "linux")]
         let thread = self.qt_thread();
+        #[cfg(target_os = "linux")]
         std::thread::spawn(move || {
             let folder = (!folder.is_empty()).then(|| PathBuf::from(folder));
             let (path, error) = match platform::choose(&kind, &title, folder.as_deref(), &name, export) {

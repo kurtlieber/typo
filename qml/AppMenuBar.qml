@@ -108,7 +108,7 @@ MenuBar {
         Cmd { text: qsTr("Save All"); cmd: "saveAll" }
         Cmd { text: qsTr("Move To…"); cmd: "moveTo" }
         TSep {}
-        Cmd { text: qsTr("Open File Location"); cmd: "openLocation" }
+        Cmd { text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); cmd: "openLocation" }
         Cmd { text: qsTr("Reveal in Sidebar"); cmd: "revealInSidebar" }
         TSep {}
         Cmd { text: qsTr("Import…"); cmd: "import" }
@@ -439,7 +439,7 @@ MenuBar {
     TMenu {
         id: themesMenu
         title: qsTr("&Themes")
-        Cmd { text: qsTr("Follow Omarchy"); cmd: "theme"; arg: ""; checkable: true; checked: Theme.chosen === "" }
+        Cmd { text: Ui.mac ? qsTr("Follow System") : qsTr("Follow Omarchy"); cmd: "theme"; arg: ""; checkable: true; checked: Theme.chosen === "" }
         TSep {}
         Instantiator {
             model: Theme.themes

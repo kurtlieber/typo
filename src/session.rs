@@ -36,7 +36,7 @@ pub fn forget(dir: &Path) {
 }
 
 /// The ids of the processes with a file in `dir`, oldest file first.
-fn entries(dir: &Path) -> Vec<(u32, PathBuf)> {
+pub fn entries(dir: &Path) -> Vec<(u32, PathBuf)> {
     let Ok(read) = fs::read_dir(dir) else { return Vec::new() };
     let mut out: Vec<(std::time::SystemTime, u32, PathBuf)> = read
         .flatten()

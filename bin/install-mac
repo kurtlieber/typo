@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Build target/mac/typo.app and its .dmg and copy the app to /Applications
+# (needs brew's qt): bin/install-mac [--no-install]
+set -euo pipefail
+cd "$(dirname "$0")/.."
+qt=$(brew --prefix qt)
+QMAKE=$qt/bin/qmake cargo build --release
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+out=target/mac
+app=$out/typo.app
+rm -rf "$out" && mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out/typo.iconset"
+cp target/release/typo "$app/Contents/MacOS/typo"
+# Qt from the bundle: the build's rpath points at brew's.
+install_name_tool -delete_rpath "$(brew --prefix)/lib" -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/typo"
+
+cat > "$app/Contents/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>typo</string>
+    <key>CFBundleIdentifier</key><string>io.github.kurtlieber.typo</string>
+    <key>CFBundleExecutable</key><string>typo</string>
+    <key>CFBundleIconFile</key><string>typo</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$version</string>
+    <key>CFBundleVersion</key><string>$version</string>
+    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key><string>Markdown</string>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>net.daringfireball.markdown</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>Folder</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>None</string>
+            <key>LSItemContentTypes</key><array><string>public.folder</string></array>
+        </dict>
+    </array>
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key><string>net.daringfireball.markdown</string>
+            <key>UTTypeDescription</key><string>Markdown</string>
+            <key>UTTypeConformsTo</key><array><string>public.plain-text</string></array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array><string>md</string><string>markdown</string><string>mdown</string><string>mmd</string><string>mkd</string><string>mkdn</string></array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>
+EOF
+
+# The icon: the SVG drawn by Quick Look, at each size iconutil wants.
+qlmanage -t -s 1024 -o "$out" pkgbuild/typo.svg >/dev/null
+for s in 16 32 128 256 512; do
+    sips -z $s $s "$out/typo.svg.png" --out "$out/typo.iconset/icon_${s}x${s}.png" >/dev/null
+    sips -z $((s * 2)) $((s * 2)) "$out/typo.svg.png" --out "$out/typo.iconset/icon_${s}x${s}@2x.png" >/dev/null
+done
+iconutil -c icns "$out/typo.iconset" -o "$app/Contents/Resources/typo.icns"
+
+# Qt's frameworks, plugins and the QML modules the app imports, then an
+# ad-hoc signature (Apple Silicon runs nothing unsigned).
+"$qt/bin/macdeployqt" "$app" -qmldir=qml -codesign=-
+hdiutil create -quiet -volname typo -srcfolder "$app" -ov -format UDZO "$out/typo-$version.dmg"
+echo "$out/typo-$version.dmg"
+if [ "${1:-}" != --no-install ]; then
+    rm -rf /Applications/typo.app
+    cp -R "$app" /Applications/
+    echo "installed /Applications/typo.app"
+fi

@@ -120,7 +120,7 @@ Column {
         PrefChoice {
             label: qsTr("Theme")
             labelWidth: 80
-            options: [["", qsTr("Follow Omarchy")]].concat(Theme.themes.map(t => t.split("|")))
+            options: [["", Ui.mac ? qsTr("Follow System") : qsTr("Follow Omarchy")]].concat(Theme.themes.map(t => t.split("|")))
             value: Ui.theme
             onPicked: v => section.app.run("theme", v)
             boxWidth: 260

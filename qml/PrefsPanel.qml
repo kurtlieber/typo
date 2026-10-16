@@ -41,6 +41,19 @@ Rectangle {
     }
     Keys.onEscapePressed: Ui.prefsOpen = false
 
+    // For the tests: the section list, and the control showing a setting.
+    readonly property alias nav: navList
+    function pref(key, item = panel) {
+        if (item.key === key)
+            return item
+        for (const child of item.children) {
+            const hit = pref(key, child)
+            if (hit)
+                return hit
+        }
+        return null
+    }
+
     function count(item) {
         let n = item.searchHit === true ? 1 : 0
         for (const child of item.children)
@@ -159,6 +172,7 @@ Rectangle {
             }
             Item { width: 1; height: 18 }
             Repeater {
+                id: navList
                 model: panel.names
                 delegate: Item {
                     id: nav
