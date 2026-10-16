@@ -678,7 +678,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::{eqnum, export, file, htmlview, image, portal};
+use crate::{eqnum, export, file, htmlview, image, platform};
 use std::pin::Pin;
 
 use cxx_qt::{CxxQtType, Threading};
@@ -2651,20 +2651,14 @@ impl qobject::Editor {
         let thread = self.qt_thread();
         std::thread::spawn(move || {
             let title = job.title();
-            let printed = (|| {
-                // The PDF options' page, A4 with 16mm margins unless they
-                // say otherwise, then the dialog's.
-                let pdf = job.pdf_settings();
-                let page = portal::PageSetup { width: pdf.page.0, height: pdf.page.1, margins: pdf.margins, landscape: false };
-                let Some((page, token)) = portal::prepare_print(&title, &page)? else { return Ok(()) };
-                job.page = Some(((page.width, page.height), page.margins));
+            // The PDF options' page, A4 with 16mm margins unless they say
+            // otherwise, then the dialog's.
+            let pdf = job.pdf_settings();
+            let printed = platform::print(&title, &path, (pdf.page, pdf.margins), |page| {
+                job.page = Some(page);
                 let export::Output::Bytes(bytes) = job.run()? else { return Err("Nothing to print".to_string()) };
-                fs::write(&path, &bytes).map_err(|e| format!("Could not write {}: {e}", path.display()))?;
-                // The portal reads the open file; the name can go at once.
-                let file = fs::File::open(&path).map_err(|e| e.to_string());
-                let _ = fs::remove_file(&path);
-                portal::print(&title, token, &file?).map(|_| ())
-            })();
+                Ok(bytes)
+            });
             let error = printed.err().unwrap_or_default();
             let _ = thread.queue(move |obj| obj.printed(QString::from(&error)));
         });

@@ -313,8 +313,7 @@ use std::pin::Pin;
 
 use cxx_qt::{CxxQtType, Threading};
 
-use crate::portal::{self, Pick};
-use crate::{bus, export, session};
+use crate::{export, platform, session};
 
 use cxx_qt_lib::QString;
 
@@ -341,19 +340,7 @@ impl qobject::Desktop {
         let thread = self.qt_thread();
         std::thread::spawn(move || {
             let folder = (!folder.is_empty()).then(|| PathBuf::from(folder));
-            let what = match kind.as_str() {
-                _ if export.is_some() => Pick::Export { folder: folder.as_deref(), name: &name, filters: export.unwrap_or_default() },
-                "save" => Pick::Save { folder: folder.as_deref(), name: &name },
-                "folder" | "imagesCopy" | "imagesMove" | "imageFolder" | "imageRoot" => Pick::Folder { folder: folder.as_deref() },
-                // A folder or a file for a preference, named after the colon.
-                k if k.starts_with("prefFolder:") => Pick::Folder { folder: folder.as_deref() },
-                k if k.starts_with("prefFile:") => Pick::Any { folder: folder.as_deref() },
-                "images" => Pick::Images { folder: folder.as_deref() },
-                "import" => Pick::Import { folder: folder.as_deref() },
-                "imageCopy" | "imageMove" => Pick::SaveImage { folder: folder.as_deref(), name: &name },
-                _ => Pick::Open { folder: folder.as_deref() },
-            };
-            let (path, error) = match portal::pick(&title, what) {
+            let (path, error) = match platform::choose(&kind, &title, folder.as_deref(), &name, export) {
                 Ok(paths) => {
                     let paths: Vec<_> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
                     (paths.join("\n"), String::new())
@@ -432,11 +419,11 @@ impl qobject::Desktop {
     }
 
     fn other_windows_open(&self) -> bool {
-        session::others_open(&session::dir(), session::alive)
+        session::others_open(&session::dir(), platform::alive)
     }
 
     fn take_session(&self) -> QString {
-        let list: Vec<_> = session::take(&session::dir(), session::alive)
+        let list: Vec<_> = session::take(&session::dir(), platform::alive)
             .into_iter()
             .map(|w| serde_json::json!({"path": w.path, "folder": w.folder}))
             .collect();
@@ -471,7 +458,7 @@ impl qobject::Desktop {
     }
 
     fn quit_all(&self) -> bool {
-        bus::broadcast_quit().is_ok()
+        platform::broadcast_quit().is_ok()
     }
 
     fn listen_for_quit(mut self: Pin<&mut Self>) {
@@ -480,7 +467,7 @@ impl qobject::Desktop {
         }
         self.as_mut().rust_mut().listening = true;
         let thread = self.qt_thread();
-        bus::on_quit(move || {
+        platform::on_quit(move || {
             let _ = thread.queue(|obj| obj.quit_requested());
         });
     }
@@ -570,12 +557,7 @@ impl qobject::Desktop {
     }
 
     fn show_in_folder(&self, path: &QString) {
-        let path = PathBuf::from(path.to_string());
-        if crate::bus::show_item(&path).is_err() {
-            if let Some(folder) = path.parent() {
-                let _ = std::process::Command::new("xdg-open").arg(folder).spawn();
-            }
-        }
+        platform::reveal(&PathBuf::from(path.to_string()));
     }
 
     fn pasted_images_folder(&self) -> QString {

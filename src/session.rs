@@ -50,13 +50,6 @@ fn entries(dir: &Path) -> Vec<(u32, PathBuf)> {
     out.into_iter().map(|(_, pid, path)| (pid, path)).collect()
 }
 
-/// Whether process `pid` is a running typo: the same program as this one,
-/// so a reused id isn't taken for a window.
-pub fn alive(pid: u32) -> bool {
-    let name = |p: &str| fs::read_to_string(format!("/proc/{p}/comm")).ok();
-    name(&pid.to_string()).is_some_and(|n| Some(n) == name("self"))
-}
-
 /// Whether any window but this one is open.
 pub fn others_open(dir: &Path, alive: impl Fn(u32) -> bool) -> bool {
     let me = std::process::id();
@@ -133,11 +126,5 @@ mod tests {
         assert!(take(&d, |pid| pid == 7).is_empty());
         assert_eq!(take(&d, |_| false).len(), 1);
         let _ = fs::remove_dir_all(&d);
-    }
-
-    #[test]
-    fn this_process_is_alive() {
-        assert!(alive(std::process::id()));
-        assert!(!alive(u32::MAX));
     }
 }

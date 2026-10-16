@@ -1,7 +1,5 @@
 //! typo — a native, Typora-style markdown editor for Omarchy.
 
-#[allow(dead_code)] // Edit operations are wired into the editor in phase 3.
-mod bus;
 mod code;
 mod diagram;
 mod eqnum;
@@ -13,7 +11,7 @@ mod image;
 mod math;
 mod md;
 mod palette;
-mod portal;
+mod platform;
 mod source;
 mod qt;
 mod session;
