@@ -1,0 +1,59 @@
+[package]
+name = "typo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+regex = "1"
+unicode-width = "0.2"
+cxx = "1"
+cxx-qt = "0.10"
+cxx-qt-lib = { version = "0.10", features = ["qt_full"] }
+pulldown-cmark-escape = "0.11"
+html-escape = "0.2"
+emojis = "0.6"
+scraper = "0.27.0"
+ego-tree = "0.11"
+base64 = "0.22"
+imagesize = "0.14"
+zbus = "5"
+encoding_rs = "0.8.42"
+chardetng = "1.0.0"
+syntect = { version = "5.3", default-features = false, features = ["parsing"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-onig"] }
+# Math: mitex turns LaTeX into Typst, typst lays it out and draws it. Keep the
+# tag in step with third_party/mitex. "generate" builds mitex's command table
+# from its .typ files with the typst command instead of an older prebuilt one.
+mitex = { git = "https://github.com/mitex-rs/mitex", tag = "0.2.7" }
+mitex-spec-gen = { git = "https://github.com/mitex-rs/mitex", tag = "0.2.7", features = ["generate"] }
+typst = "0.15.1"
+typst-layout = "0.15.1"
+typst-render = "0.15.1"
+typst-assets = { version = "0.15.1", features = ["fonts"] }
+# Export: PDF and SVG from the same typesetting, with the system's fonts
+# for the page's text.
+typst-pdf = "0.15.1"
+typst-svg = "0.15.1"
+typst-kit = { version = "0.15.1", default-features = false, features = ["scan-fonts"] }
+# Copy as MathML.
+math-core = "0.8.2"
+# Diagrams: Mermaid without a browser. No ELK (EPL-2.0): every family,
+# SVG with the Cytoscape layouts, and PNG for drawing it.
+merman = { version = "0.8.0", default-features = false, features = ["all-diagrams", "svg", "layout-cytoscape", "png"] }
+# Mermaid's configuration is JSON.
+serde_json = "1"
+# Front matter, which export settings and ${…} variables read.
+yaml-rust2 = "0.13"
+# Watching the open folder (CC0-1.0).
+notify = { version = "8", default-features = false }
+
+[dev-dependencies]
+pulldown-cmark = "0.13"
+
+# Dependencies are optimised in debug builds too: typesetting and highlighting
+# are far too slow without it.
+[profile.dev.package."*"]
+opt-level = 2
+
+[build-dependencies]
+cxx-qt-build = "0.10"

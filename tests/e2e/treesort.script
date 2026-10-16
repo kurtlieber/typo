@@ -1,0 +1,61 @@
+# The file tree's order, which the folder menu picks apart from the
+# articles list's: with Group By Folder, folders and then files, each in
+# that order; without, all together. Picking the order in use turns it
+# around, and each order goes the way it last went while the window is
+# open.
+eval Folder.create("@DIR@/notes", true)
+eval Folder.create("@DIR@/notes/B folder", true)
+wait 50
+write @DIR@/notes/z.md # Z\n
+wait 50
+write @DIR@/notes/a.md # A\n
+wait 50
+write @DIR@/notes/m.md # M\n
+wait 50
+eval Folder.create("@DIR@/notes/c folder", true)
+cmd openPath @DIR@/notes
+wait 300
+cmd sidebarView 2
+wait 200
+check [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,B folder,c folder,a.md,m.md,z.md"
+eval sidebar.footerMenu.popup()
+wait 200
+check sidebar.footerMenu.itemAt(6).checked && sidebar.footerMenu.itemAt(7).checked
+check sidebar.footerMenu.itemAt(9).text === "Sort by Modification Date (Ascending)"
+clickItem sidebar.footerMenu.itemAt(9)
+wait 200
+check [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,B folder,c folder,z.md,a.md,m.md"
+eval sidebar.footerMenu.popup()
+wait 200
+clickItem sidebar.footerMenu.itemAt(9)
+wait 200
+check [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,c folder,B folder,m.md,a.md,z.md"
+eval sidebar.footerMenu.popup()
+wait 200
+check sidebar.footerMenu.itemAt(9).text === "Sort by Modification Date (Descending)" && sidebar.footerMenu.itemAt(9).checked
+shot @SHOT@
+clickItem sidebar.footerMenu.itemAt(6)
+wait 200
+check [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,c folder,m.md,a.md,z.md,B folder"
+eval sidebar.footerMenu.popup()
+wait 200
+check !sidebar.footerMenu.itemAt(6).checked && sidebar.footerMenu.itemAt(9).checked
+clickItem sidebar.footerMenu.itemAt(8)
+wait 200
+check [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,a.md,B folder,c folder,m.md,z.md"
+# The articles list kept its own order, but Modification Date still goes
+# the way it last went.
+cmd sidebarView 1
+wait 200
+check Ui.fileSort === "natural" && !Ui.fileSortDescending && Ui.groupByFolder
+eval sidebar.footerMenu.popup()
+wait 200
+check sidebar.footerMenu.itemAt(6).checked && sidebar.footerMenu.itemAt(9).text === "Sort by Modification Date (Descending)"
+clickItem sidebar.footerMenu.itemAt(9)
+wait 200
+check Ui.fileSort === "modified" && Ui.fileSortDescending
+check sidebar.fileList.itemAtIndex(0).path === "@DIR@/notes/m.md"
+cmd sidebarView 2
+wait 200
+check Ui.treeSort === "name" && !Ui.treeGroupByFolder && [...Array(sidebar.fileTree.count).keys()].map(i => sidebar.fileTree.model.get(i).name).join() === "notes,a.md,B folder,c folder,m.md,z.md"
+dump @OUT@

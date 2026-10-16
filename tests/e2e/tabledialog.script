@@ -1,0 +1,24 @@
+# Insert Table asks for the size first: Columns 3 and Rows 4 (the header
+# included), digits only, Up/Down step within limits, Enter goes from
+# Columns to Rows and then inserts; Escape cancels.
+type Before
+key Ctrl+T
+wait 300
+check tableDialog.opened && tableDialog.columns.text === "3" && tableDialog.rows.text === "4"
+shot @DIR@/dialog.png
+type 2x
+check tableDialog.columns.text === "2"
+key Return
+type 5
+key Down
+check tableDialog.rows.text === "4"
+key Return
+wait 300
+check !tableDialog.opened && view.itemAt(1).table && view.itemAt(1).table.columns === 2
+key Ctrl+T
+wait 300
+check tableDialog.opened
+key Escape
+wait 300
+check !tableDialog.opened && view.itemAt(2) === null
+dump @OUT@

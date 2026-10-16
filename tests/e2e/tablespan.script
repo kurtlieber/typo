@@ -1,0 +1,36 @@
+# Several cells selected, as a drag across them makes Typora's (the
+# browser's) selection: in reading order, the cells between whole. Copy
+# takes it as a table; typing or Backspace replaces what it takes from each
+# cell, keeping every row and column, as one undo step. Shift+click
+# extends from the caret's cell into another.
+write @DIR@/doc.md | a1 | b1 | c1 |\n| --- | --- | --- |\n| a2 | b2 | c2 |\n| a3 | b3 | c3 |\n\nafter\n
+cmd openPath @DIR@/doc.md
+wait 500
+mouse press pointIn(view.itemAt(0).table.cellItem(0, 1).edit, 1)
+mouse move pointIn(view.itemAt(0).table.cellItem(1, 1).edit, 1)
+mouse move pointIn(view.itemAt(0).table.cellItem(2, 1).edit, 1)
+mouse release pointIn(view.itemAt(0).table.cellItem(2, 1).edit, 1)
+wait 100
+check view.itemAt(0).table.cellSpan !== null && view.itemAt(0).table.cellItem(0, 0).edit.selectedText === "" && view.itemAt(0).table.cellItem(0, 1).edit.selectedText === "1" && view.itemAt(0).table.cellItem(1, 0).edit.selectedText === "a2" && view.itemAt(0).table.cellItem(2, 1).edit.selectedText === "b" && view.itemAt(0).table.cellItem(2, 2).edit.selectedText === ""
+shot @DIR@/span.png
+key Ctrl+C
+wait 100
+check Desktop.clipboardMarkdown() === "| 1 | c1 |\n| --- | --- |\n| a2 | b2 | c2 |\n| a3 | b |\n"
+type X
+wait 200
+check view.itemAt(0).table.cellSpan === null && view.itemAt(0).table.cellItem(0, 1).edit.activeFocus && view.itemAt(0).table.cellItem(0, 1).edit.cursorPosition === 2 && view.itemAt(0).table.cellItem(1, 1).edit.text === ""
+key Ctrl+Z
+wait 200
+check view.itemAt(0).table.cellItem(1, 1).edit.text === "b2" && view.itemAt(0).table.cellItem(0, 1).edit.text === "b1"
+key Ctrl+Y
+wait 200
+check view.itemAt(0).table.cellItem(0, 1).edit.text === "bX"
+# Backwards, by Shift+click: from c3 after "c" back to a1 after "a".
+clickCell 0 2 2 1
+wait 100
+clickCell 0 0 0 1 Shift
+wait 100
+check view.itemAt(0).table.cellSpan !== null && view.itemAt(0).table.cellItem(0, 0).edit.activeFocus && view.itemAt(0).table.cellItem(2, 2).edit.selectedText === "c"
+key Backspace
+wait 200
+dump @OUT@

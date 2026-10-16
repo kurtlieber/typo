@@ -1,0 +1,18 @@
+# The context menu works from the keyboard: Paragraph ▸ Heading 2.
+type plain words
+clickText 0 2 Right
+wait 300
+key Down Down Right
+wait 300
+key Down Return
+wait 100
+# Shift+F10 opens it at the caret; in a code block the last entry
+# deletes the block.
+key End
+type \n```\nlet x = 1;
+key Shift+F10
+wait 300
+key Down Down Down Down Down Return
+wait 100
+type after
+dump @OUT@

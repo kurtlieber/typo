@@ -1,0 +1,43 @@
+# Footnote references show their footnote while the pointer is on them;
+# Ctrl+click goes to the definition, whose ↩ links come back. An undefined
+# footnote's tooltip says how to write one and adds it. The Footnotes
+# command inserts `[^]` with the caret in it.
+write @DIR@/doc.md A claim[^src] and another[^src].\n\nUndefined[^missing] here.\n\n[^src]: The source.\n
+cmd openPath @DIR@/doc.md
+wait 500
+check Object.keys(view.footnotes).join() === "src,missing" && view.itemAt(2).references === 2
+hoverText 0 7
+wait 100
+check view.footnoteTip.shown && view.footnoteTip.key === "src" && view.footnoteTip.html.indexOf("The source.") >= 0
+shot @DIR@/tip.png
+# It goes half a second after the pointer leaves.
+hoverText 1 24
+wait 200
+check view.footnoteTip.shown
+wait 600
+check !view.footnoteTip.shown
+# Ctrl+click: to the end of the definition.
+clickText 0 7 Ctrl
+wait 200
+check JSON.stringify(view.selection()) === '{"aRow":2,"aPos":11,"zRow":2,"zPos":11}'
+# The second ↩ goes to the second reference.
+clickItem view.itemAt(2).backLinks.children.filter(c => c.activate)[1]
+wait 200
+check JSON.stringify(view.selection()) === '{"aRow":0,"aPos":25,"zRow":0,"zPos":25}'
+# Undefined: the tooltip's link adds the definition at the end.
+clickText 1 9 Ctrl
+wait 200
+check view.footnoteTip.shown && view.footnoteTip.key === "missing" && view.footnoteTip.html === ""
+shot @DIR@/missing.png
+eval (() => { const t = view.footnoteTip.body; let x = 0; while (x < t.width && t.linkAt(x, t.height / 2) !== "typo:add") x += 2; const p = t.mapToItem(null, x + 3, t.height / 2); Desktop.click(p.x, p.y, "") })()
+wait 300
+check !view.footnoteTip.shown && JSON.stringify(view.selection()) === '{"aRow":3,"aPos":0,"zRow":3,"zPos":0}'
+type Defined.
+# The Footnotes command.
+caret 0 1
+cmd footnote
+type new
+wait 300
+check view.footnotes["new"].def === null
+shot @DIR@/after.png
+dump @OUT@

@@ -1,0 +1,5 @@
+# Dropping a markdown file opens it, as Typora does, instead of inserting it.
+write @DIR@/dropped.md # Dropped\n\ntext
+dropFiles 0 0 @DIR@/dropped.md
+wait 100
+dump @OUT@

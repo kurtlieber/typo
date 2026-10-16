@@ -1,0 +1,50 @@
+# Typora's table trackers. The pointer over a cell puts unseen handles on
+# its row's left border and its column's top border, and over a handle it
+# shows which way that drags. Dragging one moves the row or column: a
+# shaded gap stays, a copy follows, and arrows mark where it would go.
+type | a | b | c |\n
+type 1\t2\t3\t4\t5\t6
+mouse move view.itemAt(0).table.cellPoint(2, 1)
+wait 100
+check view.itemAt(0).table.hoverR === 2 && view.itemAt(0).table.hoverC === 1
+check view.pointer.handle === "" && view.pointer.cursorShape === Qt.IBeamCursor
+mouse move view.itemAt(0).table.handlePoint("row", 2)
+wait 100
+check view.pointer.handle === "row" && view.pointer.cursorShape === Qt.SizeVerCursor
+# Row 2 up to the header's place; the arrows show once it leaves its own.
+mouse press view.itemAt(0).table.handlePoint("row", 2)
+mouse move view.itemAt(0).table.cellPoint(2, 0)
+check view.itemAt(0).table.moving.from === 2 && !view.itemAt(0).table.marking
+mouse move view.itemAt(0).table.cellPoint(0, 0)
+wait 100
+check view.itemAt(0).table.moving.to === 0 && view.itemAt(0).table.marking
+mouse release view.itemAt(0).table.cellPoint(0, 0)
+wait 300
+check view.itemAt(0).table.moving === null && model.markdown().replace(/  +/g, " ").indexOf("| 4 | 5 | 6 |\n| --- | --- | --- |\n| a | b | c |") === 0
+# Column 0 past the right edge: after the last.
+mouse move view.itemAt(0).table.cellPoint(1, 0)
+mouse move view.itemAt(0).table.handlePoint("column", 0)
+wait 100
+check view.pointer.handle === "column" && view.pointer.cursorShape === Qt.SizeHorCursor
+mouse press view.itemAt(0).table.handlePoint("column", 0)
+mouse move view.itemAt(0).table.cellPoint(1, 1)
+check view.itemAt(0).table.moving.to === 1 && !view.itemAt(0).table.marking
+mouse move view.itemAt(0).table.mapToItem(null, view.itemAt(0).table.width + 30, 10)
+check view.itemAt(0).table.moving.to === 3 && view.itemAt(0).table.marking
+shot @SHOT@
+mouse release view.itemAt(0).table.mapToItem(null, view.itemAt(0).table.width + 30, 10)
+wait 300
+check model.markdown().replace(/  +/g, " ").indexOf("| 5 | 6 | 4 |") === 0
+# Each move is one undo step.
+key Ctrl+Z
+wait 300
+check model.markdown().replace(/  +/g, " ").indexOf("| 4 | 5 | 6 |") === 0
+# Dropped on itself, nothing moves.
+mouse move view.itemAt(0).table.cellPoint(1, 1)
+mouse press view.itemAt(0).table.handlePoint("row", 1)
+mouse move view.itemAt(0).table.cellPoint(1, 2)
+mouse release view.itemAt(0).table.cellPoint(1, 2)
+wait 300
+check model.markdown().replace(/  +/g, " ").indexOf("| 4 | 5 | 6 |\n| --- | --- | --- |\n| a | b | c |") === 0
+type x
+dump @OUT@

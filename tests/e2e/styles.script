@@ -1,0 +1,19 @@
+# Format shortcuts wrap the selection in markers.
+type bold
+key Shift+Home Ctrl+B End
+type \nem
+key Shift+Home Ctrl+I End
+type \nunder
+key Shift+Home Ctrl+U End
+type \ncode
+key Shift+Home Ctrl+Shift+` End
+type \nstrike
+key Shift+Home Alt+Shift+5 End
+type \nlink
+key Shift+Home Ctrl+K
+type https://example.com
+# The same shortcut on styled text takes the style off.
+key Down
+type \n**plain**
+key Left Left Left Ctrl+B
+dump @OUT@

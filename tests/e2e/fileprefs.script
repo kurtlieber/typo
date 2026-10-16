@@ -1,0 +1,70 @@
+# Preferences ▸ Files. On launch: a custom folder.
+eval Folder.create("@DIR@/notes", true)
+write @DIR@/notes/a.md # Alpha\n\nFirst.\n
+write @DIR@/notes/b.md # Beta\n\nSecond.\n
+write @DIR@/notes/image.png x
+write @DIR@/notes/.hidden.md hidden
+eval Prefs.launchFolder = "@DIR@/notes"
+eval Prefs.launchAction = 3
+eval launch()
+wait 300
+check folder === "@DIR@/notes" && Ui.sidebar
+# The windows of the last run come back, documents and folders; a window
+# still running (this one) isn't taken.
+write @DIR@/config/typo/session/3999999 @DIR@/notes/b.md\n@DIR@/notes\n
+eval Prefs.launchAction = 2
+eval launch()
+wait 300
+check model.path === "@DIR@/notes/b.md" && !Desktop.exists("@DIR@/config/typo/session/3999999")
+check JSON.parse(Desktop.takeSession()).length === 0 && !Desktop.otherWindowsOpen()
+# New files take the default extension.
+eval Prefs.defaultExtension = "markdown"
+cmd newFileInFolder
+wait 300
+check model.path === "@DIR@/notes/Untitled.markdown"
+key Escape
+wait 100
+check sidebar.renaming === ""
+# The file tree: supported files, then all, hidden ones, custom patterns.
+cmd sidebarView 2
+wait 200
+check sidebar.fileTree.count === 4
+eval Prefs.treeFilter = "all"
+wait 200
+check sidebar.fileTree.count === 5
+eval Prefs.showHiddenFiles = true
+wait 200
+check sidebar.fileTree.count === 6
+eval Prefs.showHiddenFiles = false
+eval Prefs.treePatterns = "!a.md\n*.png"
+eval Prefs.treeFilter = "custom"
+wait 200
+check sidebar.fileTree.count === 4 && sidebar.fileTree.itemAtIndex(2).name === "image.png"
+# The articles list has a filter of its own.
+cmd sidebarView 1
+wait 200
+check sidebar.fileList.count === 3
+eval Prefs.libraryFilter = "all"
+wait 200
+check sidebar.fileList.count === 4
+# Switching files saves without asking.
+eval Prefs.saveOnSwitch = true
+caret 0 0
+type Draft
+wait 100
+eval openInPlace("@DIR@/notes/b.md")
+wait 200
+check !dialog.opened && model.path === "@DIR@/notes/b.md"
+check Desktop.readFile("@DIR@/notes/Untitled.markdown").startsWith("Draft")
+# Dropping a markdown file or a folder inserts a link when asked to.
+eval Prefs.dropMarkdown = 1
+dropFiles 1 7 @DIR@/notes/a.md
+wait 100
+check model.path === "@DIR@/notes/b.md"
+eval Prefs.dropFolder = 1
+key Ctrl+End
+key Return
+wait 100
+dropFiles 2 0 @DIR@/notes
+wait 100
+dump @OUT@

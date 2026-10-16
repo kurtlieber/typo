@@ -1,0 +1,15 @@
+# Keys inside a fence: Enter keeps the indentation, Tab types a tab,
+# Tab over selected lines indents them by four spaces and Shift+Tab takes
+# that back off one line.
+type ```\nif x {\n
+type     y();
+key Return
+type z();\n}
+key Home
+type \t
+key Ctrl+Home
+key Down Shift+Down Shift+Down
+key Tab
+key Up
+key Shift+Tab
+dump @OUT@

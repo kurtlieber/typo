@@ -1,0 +1,14 @@
+# Another program changes the file while it has unsaved edits: typo asks.
+type # Ext\nmine
+choose @OUT@
+key Ctrl+S
+wait 300
+type  plus unsaved
+write @OUT@ # Ext\n\ntheirs\n
+wait 2500
+# Reload takes their version as one undo step, so Undo brings ours back.
+answer 0
+wait 200
+key Ctrl+Z
+wait 200
+dump @OUT@

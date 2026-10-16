@@ -1,0 +1,33 @@
+# HTML blocks draw their markup; a click on one opens its source under the
+# HTML tab, whose ✓ goes on to the next block. Links on the page work as
+# on a page: a <details> summary opens and closes, `#heading` jumps there.
+# Styles show their source, comments their text.
+write @DIR@/doc.md Intro\n\n<div align="center">\n<b>Bold</b> <a href="#end">jump</a>\n</div>\n\n<!-- block comment -->\n\n<details>\n<summary>More</summary>\nHidden text\n</details>\n\n<style>\np { color: red }\n</style>\n\nText <span style="color:red">red</span> and <!-- c -->.\n\n# End\n
+cmd openPath @DIR@/doc.md
+wait 300
+check model.htmlLook(view.itemAt(1).text) === "rendered" && model.htmlLook(view.itemAt(2).text) === "comment" && model.htmlLook(view.itemAt(4).text) === "source"
+check view.itemAt(3).editItem.parent.parent.page.text.indexOf("Hidden") < 0
+# The summary opens its details, and doesn't start editing.
+eval (() => { const h = view.itemAt(3).editItem.parent.parent; const p = h.mapToItem(null, 20, 10); Desktop.click(p.x, p.y, "") })()
+wait 200
+check view.itemAt(3).editItem.parent.parent.toggled.join() === "0" && !view.itemAt(3).editItem.activeFocus
+check view.itemAt(3).editItem.parent.parent.page.text.indexOf("Hidden") > 0
+# Off a link, a click edits the source.
+eval (() => { const h = view.itemAt(1).editItem.parent.parent; const p = h.mapToItem(null, 10, 10); Desktop.click(p.x, p.y, "") })()
+wait 200
+check view.itemAt(1).editItem.activeFocus && view.itemAt(1).editItem.parent.parent.editing
+eval view.itemAt(1).editItem.cursorPosition = view.itemAt(1).editItem.text.indexOf("</div>")
+type <i>new</i>
+wait 100
+shot @DIR@/editing.png
+# Finish Editing goes on to the next block.
+eval (() => { const h = view.itemAt(1).editItem.parent.parent; const p = h.mapToItem(null, h.width - 16, -8); Desktop.click(p.x, p.y, "") })()
+wait 200
+check !view.itemAt(1).editItem.activeFocus && view.itemAt(2).editItem.activeFocus
+check view.itemAt(1).editItem.parent.parent.page.text.indexOf("new") > 0
+# A link to a heading jumps there.
+eval (() => { const h = view.itemAt(1).editItem.parent.parent; let x = 0; while (x < h.width && h.page.linkAt(x, 10) !== "#end") x += 2; const p = h.mapToItem(null, x + 3, 10); Desktop.click(p.x, p.y, "") })()
+wait 200
+check view.itemAt(6).editItem.activeFocus
+shot @DIR@/after.png
+dump @OUT@

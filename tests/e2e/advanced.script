@@ -1,0 +1,43 @@
+# Preferences ▸ General ▸ Advanced Settings: conf.user.json, JSON with
+# comments and trailing commas, read when a window opens. keyBinding gives
+# menu items keys by label ("..." for "…") in Electron's or Qt's names; an
+# item whose keys another is given loses them, and "" takes an item's
+# away. searchService fills the right-click menu's search entries for
+# selected text: the first, the rest under Search With… when there are
+# more than two. autoHideMenuBar hides the menu bar until Alt is tapped.
+write @DIR@/config/typo/conf.user.json /** mine */\n{\n  "keyBinding": {\n    "Strong": "CmdOrCtrl+alt+b", // moved\n    "Emphasis": "Ctrl+U",\n    "Open...": "",\n  },\n  "searchService": [["Search with Google", "https://google.com/search?q=%s"], ["Search with DuckDuckGo", "https://duckduckgo.com/?q=%s"], ["Search with Wikipedia", "https://en.wikipedia.org/wiki/Special:Search?search=%s"]],\n  "autoHideMenuBar": true,\n}\n
+eval loadAdvanced()
+check Prefs.keysFor("Strong", "Ctrl+B") === "Ctrl+Alt+B" && Prefs.keysFor("Emphasis", "Ctrl+I") === "Ctrl+U"
+check Prefs.keysFor("Underline", "Ctrl+U") === "" && Prefs.keysFor("Open…", "Ctrl+O") === "" && Prefs.keysFor("Save", "Ctrl+S") === "Ctrl+S"
+check Prefs.normalKeys("shift+ctrl+=") === "Ctrl+Shift+=" && Prefs.normalKeys("Ctrl++") === "Ctrl++" && Prefs.normalKeys("Alt+PageUp") === "Alt+PgUp"
+# The menu bar shows while Alt is tapped, and goes when tapped again.
+check !menus.visible
+key Alt
+wait 100
+check menus.visible
+key Alt
+wait 100
+check !menus.visible
+type one two three
+drag 0 0 0 7
+clickText 0 2 Right
+wait 300
+check contextMenu.visible && contextMenu.searchText === "one two"
+check contextMenu.searchUrl(0) === "https://google.com/search?q=one%20two"
+check contextMenu.itemAt(0).text === "Search with Google" && contextMenu.itemAt(0).visible && !contextMenu.itemAt(1).visible
+check contextMenu.itemAt(2).visible && contextMenu.itemAt(2).subMenu.count === 2 && contextMenu.itemAt(2).subMenu.itemAt(1).text === "Search with Wikipedia"
+shot @SHOT@
+key Escape
+wait 100
+# No search entries without a selection.
+clickText 0 9 Right
+wait 300
+check contextMenu.visible && contextMenu.searchText === "" && !contextMenu.itemAt(0).visible && !contextMenu.itemAt(2).visible
+key Escape
+# The moved keys: Ctrl+Alt+B makes "one two" strong, Ctrl+U emphasis
+# (Underline gave it up), and Ctrl+B does nothing.
+drag 0 0 0 7
+key Ctrl+Alt+B
+key Ctrl+U
+key Ctrl+B
+dump @OUT@

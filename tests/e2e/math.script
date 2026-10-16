@@ -1,0 +1,15 @@
+# A math block: $$ and Enter open one, Down at its end leaves it for a new
+# paragraph, clicking the typeset formula opens its source again, and the
+# tab's Finish Editing button moves on to the next block.
+type $$\n\frac{a}{b}
+wait 300
+key Down
+type after
+wait 300
+click 600 50
+key End
+type +c
+wait 300
+click 985 58
+type !
+dump @OUT@

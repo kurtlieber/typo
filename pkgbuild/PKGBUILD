@@ -1,0 +1,31 @@
+# Builds typo from this checkout: bin/install runs makepkg here.
+pkgname=typo
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='A native, Typora-style markdown editor for Omarchy'
+arch=('x86_64' 'aarch64')
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-wayland' 'xdg-desktop-portal')
+makedepends=('cargo' 'gcc' 'git' 'typst')
+source=()
+sha256sums=()
+options=('!lto' '!debug')
+
+build() {
+  cd "$startdir/.."
+  cargo build --release --locked
+}
+
+# The release workflow runs this; bin/install skips it (--nocheck).
+check() {
+  cd "$startdir/.."
+  QT_QPA_PLATFORM=offscreen cargo test --release --locked
+}
+
+package() {
+  cd "$startdir/.."
+  install -Dm755 target/release/typo "$pkgdir/usr/bin/typo"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/typo.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/typo.svg"
+  install -Dm644 "$startdir/typo.desktop" "$pkgdir/usr/share/applications/typo.desktop"
+}

@@ -1,0 +1,14 @@
+# Tab over selected list items indents them all.
+type - a\nb\nc\nd
+key Up Up Shift+Down
+key Tab
+# Shift+Tab over a nested item and a top-level one outdents both.
+key Down Shift+Down
+key Shift+Tab
+# Over plain paragraphs Tab types a tab in place of the selection.
+key Down Return Return
+type x\ny
+key Shift+Up
+key Tab
+type z
+dump @OUT@

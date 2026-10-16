@@ -1,0 +1,27 @@
+# A link reference definition is edited in place, drawn as Typora's: the
+# label bold in faint brackets, the URL underlined. Links that use it
+# follow edits to it. Enter after it starts a paragraph; once it no longer
+# parses it is a paragraph, and undo brings it back.
+write @DIR@/doc.md See [the site][typora].\n\n[typora]: https://typora.io "Typora"\n
+cmd openPath @DIR@/doc.md
+wait 400
+check view.itemAt(1).kind === "linkref" && view.itemAt(1).editItem !== null
+check model.linkAt(0, 6) === "https://typora.io"
+caret 1 27
+type /docs
+wait 100
+check model.linkAt(0, 6) === "https://typora.io/docs"
+caret 1 41
+key Return
+type Next.
+wait 100
+check view.itemAt(2).kind === "paragraph" && view.itemAt(2).text === "Next."
+shot @DIR@/defs.png
+caret 1 8
+key BackSpace
+wait 100
+check view.itemAt(1).kind === "paragraph"
+key Ctrl+Z
+wait 100
+check view.itemAt(1).kind === "linkref"
+dump @OUT@

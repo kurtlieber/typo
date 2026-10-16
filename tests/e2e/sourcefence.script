@@ -1,0 +1,30 @@
+# Source Code Mode colours a fence's code as code blocks are coloured, in
+# its language; a fence in a language it doesn't know keeps the code
+# colour, as the fence lines do. Opening a comment re-colours the lines
+# after it, and closing it brings them back. The line just above a setext
+# underline is a header (not the one above that), also as it is typed.
+# The first and last lines and every tenth are numbered, as in Typora.
+write @DIR@/doc.md Two line\nsetext title\n============\n\n```js\nconst x = "s"; // note\nlet y = 2;\n```\n\n```\nplain if else\n```\n
+cmd openPath @DIR@/doc.md
+wait 500
+cmd sourceMode
+wait 300
+eval (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return ["const", "let", "note", "plain", "```js", "Two", "setext"].map(w => w + " " + h.inkAt(t.indexOf(w))).join(", ") })()
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("const") === at("let") && at("const") !== at("plain") && at("note") !== at("const") && at("plain") === at("```js") })()
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("setext") !== at("Two") && at("setext") === at("====") })()
+eval sourceView.edit.cursorPosition = sourceView.edit.text.indexOf("const")
+type /* 
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("let") === at("note") && at("let") === at("/*") })()
+key BackSpace BackSpace BackSpace
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return t.indexOf("/*") < 0 && at("let") === at("const") && at("let") !== at("note") })()
+eval sourceView.edit.cursorPosition = sourceView.edit.length
+type New head\n---
+wait 100
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("New head") === at("setext") })()
+# Lines 1 and 10 and the last, 14, are numbered, and the caret's.
+wait 100
+check sourceView.numbered.map(m => m.n).join() === "0,9,13" && sourceView.highlighter.lineNumberAt(sourceView.edit.cursorPosition) === 13
+shot @SHOT@
+cmd sourceMode
+wait 300
+dump @OUT@

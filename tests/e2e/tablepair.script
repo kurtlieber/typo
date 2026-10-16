@@ -1,0 +1,13 @@
+# Auto-pairing works in table cells as in paragraphs: an opener adds its
+# closer, typing the closer steps over it, Backspace between them removes
+# both.
+write @DIR@/doc.md | a | b |\n| --- | --- |\n| c | d |\n
+cmd openPath @DIR@/doc.md
+wait 400
+clickCell 0 1 1 1
+type  (x
+check view.itemAt(0).table.cellItem(1, 1).edit.text === "d (x)"
+type )y [
+key BackSpace
+check view.itemAt(0).table.cellItem(1, 1).edit.text === "d (x)y "
+dump @OUT@

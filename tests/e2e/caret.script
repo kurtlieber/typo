@@ -1,0 +1,15 @@
+# Arrows cross block edges; Up and Down keep the caret's column.
+type abc\ndef
+key Up
+type X
+key Down Down
+type Y
+key Up Up Up
+type Z
+key Ctrl+End
+type \n- item
+key Left Left Left Left Left
+type <
+key Ctrl+Home Right Right Right Right Right Right
+type >
+dump @OUT@

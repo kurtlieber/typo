@@ -1,0 +1,21 @@
+# Brackets and quotes pair as you type; typing the closer steps over it.
+type call(x) and [a] "q" done
+# An opener right before a word does not pair.
+type \nword
+key Home
+type (
+# Backspace in an empty pair removes both halves.
+key End
+type \nx (
+key Backspace
+type y
+# An apostrophe inside a word stays single.
+type \ndon't
+# With "auto pair markdown syntax" on, markers pair too.
+eval Prefs.autoPairMarkdown = true
+type \n**bold** and *em* and `code`
+# `* ` still starts a list.
+type \n* item\n\n
+# Code blocks follow CodeMirror's rules.
+type ```\nf(a, "s")
+dump @OUT@

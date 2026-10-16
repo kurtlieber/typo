@@ -1,0 +1,51 @@
+# Math's copies: Copy as Tex gives a formula's TeX, Copy as MathML its
+# MathML, Copy as Image the picture. Right-clicking math leaves only those
+# in Copy / Paste As…; a ```math fence adds Copy as Image to the usual
+# ones. Numbering all equations numbers the \[ \] block, and \eqref reads
+# its number.
+write @DIR@/doc.md \[\nx^2 \label{sq}\n\]\n\nsee \(\eqref{sq}\) and $y$\n\n```math\nE=mc^2\n```\n
+cmd openPath @DIR@/doc.md
+wait 300
+eval Prefs.mathNumbering = "all"
+wait 300
+check view.mathRows[0][0] === "(1)" && view.mathRows[2][0] === "(2)"
+check Ui.mathTex("see \\eqref{sq} \\ref{no}") === "see \\text{(1)} \\text{???}"
+clickText 0 0 Right
+wait 300
+check contextMenu.inMath && contextMenu.math.display
+key Escape
+cmd copyMathTex
+check Desktop.clipboardText() === "x^2 \\label{sq}"
+cmd copyMathML
+check Desktop.clipboardText().indexOf("<msup>") > 0 && Desktop.clipboardText().indexOf("<mtext>(1)</mtext>") > 0
+cmd copyMathImage
+check Desktop.saveClipboardImage("@DIR@/clip") !== ""
+clickText 1 8 Right
+wait 300
+check contextMenu.inMath && !contextMenu.math.display
+key Escape
+cmd copyMathTex
+check Desktop.clipboardText() === "\\eqref{sq}"
+caret 1 21
+check model.mathAt(1, 21) === ""
+clickText 2 0 Right
+wait 300
+check contextMenu.math.fence && !contextMenu.inMath
+key Escape
+cmd copyMathTex
+check Desktop.clipboardText() === "E=mc^2"
+# Without LaTeX delimiters, \[ \] is a paragraph and \( \) escapes; the
+# file is as saved as it was. Without code block math, ```math is code.
+eval Prefs.latexDelimiters = false
+wait 200
+check model.mathAt(0, 0) === "" && model.mathAt(1, 8) === "" && !model.modified
+check view.mathRows[0] === undefined && view.mathRows[2][0] === "(1)"
+eval Prefs.mathFences = false
+wait 200
+check view.mathRows[2] === undefined && Ui.mathTex("\\eqref{sq}") === "\\text{(???)}"
+eval Prefs.latexDelimiters = true
+eval Prefs.mathFences = true
+wait 200
+check model.mathAt(0, 0) !== "" && view.mathRows[0][0] === "(1)" && !model.modified
+eval Prefs.mathNumbering = ""
+dump @OUT@

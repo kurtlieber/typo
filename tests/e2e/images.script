@@ -1,0 +1,14 @@
+# A paragraph of one image shows the image instead of its source, and a
+# click on the image puts the caret back in the source, at its end.
+write @OUT@.svg <svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#3a7"/></svg>
+type # Images\n
+choose @OUT@
+key Ctrl+S
+wait 300
+type ![pic](images.md.svg)\nafter
+wait 600
+click 600 160
+type !
+wait 100
+shot @SHOT@
+dump @OUT@

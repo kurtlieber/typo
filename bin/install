@@ -1,0 +1,8 @@
+#!/bin/sh
+# Build the release package and install it, so typo is on the PATH and in
+# the Omarchy launcher: bin/install [makepkg options].
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$ROOT/pkgbuild"
+exec makepkg -fsi --noconfirm --nocheck "$@"

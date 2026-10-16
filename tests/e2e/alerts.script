@@ -1,0 +1,19 @@
+# A quote that opens with [!TIP] is an alert: a coloured bar, the icon and
+# title over its text, the marker shown only with the caret on it. Typing
+# after the marker makes it a plain quote again.
+write @DIR@/doc.md > [!TIP]\n> Advice.\n\n> [!warning]\n> Careful.\n\n> Plain quote.\n
+cmd openPath @DIR@/doc.md
+wait 400
+check view.itemAt(0).alert === "tip" && view.itemAt(0).alertTitle && view.itemAt(1).alert === "warning" && view.itemAt(2).alert === ""
+check view.itemAt(0).labelWidth > 0 && view.itemAt(2).labelWidth === 0
+shot @DIR@/alerts.png
+caret 0 6
+type  x
+wait 300
+check view.itemAt(0).alert === "" && !view.itemAt(0).alertTitle
+key BackSpace BackSpace
+wait 300
+check view.itemAt(0).alert === "tip"
+caret 0 14
+type  More.
+dump @OUT@

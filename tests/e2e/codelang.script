@@ -1,0 +1,12 @@
+# A fence's code language box: click it, type part of a name, Enter takes
+# the first suggestion and returns to the code.
+type ```js\nlet a = 1
+wait 200
+clickItem view.itemAt(0).body.languageBox
+key End
+key Backspace Backspace
+type pyth
+wait 100
+key Return
+type  # x
+dump @OUT@

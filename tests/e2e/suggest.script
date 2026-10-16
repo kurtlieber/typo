@@ -1,0 +1,5 @@
+# Save As names an untitled document after its first heading, even
+# straight after it was typed.
+type # Quick name\nx
+check suggestedName() === "Quick name.md"
+dump @OUT@

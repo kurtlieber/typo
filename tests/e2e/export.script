@@ -1,0 +1,48 @@
+# File → Export: each format through the save dialog, written in the
+# background under "Exporting in progress...", then "Export operation
+# finished successfully." with Reveal in File Explorer. A name without an
+# extension gets the format's. Export with Previous asks again for the
+# last format; Export and Overwrite with Previous writes the same file
+# again once the user agrees. pandoc writes Word and the other formats. A
+# file that can't be written fails.
+type # Export\nSome **bold** text.\n- [x] done
+choose @OUT@
+key Ctrl+S
+choose @DIR@/page
+cmd export html
+wait 1500
+check Desktop.exists("@DIR@/page.html")
+check notice.visible && !notice.busy && notice.title === "Export operation finished successfully."
+check notice.actionButton.visible && !notice.neverBox.visible
+shot @SHOT@
+choose @DIR@/plain.htm
+cmd export html-plain
+wait 1500
+check Desktop.exists("@DIR@/plain.htm") && !Desktop.exists("@DIR@/plain.htm.html")
+choose @DIR@/doc
+cmd export pdf
+wait 8000
+check Desktop.exists("@DIR@/doc.pdf")
+choose @DIR@/pic
+cmd export image
+wait 8000
+check Desktop.exists("@DIR@/pic.png")
+choose @DIR@/pic.jpg
+cmd exportPrevious
+wait 8000
+check Desktop.exists("@DIR@/pic.jpg")
+check Prefs.lastExport === "image" && win.lastExport.path === "@DIR@/pic.jpg"
+eval Desktop.moveToTrash("@DIR@/pic.jpg")
+cmd exportOverwrite
+answer 0
+wait 8000
+check Desktop.exists("@DIR@/pic.jpg")
+choose @DIR@/doc
+cmd export docx
+wait 5000
+check Desktop.exists("@DIR@/doc.docx")
+choose @DIR@/missing/x.html
+cmd export html
+wait 1500
+check notice.title === "Export Failed" && notice.body.indexOf("Could not write") === 0
+dump @OUT@

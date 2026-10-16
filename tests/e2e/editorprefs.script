@@ -1,0 +1,73 @@
+# Preferences ▸ Editor ▸ Default Line Ending: what a new document gets,
+# the untitled one already open included, without changing it.
+eval Prefs.defaultLineEnding = "crlf"
+check model.crlf && !model.modified
+eval Prefs.defaultLineEnding = "lf"
+check !model.crlf && !model.modified
+# Headings, lists and quotes made from the menu or by typing follow
+# Preferences ▸ Markdown ▸ Syntax Preference and the indent size.
+eval Prefs.headingStyle = 1
+eval Prefs.bulletMarker = "*"
+eval Prefs.orderedSame = true
+eval Prefs.indentSize = 4
+eval Prefs.prettyIndent = true
+type Title\nItem
+caret 0 0
+cmd heading 1
+caret 1 4
+cmd list bullet
+type \nSub\t\n\n\nFirst
+cmd list ordered
+type \nSecond\n\n
+type Quoted
+cmd quote
+type \n\n
+eval Prefs.headingStyle = 3
+type Sub title
+cmd heading 2
+type \n
+eval Prefs.headingStyle = 2
+type Closed
+cmd heading 2
+type \nDeep
+cmd heading 3
+type \n
+# Display source on focus: a heading's marks show while the caret is in it.
+eval Prefs.showSourceOnFocus = true
+caret 0 2
+wait 100
+check view.itemAt(0).headingSource && view.itemAt(0).labelWidth > 0
+caret 1 0
+wait 100
+check !view.itemAt(0).headingSource
+eval Prefs.showSourceOnFocus = false
+# Copy and cut with nothing selected take the whole line: in a code block
+# the caret's line, elsewhere the block.
+eval Prefs.lineWiseCopy = true
+cmd jumpBottom
+type Gone\nLast
+key Up
+key Ctrl+C
+saveClipboard @DIR@/clip.txt
+check Desktop.readFile("@DIR@/clip.txt").trim() === "Gone"
+key Ctrl+X
+wait 100
+cmd jumpBottom
+type \n```\none\ntwo\nthree
+key Up
+key Ctrl+C
+saveClipboard @DIR@/clip.txt
+check Desktop.readFile("@DIR@/clip.txt") === "two\n"
+key Ctrl+X
+type x
+# The same in source mode.
+cmd sourceMode
+wait 200
+cmd jumpBottom
+key Up Up
+key Ctrl+X
+saveClipboard @DIR@/clip.txt
+check Desktop.readFile("@DIR@/clip.txt") === "xthree\n"
+cmd sourceMode
+wait 200
+dump @OUT@

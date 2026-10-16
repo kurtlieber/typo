@@ -1,0 +1,83 @@
+# Preferences ▸ Markdown ▸ Whitespace and Line Breaks, Code Fences and
+# Math, on a document with the blocks they touch.
+write @DIR@/doc.md first\n\nsecond line\nwith a break and a <br> tag\n\n- item\n\n```\nshort\n```\n\n$x^2$ math\n\nA\n\nB\n\nC\n
+cmd openPath @DIR@/doc.md
+wait 300
+# Indent first line: paragraphs by 2em, not list items, which move in by
+# as much instead.
+check view.itemAt(0).paraIndent === 0
+eval Prefs.indentFirstLine = true
+wait 100
+check view.itemAt(0).paraIndent > 0 && view.itemAt(1).paraIndent > 0 && view.itemAt(2).paraIndent === 0
+check view.itemAt(2).indent > 30 * Ui.zoom
+shot @SHOT@
+eval Prefs.indentFirstLine = false
+# Visible <br/> off: a <br> tag goes, away from the caret, leaving only
+# the room of its unseen ">" so the words around it stay apart.
+check view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x > 20
+eval Prefs.visibleBr = false
+wait 100
+check view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x > 4 && view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x < 14
+eval Prefs.visibleBr = true
+# Code fences without line wrapping: a long line scrolls sideways.
+caret 3 5
+type , and a long line of code that goes on and on, well past the right edge of the window, and then some more after that, and still more again until it is far too long
+check view.editAt(3).lineCount > 1
+eval Prefs.codeWrap = false
+wait 100
+check view.editAt(3).lineCount === 1 && view.editAt(3).width > view.itemAt(3).width
+eval Prefs.codeWrap = true
+wait 100
+check view.editAt(3).lineCount > 1
+# Code indent size 2: Tab and Shift+Tab over selected lines.
+eval Prefs.codeIndentSize = 2
+eval view.editAt(3).select(0, 5)
+key Tab
+check view.editAt(3).text.startsWith("  short")
+key Shift+Tab
+check view.editAt(3).text.startsWith("short")
+key Tab
+eval Prefs.codeIndentSize = 4
+# Math copied as HTML: rendered SVG, or its TeX with Use LaTeX Source.
+eval Prefs.inlineMath = true
+eval view.select(4, 0, 4, 10)
+cmd copyHtml
+check Desktop.clipboardText().indexOf("<svg") >= 0
+eval Prefs.mathCopyFormat = "latex"
+cmd copyHtml
+check Desktop.clipboardText().indexOf('<span class="math math-inline">x^2</span>') >= 0
+# Export / Print preserving single line breaks; HTML without styles
+# writes math as the copy format says.
+eval Prefs.exportLineBreaks = true
+choose @DIR@/plain.html
+cmd export html-plain
+wait 1500
+check Desktop.readFile("@DIR@/plain.html").indexOf("second line<br/>") > 0 && Desktop.readFile("@DIR@/plain.html").indexOf("$x^2$") > 0
+eval Prefs.exportLineBreaks = false
+eval Prefs.mathCopyFormat = "svg"
+eval Prefs.inlineMath = false
+# The default code language: after a typed fence's third backtick,
+# selected to type over; from the menu; the last one used; the front
+# matter's.
+eval Prefs.defaultCodeLang = "js"
+caret 5 1
+type \n``
+type `
+check view.editAt(6).selectedText === "js"
+type py\nx
+eval Prefs.defaultCodeLangWhen = 2
+eval Prefs.defaultCodeLang = "__LAST"
+check model.codeLangSuggestion(false) === "" && model.codeLangSuggestion(true) === "py"
+caret 7 1
+cmd codeBlock
+type y
+eval Prefs.defaultCodeLangWhen = 3
+cmd frontMatter
+type defaultCodeLang: rust
+check model.codeLangSuggestion(true) === "rust"
+cmd jumpBottom
+cmd codeBlock
+type z
+eval Prefs.defaultCodeLangWhen = 1
+eval Prefs.defaultCodeLang = ""
+dump @OUT@

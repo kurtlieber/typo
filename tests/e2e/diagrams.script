@@ -1,0 +1,30 @@
+# Diagram fences: ```mermaid draws its code in a bordered panel under it
+# while the caret is in it, and only the drawing once the caret leaves.
+# A broken diagram says what is wrong, as Typora words it; ```flow and
+# ```sequence are drawn too.
+type ```mermaid\ngraph TD\nA-->B
+wait 2000
+check view.itemAt(0).body.diagramFence && !view.itemAt(0).body.folded
+check view.itemAt(0).body.diagramView.good !== "" && view.itemAt(0).body.diagramView.error === ""
+shot @DIR@/open.png
+key Down
+type after
+wait 300
+check view.itemAt(0).body.folded && view.itemAt(0).body.height > 100
+shot @DIR@/folded.png
+caret 0 13
+type  -->
+wait 2000
+check view.itemAt(0).body.diagramView.error.indexOf("ERROR: [Mermaid] ") === 0
+check view.itemAt(0).body.diagramView.good === ""
+key BackSpace BackSpace BackSpace BackSpace
+key Ctrl+End
+type \n```flow\nst=>start: Go\ne=>end\nst->e
+wait 2000
+check view.itemAt(2).body.diagramView.good !== ""
+key Down
+type ```sequence\nA->B: hi
+wait 2000
+check view.itemAt(3).body.diagramView.good !== ""
+shot @DIR@/all.png
+dump @OUT@

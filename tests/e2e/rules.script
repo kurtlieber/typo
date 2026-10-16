@@ -1,0 +1,11 @@
+# Block syntax typed and finished with Enter becomes that block.
+# `---` on the first line opens front matter; Down leaves a code-like block
+# at the end of the document through a new paragraph.
+type ---\ntitle: x
+key Down
+type # A\n[toc]\npara\n---\n$$\nx^2
+key Down
+type 3. three\nfour\n\n* star\nnext\n\n```rust\nfn main() {}
+key Down
+type |a|b|\n
+dump @OUT@

@@ -1,0 +1,21 @@
+# Right-clicking an image opens the menu on its image group, as in
+# Typora: Open Image Location…, Copy Image to…, Rename or Move Image to…,
+# Zoom Image, Switch Image Syntax and Delete Image File come first.
+# Zoom Image ▸ 50% from the keyboard zooms it.
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"/>
+write @DIR@/doc.md see ![cat](cat.svg) here\n
+cmd openPath @DIR@/doc.md
+wait 300
+clickText 0 6 Right
+wait 300
+check contextMenu.image !== null && contextMenu.image.syntax === "markdown"
+# The search entries (0–3) are for text.
+check !contextMenu.itemAt(0).visible && !contextMenu.itemAt(2).visible && !contextMenu.itemAt(3).visible
+check contextMenu.itemAt(4).visible && contextMenu.itemAt(4).text === "Open Image Location…"
+check !contextMenu.itemAt(5).visible && !contextMenu.itemAt(6).visible
+check contextMenu.itemAt(7).visible && contextMenu.itemAt(9).visible
+key Down Down Down Down Right
+wait 300
+key Down Down Return
+wait 100
+dump @OUT@

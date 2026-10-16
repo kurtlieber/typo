@@ -1,0 +1,30 @@
+# Preferences ▸ Image: relative paths, with "./", escaped, or absolute.
+choose @OUT@
+key Ctrl+S
+eval Folder.create("@DIR@/sub", true)
+write @DIR@/sub/my cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+choose @DIR@/sub/my cat.svg
+cmd insertImages
+key End
+type \n
+eval Prefs.imageWithDot = true
+eval Prefs.imageEscape = true
+choose @DIR@/sub/my cat.svg
+cmd insertImages
+key End
+type \n
+check model.markdown() === "![my cat](sub/my cat.svg)\n\n![my cat](./sub/my%20cat.svg)\n"
+eval Prefs.imageRelative = false
+eval Prefs.imageEscape = false
+choose @DIR@/sub/my cat.svg
+cmd insertImages
+wait 100
+check model.markdown().includes("](@DIR@/sub/my cat.svg)") || model.markdown().includes("](<@DIR@/sub/my cat.svg>)")
+key Ctrl+A
+key Ctrl+A
+key Backspace
+eval Prefs.imageRelative = true
+choose @DIR@/sub/my cat.svg
+cmd insertImages
+wait 100
+dump @OUT@

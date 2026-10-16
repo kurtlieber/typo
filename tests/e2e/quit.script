@@ -1,0 +1,9 @@
+# Quit reaches this window over the session bus like any other; an edited
+# document asks, and Cancel keeps the window and its text.
+type # Quit\nkept
+key Ctrl+Q
+wait 500
+answer 2
+wait 200
+type  open
+dump @OUT@

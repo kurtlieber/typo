@@ -1,0 +1,110 @@
+# Files dragged onto the file tree move into the folder under the pointer,
+# as Typora's: a folder's row marks it, and one with something in it opens
+# after a second there. Each move asks first ("Do not show this again"
+# stops that), a name already there asks whether to keep both or replace,
+# and the move can be undone. Dropping a file where it already is, or a
+# folder into itself, does nothing. Files dropped on the articles list
+# move into the open folder; one opens when the window held an empty
+# Untitled. Deleting asks with "Do not show this again" too.
+eval Folder.create("@DIR@/notes", true)
+eval Folder.create("@DIR@/notes/box", true)
+eval Folder.create("@DIR@/notes/full", true)
+write @DIR@/notes/full/inner.md # Inner\n
+write @DIR@/notes/a.md # A\n
+write @DIR@/notes/b.md # B\n
+write @DIR@/notes/box/b.md # Other B\n
+write @DIR@/outside.md # Outside\n
+write @DIR@/c.md # Old C\n
+write @DIR@/notes/c.md # New C\n
+write @DIR@/d.md # D\n
+cmd openPath @DIR@/notes
+wait 300
+cmd sidebarView 2
+wait 200
+check sidebar.fileTree.count === 6 && !sidebar.fileTree.expanded["@DIR@/notes/full"]
+# Over a folder: marked at once, open after a second.
+dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/full")
+wait 300
+check sidebar.fileTree.marked === "@DIR@/notes/full" && !sidebar.fileTree.expanded["@DIR@/notes/full"]
+wait 1000
+check sidebar.fileTree.expanded["@DIR@/notes/full"] === true && sidebar.fileTree.count === 7
+# Over a file inside it, the mark stays; over one outside, it goes.
+dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/full/inner.md")
+check sidebar.fileTree.marked === "@DIR@/notes/full"
+dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/b.md")
+check sidebar.fileTree.marked === ""
+dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/box")
+check sidebar.fileTree.marked === "@DIR@/notes/box"
+shot @SHOT@
+dragFiles drop @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/box")
+wait 200
+check sidebar.fileTree.marked === "" && dialog.visible && dialog.text === "Are you sure you want to move a.md?"
+check dialog.checkBox.visible && dialog.checkBox.text === "Do not show this again" && dialog.buttons.join() === "OK,Cancel"
+answer 0
+wait 300
+check Desktop.exists("@DIR@/notes/box/a.md") && !Desktop.exists("@DIR@/notes/a.md")
+check sidebar.undoLabel === "Move a.md" && !Prefs.noWarningForMoveFile
+# A name already there: Keep Both, after never asking again.
+dragFiles drop @DIR@/notes/b.md sidebar.fileTree.pointOf("@DIR@/notes/box")
+wait 200
+eval dialog.checkBox.checked = true
+answer 0
+wait 200
+check Prefs.noWarningForMoveFile && dialog.visible && dialog.text === "File/directory already exists at target path."
+check dialog.buttons.join() === "Keep Both,Replace,Cancel" && dialog.defaultButton === 1 && !dialog.checkBox.visible
+answer 0
+wait 300
+check Desktop.readFile("@DIR@/notes/box/b (copy).md") === "# B\n" && Desktop.readFile("@DIR@/notes/box/b.md") === "# Other B\n"
+check sidebar.undoLabel === "Move b.md"
+# The open document follows its file, and back with Undo.
+eval sidebar.open("@DIR@/notes/box/a.md")
+wait 300
+dragFiles drop @DIR@/notes/box/a.md sidebar.fileTree.pointOf("@DIR@/notes/full/inner.md")
+wait 300
+check !dialog.visible && model.path === "@DIR@/notes/full/a.md"
+eval sidebar.undo()
+wait 300
+check model.path === "@DIR@/notes/box/a.md" && Desktop.exists("@DIR@/notes/box/a.md")
+# Where it already is, or a folder into itself: nothing.
+dragFiles drop @DIR@/notes/box/a.md sidebar.fileTree.pointOf("@DIR@/notes/box/b.md")
+wait 200
+dragFiles drop @DIR@/notes/full sidebar.fileTree.pointOf("@DIR@/notes/full/inner.md")
+wait 200
+check !dialog.visible && Desktop.exists("@DIR@/notes/box/a.md") && Desktop.exists("@DIR@/notes/full/inner.md")
+# From another program; Replace takes the place of the one there and
+# leaves the undo as it was.
+dragFiles drop @DIR@/outside.md sidebar.fileTree.pointOf("@DIR@/notes")
+wait 300
+check Desktop.exists("@DIR@/notes/outside.md") && !Desktop.exists("@DIR@/outside.md")
+eval sidebar.undoOp = null
+dragFiles drop @DIR@/c.md sidebar.fileTree.pointOf("@DIR@/notes/c.md")
+wait 200
+answer 1
+wait 300
+check Desktop.readFile("@DIR@/notes/c.md") === "# Old C\n" && !Desktop.exists("@DIR@/c.md") && sidebar.undoOp === null
+# The articles list: into the open folder, asking again (its own
+# setting), and an empty Untitled gives way to the file.
+cmd sidebarView 1
+wait 200
+eval sidebar.app.editor.newDocument()
+wait 200
+dragFiles over @DIR@/d.md sidebar.fileList.mapToItem(null, 100, 200)
+check sidebar.fileList.children.some(c => c.border && c.border.width === 2 && c.visible)
+dragFiles drop @DIR@/d.md sidebar.fileList.mapToItem(null, 100, 200)
+wait 200
+check dialog.visible && dialog.text === "Are you sure you want to move d.md?"
+answer 0
+wait 400
+check Desktop.exists("@DIR@/notes/d.md") && model.path === "@DIR@/notes/d.md"
+# Delete: never asking again.
+eval sidebar.remove("@DIR@/notes/outside.md")
+wait 200
+check dialog.visible && dialog.checkBox.visible
+eval dialog.checkBox.checked = true
+answer 0
+wait 300
+check Prefs.noWarningForDeleteFile && !Desktop.exists("@DIR@/notes/outside.md")
+eval sidebar.remove("@DIR@/notes/c.md")
+wait 300
+check !dialog.visible && !Desktop.exists("@DIR@/notes/c.md")
+dump @OUT@

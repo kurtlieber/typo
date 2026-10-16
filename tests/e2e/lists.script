@@ -1,0 +1,12 @@
+# Typing a marker starts a list; Enter continues it, Enter on an empty item
+# ends it, Tab and Shift+Tab nest and un-nest.
+type - a\nb
+key Tab
+type \nc
+key Shift+Tab
+type \nd\n\nafter list\n
+type 1. one\ntwo\n\n
+type - [ ] todo\ndone
+cmd task done
+type \n\n> q1\nq2\n\nafter quote
+dump @OUT@

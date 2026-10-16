@@ -1,0 +1,19 @@
+# Inline images and formulas show in the line once they load. Text after
+# one is still where a click puts the caret, and the arrow keys walk into a
+# formula's source to edit it.
+write @OUT@.svg <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#3a7"/></svg>
+cmd pref inlineMath
+type # Inline\n
+choose @OUT@
+key Ctrl+S
+wait 300
+type a ![i](inline.md.svg) b $x$ c
+wait 600
+clickText 1 22
+type B
+wait 300
+key End Left Left Left
+type ^2
+wait 300
+shot @SHOT@
+dump @OUT@

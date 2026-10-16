@@ -1,0 +1,32 @@
+# Inserting files: Insert Local Images, a drop and a paste. Images go in as
+# `![name](path)` relative to the saved document, a space apart from text
+# before them, each after the first in a paragraph of its own; other files
+# as links. With "Copy image to ./assets" the image is copied, once asked
+# to create the folder, and a pasted picture is saved there.
+choose @OUT@
+key Ctrl+S
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+write @DIR@/dog.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
+write @DIR@/paper.pdf not really
+type Pets:
+choose @DIR@/cat.svg\n@DIR@/dog.svg
+cmd insertImages
+type \nsee
+dropFiles 2 3 @DIR@/paper.pdf
+key End
+type \n
+clipboardFiles @DIR@/dog.svg
+key Ctrl+V
+eval Prefs.imageInsertAction = 2
+key End
+type \n
+choose @DIR@/cat.svg
+cmd insertImages
+wait 100
+answer 0
+key End
+type \n
+clipboardImage @DIR@/dog.svg
+key Ctrl+V
+wait 100
+dump @OUT@

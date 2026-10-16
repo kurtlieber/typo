@@ -1,0 +1,20 @@
+# A header row typed with pipes becomes a table, the caret under it.
+type | a | b |\n
+type 1\t2
+# The toolbar above the table: centre the column, resize to 3×4 on the
+# board, delete the table; undo brings it back with the caret in its cell.
+clickItem view.itemAt(0).table.button("alignCenter")
+wait 100
+type x
+clickItem view.itemAt(0).table.button("menu")
+wait 300
+clickItem view.itemAt(0).table.square(3, 4)
+wait 300
+type y
+clickItem view.itemAt(0).table.button("trash")
+wait 300
+type gone
+key Ctrl+Z Ctrl+Z
+wait 300
+type z
+dump @OUT@

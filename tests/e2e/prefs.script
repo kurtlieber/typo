@@ -1,0 +1,42 @@
+# File ▸ Preferences… (Ctrl+,) opens Typora's panel over the window. Search
+# moves to the first section with a match and says when nothing matches;
+# Escape clears it, then closes the panel. Global Image Settings… opens on
+# Image with its group marked. Controls write the preferences.
+write @DIR@/doc.md # Title\n\nText.\n
+cmd openPath @DIR@/doc.md
+wait 300
+key Ctrl+,
+wait 400
+check Ui.prefsOpen && Ui.prefsSection === 0
+shot @DIR@/prefs.png
+type line ending
+wait 400
+check Ui.prefsSection === 1 && Ui.prefsQuery === "line ending"
+type zzz
+wait 400
+check Ui.prefsSection === -1
+key Escape
+wait 300
+check Ui.prefsOpen && Ui.prefsQuery === "" && Ui.prefsSection === 0
+# Auto Save, which also saves on switching files.
+click 527 428
+wait 200
+check Prefs.autoSave
+key Escape
+wait 300
+check !Ui.prefsOpen
+cmd preferences image
+wait 400
+check Ui.prefsOpen && Ui.prefsSection === 2 && Ui.prefsHighlight === "image-setting-group"
+shot @DIR@/image.png
+# Appearance: the status bar.
+click 90 385
+wait 300
+check Ui.prefsSection === 5
+click 527 416
+wait 200
+check !Ui.statusBar
+cmd preferences
+wait 300
+check !Ui.prefsOpen
+dump @OUT@

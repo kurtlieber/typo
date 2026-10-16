@@ -1,0 +1,44 @@
+# Typing `:` and a word lists matching emoji under the caret, none chosen
+# until Down; Enter or a click writes the shortcode, Escape closes the
+# list, and Enter with none chosen breaks the line as usual.
+type I am :smi
+wait 200
+check view.emojiSuggest.shown && view.emojiSuggest.index === -1 && view.emojiSuggest.matches[0][0] === "smile"
+check view.emojiSuggest.height < 6 * view.emojiSuggest.rowHeight
+shot @DIR@/emoji.png
+key Down Down
+check view.emojiSuggest.index === 1
+key Up
+check view.emojiSuggest.index === 0
+key Return
+wait 200
+check !view.emojiSuggest.shown && view.editAt(0).text === "I am :smile:" && view.editAt(0).cursorPosition === 12
+check view.itemAt(0).body.objects.length === 1 && view.itemAt(0).body.objects[0].kind === "emoji" && view.itemAt(0).body.objects[0].src === "😄"
+type  ok :ta
+wait 200
+check view.emojiSuggest.shown
+key Escape
+check !view.emojiSuggest.shown
+type d
+wait 200
+check view.emojiSuggest.shown && view.emojiSuggest.matches[0][0] === "tada"
+clickItem view.emojiSuggest.list.itemAtIndex(0)
+wait 200
+check !view.emojiSuggest.shown && view.editAt(0).cursorPosition === view.editAt(0).length
+type  :zzzq
+wait 200
+check !view.emojiSuggest.shown
+type  :smi
+wait 200
+check view.emojiSuggest.shown
+key Left Left Left Left
+check !view.emojiSuggest.shown
+key End
+type l
+wait 200
+check view.emojiSuggest.shown && view.emojiSuggest.matches[0][0].startsWith("smil")
+key Return
+wait 200
+check !view.emojiSuggest.shown
+type end
+dump @OUT@

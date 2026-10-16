@@ -1,0 +1,19 @@
+# Typora's footer: the sidebar toggle is a ring while the sidebar is
+# hidden and a chevron while it shows; Source Code Mode has none, and its
+# button says "Exit Source Code Mode" there, shaded.
+type Some text
+check footer.sidebarButton.visible && !Ui.sidebar
+clickItem footer.sidebarButton
+wait 300
+check Ui.sidebar
+clickItem footer.sourceButton
+wait 300
+check Ui.sourceMode && !footer.sidebarButton.visible && footer.sourceButton.shaded && !footer.wordCount.visible
+shot @SHOT@
+clickItem footer.sourceButton
+wait 300
+check !Ui.sourceMode && footer.sidebarButton.visible && !footer.sourceButton.shaded
+clickItem footer.sidebarButton
+wait 300
+check !Ui.sidebar
+dump @OUT@

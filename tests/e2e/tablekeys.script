@@ -1,0 +1,36 @@
+type above\n
+key Ctrl+T
+wait 300
+# The dialog: 3 columns, 3 rows.
+key Return
+type 3
+key Return
+wait 300
+type h1\th2\th3\ta\tb\tc\td\te\tf
+# Down out of the last row opens a paragraph; Up comes back into the last
+# row at the caret's column.
+key Down
+wait 100
+type below
+key Home Up
+wait 100
+key End
+type !
+# Backspace at the start of the paragraph goes to the end of the last cell.
+clickText 2 0
+key Backspace
+wait 100
+type ?
+# Copy and paste stay in the cell.
+key Shift+Home Ctrl+C Left Ctrl+V
+# Left from the first cell's start leaves the table; Right comes back.
+clickCell 1 0 0 0
+key Left
+type _
+key Right
+type ^
+# Ctrl+A selects the cell, then the document.
+clickCell 1 1 1 1
+key Ctrl+A
+type B
+dump @OUT@

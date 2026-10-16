@@ -1,0 +1,8 @@
+# File → Import…: pandoc converts the file to markdown, shown as a new
+# untitled document in this window, which holds nothing yet.
+write @DIR@/page.html <h1>Imported</h1><p>Some <b>bold</b> and <i>em</i>.</p><ul><li>one</li><li>two</li></ul><p>$x^2$</p>
+choose @DIR@/page.html
+cmd import
+wait 3000
+check model.path === "" && model.modified && !notice.visible
+dump @OUT@

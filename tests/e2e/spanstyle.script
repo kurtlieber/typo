@@ -1,0 +1,6 @@
+# Ctrl+B over a selection across blocks makes each block's part strong;
+# the style comes off only when every part has it (see unit tests).
+type one two\nthree\nfour five
+key Up Up Home Ctrl+Right Shift+Down Shift+Down Shift+Home Shift+Ctrl+Right
+key Ctrl+B
+dump @OUT@

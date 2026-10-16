@@ -1,0 +1,14 @@
+# Ctrl+S on an untitled document asks for a file (answered in advance
+# here); the saved file is this test's output.
+type # Files\nfirst
+choose @OUT@
+key Ctrl+S
+wait 300
+# Another program rewrites it. Nothing is lost, so the document follows.
+write @OUT@ # Files\n\nchanged outside\n
+wait 2500
+# An edit and Ctrl+S save the reloaded text with the edit.
+key Ctrl+End
+type  and edited
+key Ctrl+S
+wait 300

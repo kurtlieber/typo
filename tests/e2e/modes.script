@@ -1,0 +1,73 @@
+# A heading, two paragraphs and a fence.
+type # Title\n
+type One.\n
+type Two.\n
+type ```js\n
+type a = 1\nb = 2\nc = 3
+caret 1 2
+# Focus mode greys every block but the caret's, and says it is on.
+cmd focusMode
+check Ui.focusMode && notice.visible && notice.title.indexOf("Focus Mode") >= 0
+check view.itemAt(0).dimmed && !view.itemAt(1).dimmed && view.itemAt(2).dimmed && view.itemAt(3).dimmed
+caret 2 1
+check view.itemAt(1).dimmed && !view.itemAt(2).dimmed
+shot @SHOT@
+# "Do not show this again" keeps it away the next time.
+clickItem notice.neverBox
+check Prefs.noFocusModeNotice && notice.visible
+cmd focusMode
+check !Ui.focusMode && !notice.visible && !view.itemAt(0).dimmed
+cmd focusMode
+check Ui.focusMode && !notice.visible
+cmd focusMode
+# Typewriter mode: its notice, gone with Dismiss.
+cmd typewriter
+check Ui.typewriter && notice.visible && notice.title.indexOf("Typewriter Mode") >= 0
+clickItem notice.dismissButton
+check !notice.visible && Ui.typewriter
+# Typing keeps the caret's line in the middle of the view.
+caret 2 4
+type \nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx
+eval view.contentY
+eval view.caretItem.mapToItem(view, view.caretItem.cursorRectangle)
+eval view.height
+check view.contentY > 0 && Math.abs(view.caretItem.mapToItem(view, view.caretItem.cursorRectangle).y + view.caretItem.cursorRectangle.height / 2 - view.height / 2) < 3
+# A click puts the caret where it lands, and nothing moves.
+clickText 17 0
+eval view.caretItem.mapToItem(view, view.caretItem.cursorRectangle)
+check view.currentRow === 17 && Math.abs(view.caretItem.mapToItem(view, view.caretItem.cursorRectangle).y + view.caretItem.cursorRectangle.height / 2 - view.height / 2) > 50
+type y
+check Math.abs(view.caretItem.mapToItem(view, view.caretItem.cursorRectangle).y + view.caretItem.cursorRectangle.height / 2 - view.height / 2) < 3
+# The same in Source Code Mode.
+key Ctrl+/
+type z
+eval sourceView.edit.y + sourceView.edit.cursorRectangle.y + sourceView.edit.cursorRectangle.height / 2 - sourceView.contentY - sourceView.height / 2
+check Math.abs(sourceView.edit.y + sourceView.edit.cursorRectangle.y + sourceView.edit.cursorRectangle.height / 2 - sourceView.contentY - sourceView.height / 2) < 3
+key Ctrl+/
+cmd typewriter
+check !Ui.typewriter && !notice.visible
+# Zoom steps by 1.2 and shows the size for three seconds.
+cmd zoom 1
+check Math.abs(Ui.zoom - 1.2) < 1e-9 && zoomHint.visible && zoomHint.percent === "120%"
+cmd zoom 1
+check zoomHint.percent === "144%"
+clickItem zoomHint.zoomOut
+check zoomHint.percent === "120%"
+clickItem zoomHint.reset
+check Ui.zoom === 1 && zoomHint.percent === "100%"
+clickItem zoomHint.zoomOut
+check zoomHint.percent === "83%"
+clickItem zoomHint.zoomIn
+check zoomHint.percent === "100%"
+wait 3100
+check !zoomHint.visible
+# Full screen and always on top.
+cmd fullscreen
+check win.visibility === Window.FullScreen
+cmd fullscreen
+check win.visibility !== Window.FullScreen
+cmd alwaysOnTop
+check Ui.alwaysOnTop && (win.flags & Qt.WindowStaysOnTopHint)
+cmd alwaysOnTop
+check !Ui.alwaysOnTop && !(win.flags & Qt.WindowStaysOnTopHint)
+dump @OUT@

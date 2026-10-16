@@ -1,0 +1,47 @@
+# Ctrl+T puts a table after the paragraph with the caret in its first
+# cell; Tab moves through the cells and, past the last, adds a row.
+type Fruit
+key Ctrl+T
+wait 300
+# The dialog: 3 columns, 3 rows.
+key Return
+type 3
+key Return
+wait 300
+type Name\tQty\tNote\tapple\t3\tred\tpear\t10\tgreen\t
+# Tab from the last cell adds a row; the caret gets there a moment later.
+wait 100
+type plum\t7\tpurple
+wait 100
+# Shift+Tab goes back a cell, selecting it, so typing replaces it.
+key Shift+Tab
+type 8
+# Alt+Up moves the row up; the toolbar's alignment applies to the column.
+key Alt+Up
+wait 100
+cmd tableAlign right
+wait 100
+# Ctrl+Enter adds a row below, with the caret in its first cell.
+key Ctrl+Return
+wait 100
+type fig
+# A column added after this one, then deleted again.
+cmd tableColumn after
+wait 100
+type x
+cmd tableDelete column
+wait 100
+type 1
+key Ctrl+Z
+wait 100
+type 2
+# Down goes through the column and out of the table into a new paragraph.
+key Down Down
+wait 100
+type After
+clickCell 1 1 2 3
+wait 100
+type dish
+wait 300
+shot @SHOT@
+dump @OUT@

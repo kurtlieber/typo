@@ -1,0 +1,23 @@
+# The outline marks the heading the page shows, as Typora's
+# highlightVisibleHeader picks it, not the caret's: the last heading once
+# it is in sight, else the first in sight, else the last above the view.
+write @DIR@/doc.md # One\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\n# Two\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\n# Three\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\np\n\n# Four\n\nend\n
+cmd openPath @DIR@/doc.md
+wait 500
+check currentHeading === 0
+eval view.contentY = view.contentY + view.rowY(31) - 300
+wait 300
+check currentHeading === 31
+# Between One and Two, neither in sight: One, above.
+eval view.contentY = view.contentY + view.rowY(0) + 200
+wait 300
+check view.rowY(31) > view.height && currentHeading === 0
+# The end in sight: the last heading, though Three is in sight too.
+eval view.contentY = view.contentHeight - view.height
+wait 300
+check view.rowY(62) > 0 && currentHeading === 73
+# The caret doesn't move it.
+caret 0 0
+wait 300
+check currentHeading === 0
+dump @OUT@

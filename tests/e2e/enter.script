@@ -1,0 +1,17 @@
+# Enter splits a paragraph and Backspace at a block's start joins it back.
+type one two
+key Left Left Left Return Backspace
+# Enter at the end of a heading starts a paragraph.
+key End
+type \n## Head\nbody
+# Backspace at the start of a heading makes it a paragraph.
+type \n## Gone
+key Home Backspace End
+# Delete at the end of a block pulls the next one up.
+type \nleft\nright
+key Up End Delete End
+# Shift+Enter is a line break inside the paragraph.
+type \nline
+key Shift+Return
+type break
+dump @OUT@

@@ -1,0 +1,80 @@
+# Preferences ▸ Export as the exports read them. HTML: the outline sidebar
+# (collapsible with the collapsible outline), what is appended in <head>
+# and <body> with ${…} filled in only in a <meta>'s content, the front
+# matter's title, and its typora-append-head only once the format reads
+# per-file settings. After Export: the command runs in the document's
+# folder with ${outputFileName} filled in, and its last line is the
+# notice; with Show Output, or when it fails, a dialog shows what it said.
+# The export dialog starts where this window last exported, else as the
+# Default Folder setting says.
+write @DIR@/doc.md ---\ntitle: Front Title\nauthor: Ann\ntypora-append-head: <meta name="from-yaml" content="${author}">\n---\n\n# One\n\n## Two\n\n# Three\n
+cmd openPath @DIR@/doc.md
+wait 500
+check model.path === "@DIR@/doc.md"
+check exportFolder() === "@DIR@"
+eval Prefs.setExportOption('general', 'exportFolder', 'custom')
+eval Prefs.setExportOption('general', 'customExportPath', '/srv/exports')
+check exportFolder() === "/srv/exports"
+eval Prefs.setExportOption('general', 'customExportPath', '')
+check exportFolder() === documentsFolder() && documentsFolder().indexOf("/") === 0
+eval Prefs.setExportOption('html', 'sidebar', true)
+eval Prefs.setExportOption('html', 'appendHead', '<meta name="who" content="${author} ${outputFileName}">')
+eval Prefs.setExportOption('html', 'appendBody', '<footer>${title}</footer>')
+eval Ui.outlineCollapsible = true
+choose @DIR@/page.v1.html
+cmd export html
+wait 1500
+check Desktop.exists("@DIR@/page.v1.html")
+check lastExportFolder === "@DIR@" && exportFolder() === "@DIR@"
+check Desktop.readFile("@DIR@/page.v1.html").indexOf("<title>Front Title</title>") > 0
+check Desktop.readFile("@DIR@/page.v1.html").indexOf('<meta name="who" content="Ann page">') > 0
+check Desktop.readFile("@DIR@/page.v1.html").indexOf("<footer>${title}</footer>") > 0
+check Desktop.readFile("@DIR@/page.v1.html").indexOf("from-yaml") < 0
+check Desktop.readFile("@DIR@/page.v1.html").indexOf("typora-export-show-outline typora-export-collapse-outline") > 0
+check Desktop.readFile("@DIR@/page.v1.html").indexOf("<a class='outline-label' href='#two'>Two</a>") > 0
+# The front matter's own head, once allowed, replaces the preference's.
+eval Prefs.setExportOption('html', 'allowPerFileSetting', true)
+eval Ui.outlineCollapsible = false
+choose @DIR@/page2.html
+cmd export html
+wait 1500
+check Desktop.readFile("@DIR@/page2.html").indexOf('<meta name="from-yaml" content="Ann">') > 0
+check Desktop.readFile("@DIR@/page2.html").indexOf('name="who"') < 0
+check Desktop.readFile("@DIR@/page2.html").indexOf("typora-export-no-collapse-outline") > 0
+# Run a command after export: its last line is the notice.
+eval Prefs.setExportOption('html', 'runCommand', true)
+eval Prefs.setExportOption('html', 'runCommandStr', 'echo made ${outputFileName} > ran.txt; echo first; echo Last line')
+choose @DIR@/page3.html
+cmd export html
+wait 2000
+check Desktop.readFile("@DIR@/ran.txt").trim() === "made page3"
+check notice.visible && notice.title === "Last line" && !dialog.visible
+# Show Output shows it in a dialog.
+eval Prefs.setExportOption('html', 'showOutput', true)
+choose @DIR@/page4.html
+cmd export html
+wait 2000
+check dialog.visible && dialog.title === "Export Success!" && dialog.wide
+check dialog.text.indexOf("Command Arguments:") === 0 && dialog.text.indexOf("first\nLast line") > 0
+check dialog.buttons.length === 2 && dialog.buttons[0] === "Reveal in File Explorer"
+shot @SHOT@
+answer 1
+check !dialog.visible && !dialog.wide
+# A command that fails says so, whatever Show Output says, with what it
+# wrote to stderr (and its stdout only when it wrote something).
+eval Prefs.setExportOption('html', 'showOutput', false)
+eval Prefs.setExportOption('html', 'runCommandStr', 'echo oops >&2; exit 3')
+choose @DIR@/page5.html
+cmd export html
+wait 2000
+check dialog.visible && dialog.title === "Run command after export failed"
+check dialog.text.indexOf("<pre>oops</pre>") > 0 && dialog.text.indexOf("(empty)") < 0
+answer 1
+# PDF reads its header and footer, filled in.
+eval Prefs.setExportOption('pdf', 'header', '${title}')
+eval Prefs.setExportOption('pdf', 'footer', '${pageno} / ${totalpages}')
+choose @DIR@/doc.pdf
+cmd export pdf
+wait 8000
+check Desktop.exists("@DIR@/doc.pdf") && notice.title === "Export operation finished successfully."
+dump @OUT@

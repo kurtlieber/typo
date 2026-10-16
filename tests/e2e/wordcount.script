@@ -1,0 +1,26 @@
+# The status bar counts as Typora does: words in each block as its page
+# holds them (markup and link addresses included), the markdown's
+# characters and lines, and reading time rounded, "≤ 1 Minute" under a
+# minute. While part of the document is selected, the count is the
+# selection's of the whole, and the count menu lists the totals and the
+# selection's words and characters; a total's row puts it in the bar.
+type Some **bold** words, a [link](https://omarchy.org) here\none two
+wait 300
+check model.words === 10
+check footer.countText(0) === "10 Words" && footer.countText(3) === "≤ 1 Minute"
+check footer.countText(1) === model.characters + " Characters" && model.characters === model.sourceText().length
+check footer.countText(2) === model.lines + " Lines" && model.lines === model.sourceText().split("\n").length
+drag 1 0 1 7
+wait 300
+check footer.selWords === 2 && footer.selChars === 7
+check footer.countText(0) === "2 / 10 Words" && footer.countText(1) === "7 / " + model.characters + " Characters"
+clickItem footer.wordCount
+wait 300
+check footer.countMenu.visible && footer.countRows.count === 4
+shot @SHOT@
+clickItem footer.countRows.itemAt(3)
+wait 200
+check !footer.countMenu.visible && Prefs.countMode === 1
+eval Prefs.countMode = 0
+key Escape
+dump @OUT@

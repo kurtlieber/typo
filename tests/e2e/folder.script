@@ -1,0 +1,86 @@
+# A folder of notes, as another program left it.
+eval Folder.create("@DIR@/notes", true)
+eval Folder.create("@DIR@/notes/sub", true)
+write @DIR@/notes/b.md # Beta\n\nSecond file.\n
+write @DIR@/notes/a.md # Alpha\n\nFirst file about gardens.\n
+write @DIR@/notes/sub/c.md # Gamma\n\nIntro.\n\nThe garden plan.\n
+write @DIR@/notes/image.png x
+write @DIR@/notes/.hidden.md hidden
+# Opening it shows the articles list: the folder's own files, then sub's.
+cmd openPath @DIR@/notes
+wait 300
+check folder === "@DIR@/notes" && Ui.sidebar && Ui.sidebarView === 1
+check sidebar.fileList.count === 3
+check sidebar.fileList.itemAtIndex(0).path === "@DIR@/notes/a.md"
+check sidebar.fileList.itemAtIndex(2).path === "@DIR@/notes/sub/c.md"
+# A click opens a file in place of the empty document.
+clickItem sidebar.fileList.itemAtIndex(1)
+wait 200
+check model.path === "@DIR@/notes/b.md"
+# An edited document asks first; Discard lets it go.
+key Ctrl+End
+type  edited
+clickItem sidebar.fileList.itemAtIndex(0)
+wait 200
+answer 1
+wait 200
+check model.path === "@DIR@/notes/a.md"
+check Desktop.readFile("@DIR@/notes/b.md") === "# Beta\n\nSecond file.\n"
+# New File makes Untitled.md, opens it and names it in place.
+cmd newFileInFolder
+wait 300
+check model.path === "@DIR@/notes/Untitled.md" && sidebar.renaming === model.path
+type Renamed\n
+wait 300
+check model.path === "@DIR@/notes/Renamed.md" && !Desktop.exists("@DIR@/notes/Untitled.md")
+# The tree: folders first, then files, each in natural order.
+cmd sidebarView 2
+wait 200
+check sidebar.fileTree.count === 5
+check sidebar.fileTree.itemAtIndex(1).name === "sub" && sidebar.fileTree.itemAtIndex(4).name === "Renamed.md"
+clickItem sidebar.fileTree.itemAtIndex(1)
+wait 200
+check sidebar.fileTree.count === 6 && sidebar.fileTree.itemAtIndex(2).name === "c.md"
+# Duplicate copies beside it, ready to rename; Escape keeps the name.
+eval sidebar.duplicate("@DIR@/notes/a.md")
+wait 200
+check sidebar.renaming === "@DIR@/notes/a (copy).md"
+key Escape
+check Desktop.readFile("@DIR@/notes/a (copy).md") === Desktop.readFile("@DIR@/notes/a.md")
+# Delete asks, then moves it to the trash.
+eval sidebar.remove("@DIR@/notes/a (copy).md")
+wait 200
+answer 0
+wait 200
+check !Desktop.exists("@DIR@/notes/a (copy).md")
+# New Folder, named in place.
+eval sidebar.newFolder("@DIR@/notes")
+wait 200
+type Ideas\n
+wait 300
+check Desktop.isFolder("@DIR@/notes/Ideas")
+# A file another program adds shows up.
+write @DIR@/notes/sub/d.md # Delta\n
+wait 1500
+check sidebar.fileTree.count === 8
+# Search: every file, as you type; whole words only narrows it.
+key Ctrl+Shift+F
+type garden
+wait 600
+check sidebar.searching && sidebar.folderSearch.results.count === 2
+eval sidebar.folderSearch.wholeWord = true
+wait 100
+check sidebar.folderSearch.results.count === 1
+# A matching line opens its file at that line.
+eval sidebar.openAt("@DIR@/notes/sub/c.md", 4)
+wait 300
+check model.path === "@DIR@/notes/sub/c.md" && view.currentRow === 2
+# Quick Open finds files by name.
+key Ctrl+P
+wait 100
+type b.md
+wait 100
+key Return
+wait 300
+check model.path === "@DIR@/notes/b.md"
+dump @OUT@

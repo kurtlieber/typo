@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Typo
+GenericName=Markdown Editor
+Comment=Write markdown and see it as you type
+Exec=typo %f
+Icon=typo
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;
+Keywords=markdown;md;editor;notes;
+StartupWMClass=typo

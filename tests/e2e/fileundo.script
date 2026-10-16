@@ -1,0 +1,65 @@
+# Typora's Undo in the sidebar's file menu takes the last rename back, the
+# open document and the open folders with it. Naming a new file or a
+# duplicate in place doesn't count, and a duplicate forgets it.
+eval Folder.create("@DIR@/notes", true)
+write @DIR@/notes/a.md # A\n
+write @DIR@/notes/b.md # B\n
+eval Folder.create("@DIR@/notes/sub", true)
+write @DIR@/notes/sub/g.md # G\n
+cmd openPath @DIR@/notes
+wait 300
+eval sidebar.open("@DIR@/notes/a.md")
+wait 300
+check model.path === "@DIR@/notes/a.md" && sidebar.undoLabel === ""
+eval sidebar.renaming = "@DIR@/notes/a.md"
+wait 100
+type c\n
+wait 300
+check model.path === "@DIR@/notes/c.md" && sidebar.undoLabel === "Rename a.md"
+eval sidebar.showMenu("@DIR@/notes/b.md", "file")
+wait 200
+check sidebar.fileMenu.itemAt(3).visible && sidebar.fileMenu.itemAt(3).text === "Undo Rename a.md" && sidebar.fileMenu.itemAt(4).visible
+shot @SHOT@
+clickItem sidebar.fileMenu.itemAt(3)
+wait 300
+check model.path === "@DIR@/notes/a.md" && Desktop.exists("@DIR@/notes/a.md") && !Desktop.exists("@DIR@/notes/c.md")
+check sidebar.undoLabel === ""
+eval sidebar.showMenu("@DIR@/notes/b.md", "file")
+wait 200
+check !sidebar.fileMenu.itemAt(3).visible && !sidebar.fileMenu.itemAt(4).visible
+key Escape
+wait 100
+# A duplicate forgets the rename, and naming it isn't one.
+eval sidebar.renaming = "@DIR@/notes/b.md"
+wait 100
+type d\n
+wait 300
+check sidebar.undoLabel === "Rename b.md"
+eval sidebar.duplicate("@DIR@/notes/a.md")
+wait 300
+check sidebar.renaming === "@DIR@/notes/a (copy).md" && sidebar.undoLabel === ""
+type e\n
+wait 300
+check Desktop.exists("@DIR@/notes/e.md") && sidebar.undoLabel === ""
+# A new file named in place isn't one either.
+cmd newFileInFolder
+wait 300
+type f\n
+wait 300
+check model.path === "@DIR@/notes/f.md" && sidebar.undoLabel === ""
+# A folder: the open document inside it and the open folder follow.
+eval sidebar.open("@DIR@/notes/sub/g.md")
+wait 300
+cmd sidebarView 2
+wait 200
+eval sidebar.renaming = "@DIR@/notes/sub"
+wait 100
+key Ctrl+A
+type box\n
+wait 300
+check model.path === "@DIR@/notes/box/g.md" && sidebar.fileTree.expanded["@DIR@/notes/box"] === true
+check sidebar.undoLabel === "Rename sub"
+eval sidebar.undo()
+wait 300
+check model.path === "@DIR@/notes/sub/g.md" && sidebar.fileTree.expanded["@DIR@/notes/sub"] === true && !Desktop.exists("@DIR@/notes/box")
+dump @OUT@

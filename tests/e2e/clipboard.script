@@ -1,0 +1,22 @@
+# Copy keeps the markdown, with the markers of a span the selection cuts
+# through, and pasting here parses it back.
+type a **bold** word\nnext
+clickText 0 6
+key Shift+End Ctrl+C
+key Down End Ctrl+V
+# Other apps, and Paste as Plain Text, get the rendered text.
+type \n
+key Ctrl+Shift+V
+# Cut across blocks, paste at the end.
+type \nalpha\nbeta
+key Up Home Right Right Shift+Down Ctrl+X End Ctrl+V
+# Pasting blocks into a paragraph splits it.
+clipboard # Head\n\n- item
+type \nab
+key Left Ctrl+V
+# Rich HTML from other apps becomes markdown.
+key Ctrl+End
+type \n
+clipboardHtml <h3>Rich</h3><p>with <b>bold</b> and <a href="http://x.y">a link</a></p><ul><li>one</li><li><input type="checkbox" checked>two</li></ul>
+key Ctrl+V
+dump @OUT@

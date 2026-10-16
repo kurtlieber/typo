@@ -1,0 +1,31 @@
+# Preferences ▸ Appearance. A customized font size sets the page's text,
+# and the zoom scales it. With "Zoom when using mouse wheel and holding
+# Ctrl key", Ctrl and the wheel zoom a step a notch and show the zoom
+# hint; without it, or without Ctrl, the wheel doesn't zoom.
+type # Look\nbody text
+check Ui.fontSize === 16 && view.itemAt(1).em === 16
+eval Prefs.useCustomFontSize = true
+eval Prefs.customFontSize = 20
+check Ui.fontSize === 20 && view.itemAt(1).em === 20
+wheel 600 400 120 Ctrl
+check Ui.zoom === 1 && !zoomHint.visible
+eval Prefs.zoomByWheel = true
+wheel 600 400 120 Ctrl
+check Math.abs(Ui.zoom - 1.2) < 1e-9 && zoomHint.visible && Math.abs(Ui.fontSize - 24) < 1e-9
+wheel 600 400 -240 Ctrl
+check Math.abs(Ui.zoom - 1 / 1.2) < 1e-9
+wheel 600 400 -120
+check Math.abs(Ui.zoom - 1 / 1.2) < 1e-9
+# Half notches add up, as a touchpad turns.
+wheel 600 400 60 Ctrl
+check Math.abs(Ui.zoom - 1 / 1.2) < 1e-9
+wheel 600 400 60 Ctrl
+check Ui.zoom === 1
+# In source mode too.
+cmd sourceMode
+wheel 600 400 120 Ctrl
+check Ui.sourceMode && Math.abs(Ui.zoom - 1.2) < 1e-9
+cmd sourceMode
+eval Prefs.useCustomFontSize = false
+check Math.abs(Ui.fontSize - 16 * 1.2) < 1e-9
+dump @OUT@

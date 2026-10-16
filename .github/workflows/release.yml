@@ -1,0 +1,38 @@
+# Pushing a v* tag builds the Arch package (with the unit tests, the
+# PKGBUILD's check()) and publishes it as that tag's GitHub release.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm --needed base-devel git rust typst qt6-base qt6-declarative qt6-svg qt6-wayland xdg-desktop-portal github-cli
+      - uses: actions/checkout@v5
+      # makepkg won't run as root.
+      - run: |
+          useradd -m builder
+          chown -R builder:builder .
+          su builder -c 'cd pkgbuild && makepkg -f --noconfirm'
+      - if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          pkg=$(ls pkgbuild/*.pkg.tar.zst)
+          # A re-pushed tag replaces the package in its existing release.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then gh release upload "$GITHUB_REF_NAME" "$pkg" --clobber; exit; fi
+          gh release create "$GITHUB_REF_NAME" "$pkg" --title "typo ${GITHUB_REF_NAME#v}" --notes "Arch Linux / Omarchy package (x86_64).
+
+          \`\`\`sh
+          gh release download $GITHUB_REF_NAME -R $GH_REPO -p '*.pkg.tar.zst'
+          sudo pacman -U $(basename "$pkg")
+          \`\`\`"

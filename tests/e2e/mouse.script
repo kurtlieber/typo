@@ -1,0 +1,22 @@
+# Clicks place the caret, drags select across blocks, Shift+click extends,
+# double-click takes a word and triple-click the block.
+type alpha\nbeta\ngamma\ndelta
+drag 0 2 2 3
+type Z
+# alZma / delta
+clickText 0 1
+clickText 1 2 Shift
+key Delete
+# a|lta: Enter splits it below
+type \nhello world\nlast line
+clickText 1 8
+clickText 1 8
+type X
+clickText 2 1
+clickText 2 1
+clickText 2 1
+type whole
+# The checkbox toggles the task.
+type \n- [ ] task
+eval (() => { const b = view.itemAt(3); const p = b.mapToItem(null, b.indent - 15, b.topSpace + b.firstLineMiddle); Desktop.click(p.x, p.y, ""); return p })()
+dump @OUT@

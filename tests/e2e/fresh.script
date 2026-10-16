@@ -1,0 +1,11 @@
+# Typing before anything has the caret, as in a window that has just
+# opened, goes to the end of the document, as Typora's does.
+write @DIR@/doc.md # Head\n\nSecond paragraph.\n
+cmd openPath @DIR@/doc.md
+wait 300
+eval view.currentRow = -1
+eval view.forceActiveFocus()
+check view.currentRow === -1
+type abc\nnew
+check view.currentRow === 2
+dump @OUT@

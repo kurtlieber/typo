@@ -1,0 +1,6 @@
+# Block syntax typed at the start of a line becomes that block.
+type # Title\nSome **bold** and *em* text with `code` and a [link](http://x.y).\n
+type - item one\nitem two\n\n
+type > quoted\n\n
+type ```js\nlet x = 1;
+dump @OUT@

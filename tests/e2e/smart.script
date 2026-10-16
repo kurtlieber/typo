@@ -1,0 +1,20 @@
+# Smart punctuation converted on input: curly quotes (paired, the closer
+# stepped over), dashes and ellipses, in paragraphs and table cells.
+eval Prefs.smartQuotes = true
+eval Prefs.smartDashes = true
+type "Hi," she said -- it's --- fine...
+key End
+type \n
+eval Prefs.quotePairs = "«»‹›"
+eval Prefs.dashesToEm = true
+type "Oui" -- 'non'\n
+# Converted on rendering the file keeps ASCII; what shows is smart.
+eval Prefs.smartOnRendering = true
+type "Shown" -- kept...
+wait 100
+shot @SHOT@
+eval Prefs.smartOnRendering = false
+eval Prefs.quotePairs = "“”‘’"
+type \n| a | b |\n
+type "x" -- y
+dump @OUT@

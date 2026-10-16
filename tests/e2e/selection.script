@@ -1,0 +1,21 @@
+# Shift+arrows carry a selection across blocks; typing or Backspace
+# replaces it, and the halves join.
+type one\ntwo\nthree\nfour
+key Ctrl+Home Right Shift+Down Shift+Down Backspace
+key Down End Shift+Up
+type X
+# Select All, then a word, sentence, scope and block from the menus.
+key Ctrl+End
+type \nsay **very loud** now. Then stop.
+key Left Left Left
+cmd selectLine
+type Fine.
+key Home Right Right Right Right Right Right Right
+cmd selectScope
+type quiet
+cmd selectWord
+type calm
+key Down
+type \nscratch
+cmd deleteBlock
+dump @OUT@

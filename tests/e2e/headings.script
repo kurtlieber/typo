@@ -1,0 +1,14 @@
+# Paragraph ▸ Heading N and the level shortcuts.
+type one
+key Ctrl+1
+type \ntwo
+key Ctrl+2
+type \nthree
+key Ctrl+3 Ctrl+3
+type \nfour
+key Ctrl+=
+type \nfive
+key Ctrl+4 Ctrl+-
+type \n# six
+key Ctrl+0
+dump @OUT@

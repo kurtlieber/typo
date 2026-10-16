@@ -1,0 +1,11 @@
+/target/
+/pkgbuild/pkg/
+/pkgbuild/src/
+/pkgbuild/typo/
+*.pkg.tar.*
+*.png.tmp
+
+# Local only: the working notes (plan, progress, handoff) and the
+# per-machine qmlls config.
+/STATE.md
+/.qmlls.ini

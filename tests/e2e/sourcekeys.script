@@ -1,0 +1,37 @@
+# Source Code Mode types as Typora's CodeMirror does. Enter goes on with
+# a list or quote (numbers counting up, a task unticked), clears an empty
+# item, leaves an empty quote, and keeps a line's indent; Shift+Enter is
+# a bare new line. Brackets and quotes pair, typing the closer steps over
+# it, Enter opens a line between braces, Backspace takes an empty pair
+# back, and a quote typed over a selection wraps it. Tab indents the
+# selected lines, Shift+Tab gives a line the indent above. The
+# right-click menu has Cut, Copy and Paste only.
+cmd sourceMode
+check Ui.sourceMode && sourceView.edit.activeFocus && sourceView.edit.text === "\n"
+type 1. one\ntwo\n\nafter\n- [x] done\nnext\n\n> quote\nmore\n\n    code\nx
+check sourceView.edit.text === "1. one\n2. two\n\nafter\n- [x] done\n- [ ] next\n\n> quote\n> more\n> \n    code\n    x\n"
+key Shift+Return
+type f{\n(a) 'q' [
+key BackSpace
+type end
+check sourceView.edit.text.endsWith("\n    x\nf{\n(a) 'q' end\n}\n")
+eval sourceView.edit.select(sourceView.edit.text.indexOf("end"), sourceView.edit.text.indexOf("end") + 3)
+type `
+check sourceView.edit.text.endsWith("'q' `end`\n}\n") && sourceView.edit.selectedText === "end"
+# The right-click menu has the clipboard only, and leaves the selection.
+click 600 120 Right
+wait 300
+check sourceView.menu.visible && sourceView.menu.count === 3 && sourceView.menu.itemAt(2).text === "Paste"
+check sourceView.edit.selectedText === "end"
+key Escape
+wait 100
+check !sourceView.menu.visible
+eval sourceView.edit.select(0, 2)
+key Tab
+check sourceView.edit.text.startsWith("    1. one\n2. two\n") && sourceView.edit.selectionStart === 0 && sourceView.edit.selectionEnd === 6
+eval sourceView.edit.cursorPosition = sourceView.edit.text.indexOf("2. two") + 1
+key Shift+Tab
+check sourceView.edit.text.startsWith("    1. one\n    2. two\n") && sourceView.edit.cursorPosition === sourceView.edit.text.indexOf("2. two") + 1
+cmd sourceMode
+wait 300
+dump @OUT@

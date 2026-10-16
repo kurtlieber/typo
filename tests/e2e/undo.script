@@ -1,0 +1,11 @@
+# Typing is one undo step per block; Enter is a step of its own.
+type hello\nworld
+key Ctrl+Z
+type X
+key Ctrl+Z Ctrl+Z
+type Y
+# Redo restores what undo took away.
+key Ctrl+Z Ctrl+Shift+Z
+type \nfoo
+key Ctrl+Z Ctrl+Y
+dump @OUT@

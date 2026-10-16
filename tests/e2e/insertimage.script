@@ -1,0 +1,29 @@
+# Ctrl+Shift+I: `![]()` with the caret in the brackets; a selection becomes
+# the alt text and an image's address on the clipboard the source. Again
+# on an image, it goes back to its alt text.
+type a
+key Ctrl+Shift+I
+type cat
+key Right Right
+type c.png
+key End
+type \nmy dog
+key Shift+Home
+clipboard img/dog.gif
+key Ctrl+Shift+I End
+type \nback ![it](i.png)
+key Left Left Left Left Left Left Left Left Ctrl+Shift+I
+type IT
+key End
+type \n
+clipboard plain words
+key Ctrl+K
+type link
+# In a table cell too.
+key End
+type \n| a | b |\n
+type x
+key Shift+Left
+clipboard pic.svg
+key Ctrl+Shift+I
+dump @OUT@

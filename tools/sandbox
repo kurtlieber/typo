@@ -1,0 +1,94 @@
+#!/bin/sh
+# A private headless sway session for driving GUI apps without touching the
+# operator's desktop: screenshots, keystrokes and clicks stay inside it.
+#
+#   tools/sandbox start [WxH]     start the session (default 1400x900)
+#   tools/sandbox run CMD...      launch CMD inside the session
+#   tools/sandbox shot FILE       screenshot the whole output to FILE
+#   tools/sandbox keys ARGS...    wtype ARGS into the focused window
+#   tools/sandbox click X Y       move the pointer to X,Y and left-click
+#   tools/sandbox rclick X Y      the same with the right button
+#   tools/sandbox pointer STEP... play pointer steps (see tools/pointer.c),
+#                                 e.g. move 60 150 down by 0 -30 up
+#   tools/sandbox tree            print the sway window tree (JSON)
+#   tools/sandbox stop            end the session
+set -eu
+
+STATE="${XDG_RUNTIME_DIR:-/tmp}/typo-sandbox"
+mkdir -p "$STATE"
+
+env_of_session() {
+    [ -f "$STATE/display" ] || { echo "sandbox not running" >&2; exit 1; }
+    WAYLAND_DISPLAY="$(cat "$STATE/display")"
+    SWAYSOCK="$(cat "$STATE/swaysock")"
+    export WAYLAND_DISPLAY SWAYSOCK
+}
+
+case "${1:-}" in
+start)
+    size="${2:-1400x900}"
+    if [ -f "$STATE/pid" ] && kill -0 "$(cat "$STATE/pid")" 2>/dev/null; then
+        echo "already running"; exit 0
+    fi
+    rm -f "$STATE/display" "$STATE/swaysock"
+    cat > "$STATE/config" <<CONF
+output HEADLESS-1 resolution $size scale 1
+default_border none
+default_floating_border none
+focus_follows_mouse no
+seat * hide_cursor 0
+exec sh -c 'echo \$WAYLAND_DISPLAY > $STATE/display; echo \$SWAYSOCK > $STATE/swaysock'
+CONF
+    env -u WAYLAND_DISPLAY -u DISPLAY -u SWAYSOCK -u HYPRLAND_INSTANCE_SIGNATURE \
+        WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman \
+        XDG_CURRENT_DESKTOP=sway \
+        setsid sway -c "$STATE/config" > "$STATE/sway.log" 2>&1 &
+    echo $! > "$STATE/pid"
+    for _ in $(seq 50); do [ -s "$STATE/display" ] && [ -s "$STATE/swaysock" ] && break; sleep 0.1; done
+    echo "display=$(cat "$STATE/display") sock=$(cat "$STATE/swaysock")"
+    ;;
+run)
+    shift; env_of_session
+    env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORM=wayland "$@" > "$STATE/app.log" 2>&1 &
+    echo $!
+    ;;
+shot)
+    env_of_session; grim "$2"
+    ;;
+keys)
+    # Qt drops keys that arrive before it has loaded wtype's keymap.
+    shift; env_of_session; wtype -s 150 "$@"
+    ;;
+click)
+    "$0" pointer move "$2" "$3" down up
+    ;;
+rclick)
+    "$0" pointer move "$2" "$3" rdown rup
+    ;;
+pointer)
+    # Headless sway has no input devices, and a seat without a pointer
+    # sends no clicks ("seat - cursor" commands reach no client); the
+    # helper adds a virtual pointer while it plays the steps.
+    shift; env_of_session
+    src="$(dirname "$0")"
+    bin="$STATE/pointer"
+    if [ ! -x "$bin" ] || [ "$src/pointer.c" -nt "$bin" ]; then
+        xml="$src/wlr-virtual-pointer-unstable-v1.xml"
+        wayland-scanner client-header "$xml" "$STATE/wlr-virtual-pointer-unstable-v1-client-protocol.h"
+        wayland-scanner private-code "$xml" "$STATE/wlr-virtual-pointer-unstable-v1-protocol.c"
+        cc -O1 -I"$STATE" -o "$bin" "$src/pointer.c" "$STATE/wlr-virtual-pointer-unstable-v1-protocol.c" -lwayland-client
+    fi
+    extent="$(swaymsg -t get_outputs | python3 -I -c 'import json, sys; r = json.load(sys.stdin)[0]["rect"]; print(f"{r["width"]}x{r["height"]}")')"
+    POINTER_EXTENT="$extent" "$bin" "$@"
+    ;;
+tree)
+    env_of_session; swaymsg -t get_tree
+    ;;
+stop)
+    [ -f "$STATE/pid" ] && kill "$(cat "$STATE/pid")" 2>/dev/null || true
+    rm -f "$STATE/pid" "$STATE/display" "$STATE/swaysock"
+    ;;
+*)
+    sed -n '2,15p' "$0"; exit 2
+    ;;
+esac

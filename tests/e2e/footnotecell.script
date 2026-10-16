@@ -1,0 +1,21 @@
+# A footnote reference in a table cell counts like any other: the
+# definition gets a ↩ for it, the pointer on it shows the footnote,
+# Ctrl+click goes to the definition, and that ↩ comes back into the cell.
+write @DIR@/doc.md | h | a[^n] |\n| --- | --- |\n| b | c |\n\nText[^n].\n\n[^n]: The note.\n
+cmd openPath @DIR@/doc.md
+wait 500
+check view.footnotes["n"].refs.length === 2 && view.itemAt(2).references === 2
+mouse move pointIn(view.itemAt(0).table.cellItem(0, 1).edit, 1)
+wait 100
+check view.footnoteTip.shown && view.footnoteTip.key === "n" && view.footnoteTip.html.indexOf("The note.") >= 0
+shot @DIR@/tip.png
+# Ctrl+click in the cell: to the end of the definition.
+clickCell 0 0 1 1 Ctrl
+wait 200
+check JSON.stringify(view.selection()) === '{"aRow":2,"aPos":9,"zRow":2,"zPos":9}'
+# The first ↩ goes back into the cell, before the reference.
+clickItem view.itemAt(2).backLinks.children.filter(c => c.activate)[0]
+wait 200
+check view.itemAt(0).table.cellItem(0, 1).edit.activeFocus && view.itemAt(0).table.cellItem(0, 1).edit.cursorPosition === 1
+type x
+dump @OUT@

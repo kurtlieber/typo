@@ -1,0 +1,92 @@
+# A heading, a paragraph with a link and a table, each with "apple".
+type # Apples\n
+type An apple a day; apples are [red](apple.html).\n
+type | fruit | colour |\n
+type Apple\tgreen
+caret 1 3
+# Ctrl+F opens the bar; typing finds as it goes, the first match from the
+# caret current and selected in its block.
+key Ctrl+F
+check findBar.visible && findBar.count === 0
+type apple
+wait 300
+check findBar.count === 5 && findBar.current === 1
+check view.found.row === 1 && view.found.start === 3 && view.found.end === 8
+check view.findHits[0] === "[[0,5]]" && view.findHits[1] === "[[3,8],[16,21],[33,38]]" && view.findHits["2:1:0"] === "[[0,5]]"
+check view.editAt(1).selectedText === "apple"
+# Enter goes on, Shift+Enter back, F3 too; they wrap at the ends.
+key Return
+check view.found.row === 1 && view.found.start === 16
+key Shift+Return Shift+Return
+check view.found.row === 0 && findBar.current === 0
+key Shift+F3
+check view.found.row === 2 && view.found.r === 1 && view.found.c === 0
+key F3 F3 F3 F3
+check view.found.row === 1 && view.found.start === 33
+# The current match in a link's address shows the link's source.
+shot @SHOT@
+# Case, whole word, both.
+eval findBar.caseSensitive = true
+wait 100
+check findBar.count === 3
+eval findBar.wholeWord = true
+wait 100
+check findBar.count === 2
+eval findBar.caseSensitive = false
+wait 100
+check findBar.count === 3
+eval findBar.wholeWord = false
+# A regular expression; one that doesn't compile finds nothing.
+eval findBar.regex = true
+key Ctrl+A
+type app(le)?s?(
+wait 300
+check findBar.count === 0 && findBar.searched === "app(le)?s?("
+key BackSpace
+wait 300
+check findBar.count === 5
+eval findBar.regex = false
+key Ctrl+A
+type apple
+wait 300
+# The caret moved by hand: the next match is the first from there.
+caret 0 0
+check view.found === null && findBar.current === -1
+# Replace: Enter in its box selects the next match, then replaces it and
+# moves on.
+key Ctrl+H
+check findBar.replacing && findBar.text === "apple"
+key Tab
+type pear
+key Return
+check findBar.current === 0 && view.found.row === 0
+key Return
+wait 100
+check findBar.count === 4 && view.found.row === 1 && view.found.start === 3
+key Return
+wait 100
+check findBar.count === 3 && view.found.row === 1 && view.found.start === 15
+# All: every one at once, which Undo takes back.
+eval findBar.replaceAll()
+wait 100
+check findBar.count === 0 && findBar.message === "Replaced 3 occurrence(s)"
+eval findBar.undoReplaceAll()
+wait 100
+check findBar.count === 3 && findBar.message === ""
+# Escape closes the bar and the tint goes; the current match is left
+# selected (none now).
+key Escape
+check !findBar.visible && Object.keys(view.findHits).length === 0
+# A selection fills the box and is counted but not moved from.
+clickCell 2 1 0 0
+key Shift+End
+key Ctrl+F
+check findBar.text === "Apple" && findBar.count === 3 && view.found === null
+key Escape
+# F3 with the bar closed opens it on the first match from the caret.
+caret 1 0
+key F3
+check findBar.visible && view.found.row === 1 && view.found.start === 15
+key Escape
+check view.editAt(1).selectedText === "apple" && view.currentRow === 1
+dump @OUT@

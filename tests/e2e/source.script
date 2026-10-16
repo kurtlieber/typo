@@ -1,0 +1,56 @@
+# A heading, a paragraph and a list, typed as usual.
+type # Notes\n
+type Plain *text* here.\n
+type - one\n
+type two
+caret 1 3
+# Ctrl+/ shows the markdown, the caret at the start of the paragraph's
+# line, and nothing to undo there yet.
+key Ctrl+/
+check Ui.sourceMode && sourceView.visible && !view.visible
+check sourceView.edit.text === "# Notes\n\nPlain *text* here.\n\n- one\n- two\n"
+check sourceView.edit.cursorPosition === 9 && sourceView.edit.activeFocus && !sourceView.edit.canUndo
+# Typing edits the text; the document follows once typing stops.
+key End
+type  More.\nA new line.
+check model.markdown() === "# Notes\n\nPlain *text* here.\n\n- one\n- two\n"
+wait 500
+check model.markdown() === "# Notes\n\nPlain *text* here. More.\nA new line.\n\n- one\n- two\n"
+# The word count stays out of the footer.
+check !footer.wordCount.visible
+# Find works on the markdown: every "o", the first from the caret
+# current and selected.
+key Ctrl+F
+type o
+wait 300
+check findBar.count === 4 && findBar.current === 2
+check sourceView.edit.selectedText === "o" && sourceView.edit.selectionStart === 49
+check sourceView.hits === "[[3,4],[29,30],[49,50],[57,58]]"
+key Return
+check findBar.current === 3 && sourceView.edit.selectionStart === 57
+shot @SHOT@
+# Replace All is one step of the text's undo.
+key Ctrl+H
+key Tab
+type 0
+eval findBar.replaceAll()
+wait 100
+check findBar.message === "Replaced 4 occurrence(s)" && sourceView.edit.text.indexOf("o") < 0
+eval findBar.undoReplaceAll()
+wait 100
+check findBar.count === 4 && sourceView.edit.text.indexOf("N0tes") < 0
+key Escape
+check !findBar.visible && sourceView.hits === "[]"
+# A heading's line, from the outline, goes to the top.
+cmd jumpToRow 2
+check sourceView.edit.cursorPosition === sourceView.edit.text.indexOf("- one")
+# Ctrl+/ again: back to the page, the caret in the block of its line.
+key Ctrl+/
+check !Ui.sourceMode && view.visible && view.currentRow === 2
+# The visit is one undo step there.
+key Ctrl+Z
+wait 100
+check model.markdown() === "# Notes\n\nPlain *text* here.\n\n- one\n- two\n"
+key Ctrl+Shift+Z
+wait 100
+dump @OUT@
