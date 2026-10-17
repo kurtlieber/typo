@@ -36,11 +36,18 @@ pub struct Image {
     /// How far down the formula's baseline is, in pixels, for inline math
     /// to sit on the line around it.
     pub baseline: f64,
+    /// For display math of several rows, where each row's baseline is, as
+    /// a part of the height, for its number to sit level with it.
+    pub rows: Vec<f64>,
 }
 
 /// What follows inline math so its baseline can be found: a dot no one
 /// sees, which takes no room.
 const MARK: &str = "#box(width: 0pt, text(fill: rgb(0, 0, 0, 0))[.])";
+
+/// What starts each row of a copy of a formula to find the rows'
+/// baselines: a character no formula has, smashed so it adds no height.
+const ROW_MARK: char = '\u{E000}';
 
 /// Typeset `tex` in `color` (`rrggbb`), with an em of `em_px` pixels; display
 /// math is centred on its own line, inline math sits in text. The error is
@@ -50,7 +57,43 @@ pub fn render(tex: &str, display: bool, em_px: f64, color: &str) -> Result<Image
     let scale = Scalar::new((em_px / SIZE_PT).clamp(0.1, 20.0));
     let pixmap = typst_render::render(&page, &typst_render::RenderOptions { pixel_per_pt: scale, render_bleed: false });
     let baseline = baseline(&page, display).to_pt() * scale.get();
-    Ok(Image { width: pixmap.width(), height: pixmap.height(), rgba: pixmap.take(), baseline })
+    let rows = if display { rows(tex, &page) } else { Vec::new() };
+    Ok(Image { width: pixmap.width(), height: pixmap.height(), rgba: pixmap.take(), baseline, rows })
+}
+
+/// Where each row of `tex`, typeset as `page`, has its baseline, as a part
+/// of the page's height; empty for one row, or when they can't be found.
+/// Rows of a height can't be assumed: a fraction makes its row taller.
+fn rows(tex: &str, page: &typst_layout::Page) -> Vec<f64> {
+    let starts = crate::eqnum::row_starts(tex);
+    let mut marked = tex.to_string();
+    for &at in starts.iter().rev() {
+        marked.insert_str(at, &format!("\\smash{{\\text{{{ROW_MARK}}}}}"));
+    }
+    let height = page.frame.height();
+    // The marks move columns sideways, but must leave rows where they are.
+    let Some(copy) = typeset(&marked, true, "000000").ok().filter(|c| (c.frame.height() - height).abs() < Abs::pt(0.1))
+    else {
+        return Vec::new();
+    };
+    let mut ys = Vec::new();
+    marks(&copy.frame, Abs::zero(), &mut ys);
+    if ys.len() != starts.len() {
+        return Vec::new();
+    }
+    ys.sort_by(f64::total_cmp);
+    ys.iter().map(|y| y / height.to_pt()).collect()
+}
+
+/// How far down `frame` each row mark is, in points.
+fn marks(frame: &Frame, top: Abs, ys: &mut Vec<f64>) {
+    for (pos, item) in frame.items() {
+        match item {
+            FrameItem::Text(text) if text.text.starts_with(ROW_MARK) => ys.push((top + pos.y).to_pt()),
+            FrameItem::Group(group) => marks(&group.frame, top + pos.y, ys),
+            _ => {}
+        }
+    }
 }
 
 /// A formula as SVG for export, sized in ems so it scales with the text
@@ -335,6 +378,21 @@ mod tests {
         assert!(frac.baseline < 0.7 * frac.height as f64, "{} of {}", frac.baseline, frac.height);
         // The mark takes no room.
         assert!(inline("x").width == render("x", true, 20.0, "000000").unwrap().width);
+    }
+
+    #[test]
+    fn finds_each_rows_baseline() {
+        let rows = |tex| render(tex, true, 20.0, "000000").unwrap().rows;
+        let gaps = |r: Vec<f64>| {
+            assert!(r.len() == 3 && r[0] > 0.0 && r[2] < 1.0, "{r:?}");
+            (r[2] - r[1]) - (r[1] - r[0])
+        };
+        // Rows are as tall as what is in them: a fraction's is taller.
+        assert!(gaps(rows(r"\begin{align} a &= b \\ b &= a \\ a &= b \end{align}")).abs() < 0.01);
+        assert!(gaps(rows(r"\begin{align} a &= b \\ \frac{c}{d} &= e \\ f &= g \end{align}")) > 0.03);
+        assert!(rows("x").is_empty() && rows(r"\begin{align} x \end{align}").is_empty());
+        assert!(rows(r"\begin{gather} x \\ y \end{gather}").len() == 2);
+        assert!(render(r"\begin{align} a \\ b \end{align}", false, 20.0, "000000").unwrap().rows.is_empty());
     }
 
     #[test]

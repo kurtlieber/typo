@@ -1,0 +1,12 @@
+# Equation numbers sit on their rows' baselines, which a fraction spaces
+# unevenly.
+write @DIR@/doc.md $$\n\begin{align} a &= b \\ \frac{c}{d} &= e \\ f &= g \end{align}\n$$\n
+cmd openPath @DIR@/doc.md
+eval Prefs.mathNumbering = "ams"
+wait 500
+check view.mathRows[0].join() === "(1),(2),(3)"
+check (f => f.rows.length === 3 && f.rows[2] - f.rows[1] - (f.rows[1] - f.rows[0]) > 0.03)(view.itemAt(0).body.formula)
+check (f => [0, 1, 2].every(i => { const t = f.tagItems.itemAt(i); return t.base > 0 && Math.abs(t.y + t.base * t.height - f.rows[i] * t.parent.height) < 0.5 }))(view.itemAt(0).body.formula)
+shot @DIR@/rows.png
+eval Prefs.mathNumbering = ""
+dump @OUT@

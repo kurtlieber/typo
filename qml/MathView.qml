@@ -9,8 +9,8 @@ import Typo
 // `keepLast`, as in the preview under the source, the last formula that
 // worked stays up with the error beneath it, as in Typora. A formula wider
 // than the page scrolls sideways. Equation numbers (`tags`, one for each
-// row of the formula, "" for none) sit at the right, level with their
-// rows, which are taken to be of a height.
+// row of the formula, "" for none) sit at the right, on their rows'
+// baselines.
 Item {
     id: view
 
@@ -23,6 +23,10 @@ Item {
     property var tags: []
 
     property string error: ""
+    // Where each row of the formula shown has its baseline, as parts of its
+    // height; empty for one row.
+    property var rows: []
+    readonly property alias tagItems: tagRepeater
     // The last image that worked, already in Qt's cache.
     property string good: ""
 
@@ -44,8 +48,10 @@ Item {
             if (status !== Image.Ready)
                 return
             view.error = Desktop.mathError(view.tex)
-            if (view.error === "")
+            if (view.error === "") {
+                view.rows = JSON.parse(Desktop.mathRows(view.tex))
                 view.good = source.toString()
+            }
         }
     }
 
@@ -101,13 +107,18 @@ Item {
             delegate: Image {
                 required property string modelData
                 required property int index
+                readonly property string tex: "\\text{" + modelData + "}"
+                readonly property real base: status === Image.Ready ? Desktop.mathBaseline(tex) : -1
                 visible: modelData !== ""
                 anchors.right: parent.right
-                y: (index + 0.5) * shown.height / view.tags.length - height / 2
+                // A formula of one row has its number halfway down.
+                y: view.rows.length === view.tags.length && base >= 0
+                    ? view.rows[index] * shown.height - base * height
+                    : (index + 0.5) * shown.height / view.tags.length - height / 2
                 width: implicitWidth / view.dpr
                 height: implicitHeight / view.dpr
-                source: modelData === "" ? "" : "image://math/d/" + (view.mathEm * view.dpr).toFixed(2) + "/"
-                    + Theme.foreground.toString().slice(1) + "/" + encodeURIComponent("\\text{" + modelData + "}")
+                source: modelData === "" ? "" : "image://math/i/" + (view.mathEm * view.dpr).toFixed(2) + "/"
+                    + Theme.foreground.toString().slice(1) + "/" + encodeURIComponent(tex)
                 smooth: true
             }
         }

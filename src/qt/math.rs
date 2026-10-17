@@ -4,7 +4,8 @@
 //! display math and `i` for inline, and Qt calls `render_math` on a worker
 //! thread. A formula that fails comes back as one clear pixel, and `error`
 //! says why, for the block to show instead. Inline math also notes where
-//! its baseline is, for the text to line up with it.
+//! its baseline is, for the text to line up with it, and display math of
+//! several rows where each row's is, for its number to.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
@@ -16,6 +17,9 @@ static ERRORS: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(Default:
 
 /// Where each inline formula's baseline is, as a part of its height.
 static BASELINES: LazyLock<Mutex<HashMap<String, f64>>> = LazyLock::new(Default::default);
+
+/// Where each display formula's rows have their baselines, by its TeX.
+static ROWS: LazyLock<Mutex<HashMap<String, Vec<f64>>>> = LazyLock::new(Default::default);
 
 /// The pixels of the formula `id` names, premultiplied RGBA.
 pub fn render_math(id: &QString, width: &mut i32, height: &mut i32) -> Vec<u8> {
@@ -32,6 +36,15 @@ pub fn render_math(id: &QString, width: &mut i32, height: &mut i32) -> Vec<u8> {
             baselines.clear();
         }
         baselines.insert(tex.clone(), image.baseline / f64::from(image.height.max(1)));
+    }
+    if let Ok(image) = &result
+        && !image.rows.is_empty()
+    {
+        let mut rows = ROWS.lock().unwrap_or_else(|e| e.into_inner());
+        if rows.len() > 500 {
+            rows.clear();
+        }
+        rows.insert(tex.clone(), image.rows.clone());
     }
     let mut errors = ERRORS.lock().unwrap_or_else(|e| e.into_inner());
     match result {
@@ -63,6 +76,12 @@ pub fn error(tex: &str) -> String {
 /// its image has loaded; -1 before.
 pub fn baseline(tex: &str) -> f64 {
     BASELINES.lock().unwrap_or_else(|e| e.into_inner()).get(tex).copied().unwrap_or(-1.0)
+}
+
+/// Where display formula `tex`'s rows have their baselines, once its image
+/// has loaded; empty for one row.
+pub fn rows(tex: &str) -> Vec<f64> {
+    ROWS.lock().unwrap_or_else(|e| e.into_inner()).get(tex).cloned().unwrap_or_default()
 }
 
 /// Undo `encodeURIComponent`. Qt has already decoded some of the escapes,

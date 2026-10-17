@@ -198,7 +198,10 @@ and says what each row shows at its right — `(n)`, a `\tag` — and what each
 `EditorView.updateMath` keeps it current on every change, MathView draws
 each row's tag at the page's right edge, and `Ui.mathTex` writes `\eqref`
 and `\ref` out as text before a formula is typeset (`???` for an unknown
-label). Rows are spaced evenly down the formula, not measured.
+label). A tag sits on its row's baseline: typst groups nothing by row,
+so `math::render` typesets a copy with a smashed private-use character at
+the start of each row (`eqnum::row_starts`) and reads where those land; a
+formula of one row has its tag halfway down.
 
 Copy as MathML converts with math-core (no typst involved), the document's
 numbers written into the TeX as `\tag*` (`eqnum::tagged`) because math-core

@@ -127,6 +127,15 @@ pub fn with_refs<'a>(tex: &'a str, labels: &HashMap<String, String>) -> Cow<'a, 
     })
 }
 
+/// Where each row of a formula of several rows begins, as byte offsets
+/// into `tex`; empty for one row.
+pub fn row_starts(tex: &str) -> Vec<usize> {
+    match rows(tex, Numbering::All).0 {
+        rows if rows.len() > 1 => rows.iter().map(|r| r.as_ptr() as usize - tex.as_ptr() as usize).collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// The formula's rows, and whether they number themselves.
 fn rows(tex: &str, numbering: Numbering) -> (Vec<&str>, bool) {
     let tex = tex.trim();
@@ -326,6 +335,14 @@ mod tests {
         let two = r"\begin{align} a \end{align} \begin{align} b \end{align}";
         assert_eq!(rows_of(&[two], Numbering::Ams), [vec![""]]);
         assert_eq!(rows_of(&[r"\begin{alignat}{2} a &= b \\ c &= d \end{alignat}"], Numbering::Ams), [vec!["(1)", "(2)"]]);
+    }
+
+    #[test]
+    fn finds_where_rows_begin() {
+        let tex = r" \begin{align} a \\ b \\ \end{align}";
+        let starts = row_starts(tex);
+        assert_eq!(starts.iter().map(|&at| &tex[at..at + 2]).collect::<Vec<_>>(), [" a", " b"]);
+        assert!(row_starts(r"\begin{align} a \end{align}").is_empty() && row_starts(r"a \\ b").is_empty());
     }
 
     #[test]

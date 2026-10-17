@@ -1139,6 +1139,7 @@ Item {
             id: mathItem
             readonly property Item editItem: source
             readonly property alias tagFields: tagFields
+            readonly property alias formula: rendered
             readonly property bool editing: (source.activeFocus || tagFields.focused) && !block.locked || block.found
             readonly property real pad: 10 * block.scale
             width: parent ? parent.width : 0

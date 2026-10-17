@@ -234,6 +234,13 @@ pub mod qobject {
         #[cxx_name = "mathBaseline"]
         fn math_baseline(self: &Desktop, tex: &QString) -> f64;
 
+        /// Where each row of display formula `tex` has its baseline, as
+        /// parts of its height in a JSON list, once its image has loaded;
+        /// empty for one row.
+        #[qinvokable]
+        #[cxx_name = "mathRows"]
+        fn math_rows(self: &Desktop, tex: &QString) -> QString;
+
         /// Copy as Image: formula `tex` typeset in black, `em` pixels to the
         /// em, on the clipboard. False when it doesn't typeset.
         #[qinvokable]
@@ -563,6 +570,10 @@ impl qobject::Desktop {
 
     fn math_baseline(&self, tex: &QString) -> f64 {
         super::math::baseline(&tex.to_string())
+    }
+
+    fn math_rows(&self, tex: &QString) -> QString {
+        QString::from(&serde_json::Value::from(super::math::rows(&tex.to_string())).to_string())
     }
 
     fn copy_math_image(&self, tex: &QString, display: bool, em: f64) -> bool {
