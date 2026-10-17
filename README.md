@@ -17,6 +17,17 @@ launcher (Super + Space):
 bin/install
 ```
 
+On a Mac (Apple silicon), with `brew install qt typst` (and `pandoc` for
+Import… and the exports it writes), this builds `typo.app` and its `.dmg`
+and copies the app to /Applications:
+
+```sh
+bin/install-mac
+```
+
+There the menus are the Mac's and the keys Typora Mac's (⌘ for Ctrl, plus
+its own chords, such as ⌥⌘C for Code Fences).
+
 ## Shortcuts
 
 Typora's, from the menus. Preferences ▸ General ▸ Advanced Settings opens

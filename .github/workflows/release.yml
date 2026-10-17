@@ -1,5 +1,6 @@
 # Pushing a v* tag builds the Arch package (with the unit tests, the
-# PKGBUILD's check()) and publishes it as that tag's GitHub release.
+# PKGBUILD's check()) and publishes it as that tag's GitHub release, then
+# tests the Mac build (unit and e2e) and adds its .dmg to the release.
 name: release
 
 on:
@@ -36,3 +37,28 @@ jobs:
           gh release download $GITHUB_REF_NAME -R $GH_REPO -p '*.pkg.tar.zst'
           sudo pacman -U $(basename "$pkg")
           \`\`\`"
+
+  # macOS minutes count ten times on a private repo; this runs on tags only
+  # (or by hand), after the Arch job has made the release.
+  mac:
+    needs: arch
+    runs-on: macos-latest
+    env:
+      QMAKE: /opt/homebrew/opt/qt/bin/qmake
+    steps:
+      - run: brew install qt typst pandoc
+      - uses: actions/checkout@v5
+      - run: cargo test
+      - run: bin/e2e
+      - run: bin/install-mac --no-install
+      - if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" target/mac/typo-*.dmg --clobber
+          body=$(gh release view "$GITHUB_REF_NAME" --json body -q .body)
+          case "$body" in *macOS*) exit ;; esac
+          gh release edit "$GITHUB_REF_NAME" --notes "$body
+
+          macOS (Apple silicon): copy typo.app from the .dmg to Applications. It isn't notarized, so macOS blocks its first launch: allow it under System Settings ▸ Privacy & Security (Open Anyway), or run \`xattr -dr com.apple.quarantine /Applications/typo.app\`."
