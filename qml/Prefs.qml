@@ -170,7 +170,7 @@ QtObject {
     property bool macKeys: (Qt.platform.os === "osx" || Qt.platform.os === "macos")
                            && !Qt.application.arguments.some(a => a.startsWith("--script="))
     readonly property var macTable: ({
-        "Open Quickly...": "Ctrl+Shift+O", "Print...": "Ctrl+P", "Save All": "Ctrl+Alt+S",
+        "Open Quickly...": "Ctrl+Shift+O", "Page Setup...": "Ctrl+Shift+P", "Print...": "Ctrl+P", "Save All": "Ctrl+Alt+S",
         "Redo": "Ctrl+Shift+Z",
         "Select Paragraph / Block": "Ctrl+Alt+P", "Delete Paragraph / Block": "Ctrl+Alt+Shift+P",
         "Delete Line / Sentence": "Ctrl+Alt+Shift+L", "Delete Styled Scope": "Ctrl+Alt+Shift+E",

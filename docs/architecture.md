@@ -28,7 +28,13 @@ qml/           layout and interaction: window, menus, editor delegates,
   `visible`. The Mac's own (Reveal in Library and in File Tree, Delete…,
   Revert to Saved, Copy without Theme Styling, Paste and Match Style, Insert
   Final New Line On Save, Replace Next, Toggle Word Count Popover) mostly run
-  commands Linux reaches by other names.
+  commands Linux reaches by other names. Its others: Get Info… (Finder's
+  info window), Page Setup… (Preferences ▸ Export ▸ PDF, since printing goes
+  through the PDF), Readonly Mode, Toggle Outline Popover (the Outline tab
+  in a popup) and Allow Magnification (a trackpad pinch zooms).
+- Readonly Mode is `Editor.readonly`: every mutator returns early while it
+  is set (not `commit`, whose callers go on to use the new positions), and
+  QML makes each text field read-only and keeps blocks from expanding.
 - Controls use the Fusion style with the window palette filled from `Theme`.
   Fusion takes every colour from the palette, so stock controls follow the
   Omarchy theme. `TMenu`, `TMenuItem` and `TSep` draw Typora-style menus:

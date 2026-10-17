@@ -56,7 +56,7 @@ MenuBar {
             editMenu.removeAction(emojiCmd)
         } else {
             removeMenu(windowMenu)
-            for (const a of [revealLibrary, revealTree, deleteFile, revert])
+            for (const a of [getInfo, revealLibrary, revealTree, deleteFile, revert, pageSetup])
                 fileMenu.removeAction(a)
             fileMenu.removeItem(deleteSep)
             editMenu.removeAction(copyUnstyled)
@@ -65,6 +65,8 @@ MenuBar {
             lineEndingMenu.removeAction(finalNewlineCmd)
             findMenu.removeAction(replaceNext)
             viewMenu.removeAction(wordCountPopover)
+            viewMenu.removeAction(outlinePopover)
+            viewMenu.removeAction(magnifyCmd)
             viewMenu.removeAction(readonlyCmd)
         }
     }
@@ -139,6 +141,7 @@ MenuBar {
         Cmd { text: qsTr("Save All"); cmd: "saveAll" }
         Cmd { text: qsTr("Move To…"); cmd: "moveTo" }
         TSep {}
+        Cmd { id: getInfo; text: qsTr("Get Info…"); cmd: "getInfo"; enabled: bar.app.editor.path !== "" }
         Cmd { text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); cmd: "openLocation" }
         Cmd { id: revealSidebar; text: qsTr("Reveal in Sidebar"); cmd: "revealInSidebar" }
         Cmd { id: revealLibrary; text: qsTr("Reveal in Library"); cmd: "revealInSidebar"; arg: 1 }
@@ -171,6 +174,7 @@ MenuBar {
             Cmd { text: "Textile"; cmd: "export"; arg: "textile" }
             Cmd { text: "OPML"; cmd: "export"; arg: "opml" }
         }
+        Cmd { id: pageSetup; text: qsTr("Page Setup…"); cmd: "pageSetup" }
         Cmd { text: qsTr("Print…"); cmd: "print"; shortcut: "Alt+Shift+P" }
         TSep { id: prefsSep }
         Cmd { text: qsTr("Preferences…"); cmd: "preferences"; shortcut: "Ctrl+," }
@@ -477,10 +481,12 @@ MenuBar {
         TSep {}
         Cmd { text: qsTr("Status Bar"); cmd: "statusBar"; checkable: true; checked: Ui.statusBar }
         Cmd { id: wordCountPopover; text: qsTr("Toggle Word Count Popover"); cmd: "wordCount" }
+        Cmd { id: outlinePopover; text: qsTr("Toggle Outline Popover"); cmd: "outlinePopover" }
         TSep {}
         Cmd { text: qsTr("Toggle Fullscreen"); cmd: "fullscreen"; shortcut: "F11"; checkable: true; checked: bar.app.visibility === Window.FullScreen }
         Cmd { text: qsTr("Always on Top"); cmd: "alwaysOnTop"; checkable: true; checked: Ui.alwaysOnTop }
         TSep {}
+        Cmd { id: magnifyCmd; text: qsTr("Allow Magnification"); cmd: "magnify"; checkable: true; checked: Ui.magnify }
         Cmd { text: qsTr("Actual Size"); cmd: "zoom"; arg: 0; shortcut: "Ctrl+Shift+0" }
         Cmd { text: qsTr("Zoom In"); cmd: "zoom"; arg: 1; shortcut: "Ctrl+Shift+=" }
         Cmd { text: qsTr("Zoom Out"); cmd: "zoom"; arg: -1; shortcut: "Ctrl+Shift+-" }

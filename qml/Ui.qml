@@ -108,6 +108,8 @@ QtObject {
     property bool focusMode: false
     property bool typewriter: false
     property bool alwaysOnTop: false
+    // The Mac's View ▸ Allow Magnification: a trackpad pinch zooms.
+    property bool magnify: false
     // Theme picked in the Themes menu; empty follows Omarchy.
     property string theme: ""
 
@@ -211,5 +213,6 @@ QtObject {
         property alias focusMode: ui.focusMode
         property alias typewriter: ui.typewriter
         property alias theme: ui.theme
+        property alias magnify: ui.magnify
     }
 }

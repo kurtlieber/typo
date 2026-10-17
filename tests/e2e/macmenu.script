@@ -1,6 +1,6 @@
 # The Mac's own menu items, run as commands: Linux's menus leave them out,
 # and the Mac's leave out Reveal in Sidebar.
-check (() => { const m = win.menuBar.menuAt(0); const t = []; for (let i = 0; i < m.count; i++) t.push(m.itemAt(i).text); return t.includes("Reveal in Library") === Ui.mac && t.includes("Delete…") === Ui.mac && t.includes("Reveal in Sidebar") !== Ui.mac })()
+check (() => { const m = win.menuBar.menuAt(0); const t = []; for (let i = 0; i < m.count; i++) t.push(m.itemAt(i).text); return t.includes("Reveal in Library") === Ui.mac && t.includes("Delete…") === Ui.mac && t.includes("Get Info…") === Ui.mac && t.includes("Page Setup…") === Ui.mac && t.includes("Reveal in Sidebar") !== Ui.mac })()
 check (() => { const m = win.menuBar.menuAt(1); const t = []; for (let i = 0; i < m.count; i++) t.push(m.itemAt(i).text); return t.includes("Paste and Match Style") === Ui.mac && t.includes("Paste as Plain Text") })()
 eval Folder.create("@DIR@/notes", true)
 write @DIR@/notes/a.md # Alpha pear pear
@@ -41,6 +41,25 @@ cmd wordCount
 check footer.countMenu.visible
 cmd wordCount
 check !footer.countMenu.visible
+# Toggle Outline Popover lists the headings; choosing one closes it.
+cmd outlinePopover
+wait 100
+check outlinePopover.visible && outlinePopover.contentItem.shown.length === 1
+cmd jumpToRow 0
+check !outlinePopover.visible
+cmd outlinePopover
+cmd outlinePopover
+check !outlinePopover.visible
+# Allow Magnification lets a pinch zoom.
+check !Ui.magnify
+cmd magnify
+check Ui.magnify
+cmd magnify
+# Page Setup… opens Preferences ▸ Export ▸ PDF, where the page is set.
+cmd pageSetup
+check Ui.prefsOpen && Ui.prefsSection === 4 && prefsPanel.exportPrefs.current === "pdf"
+cmd preferences
+check !Ui.prefsOpen
 # Delete… sends the file to the Trash, the next one opening in its place.
 eval Prefs.noWarningForDeleteFile = true
 cmd deleteFile

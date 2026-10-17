@@ -16,6 +16,8 @@ Item {
     property alias filter: filterInput.text
     // Folded headings, by "level title", so they stay folded as rows move.
     property var folded: ({})
+    // What it needs to show every row (the outline popover's height).
+    readonly property real fullHeight: filterPanel.height + list.topMargin + list.contentHeight + 10
 
     function key(h) {
         return h.level + " " + h.title

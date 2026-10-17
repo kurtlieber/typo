@@ -57,6 +57,14 @@ pub fn show_emoji_picker() -> bool {
     false
 }
 
+/// Finder's info window for `path` (File ▸ Get Info…). The path goes as
+/// an argument, so nothing in it is read as AppleScript.
+pub fn show_info(path: &Path) {
+    let script = ["on run argv", "tell application \"Finder\"", "activate",
+        "open information window of (POSIX file (item 1 of argv) as alias)", "end tell", "end run"];
+    let _ = Command::new("osascript").args(script.iter().flat_map(|l| ["-e", l])).arg(path).spawn();
+}
+
 /// Ask every window in the group, this one included, to close ("Quit", as
 /// SIGUSR1) or save ("Save", SIGUSR2): each process with a file in the
 /// session folder, once however many windows it has.

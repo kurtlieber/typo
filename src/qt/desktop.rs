@@ -304,6 +304,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "showEmojiPicker"]
         fn show_emoji_picker(self: &Desktop) -> bool;
+        /// The Mac's File ▸ Get Info…: Finder's info window for `path`.
+        #[qinvokable]
+        #[cxx_name = "showInfo"]
+        fn show_info(self: &Desktop, path: &QString);
         /// The windows open when typo last closed, as JSON `[{path,
         /// folder}]`, oldest first; they are forgotten.
         #[qinvokable]
@@ -364,7 +368,7 @@ pub mod qobject {
     impl cxx_qt::Threading for Desktop {}
 }
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -523,6 +527,10 @@ impl qobject::Desktop {
 
     fn show_emoji_picker(&self) -> bool {
         platform::show_emoji_picker()
+    }
+
+    fn show_info(&self, path: &QString) {
+        platform::show_info(Path::new(&path.to_string()));
     }
 
     fn other_windows_open(&self) -> bool {

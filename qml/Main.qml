@@ -241,6 +241,27 @@ ApplicationWindow {
         Prefs.advanced = JSON.parse(Desktop.advanced())
     }
 
+    // The Mac's View ▸ Toggle Outline Popover: the Outline tab, hung from
+    // the window's top; choosing a heading closes it.
+    Popup {
+        id: outlinePopover
+        objectName: "outlinePopover"
+        x: 8
+        y: 8
+        width: 280
+        height: Math.min(440, win.height - 16, Math.max(60, contentItem.fullHeight))
+        padding: 0
+        background: Rectangle {
+            color: Theme.panel
+            border.color: Theme.border
+            radius: 4
+        }
+        contentItem: OutlineView {
+            app: win
+            side: sidebar
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 0
@@ -299,6 +320,7 @@ ApplicationWindow {
                         imagePopup.close()
                 }
                 WheelZoom {}
+                PinchZoom {}
                 ImagePopup {
                     id: imagePopup
                     view: view
@@ -313,6 +335,7 @@ ApplicationWindow {
                 anchors.topMargin: notice.visible ? notice.height : findBar.visible ? 20 : 0
                 anchors.bottomMargin: footer.visible ? footer.height : 0
                 WheelZoom {}
+                PinchZoom {}
             }
             FindBar {
                 id: findBar
@@ -445,10 +468,10 @@ ApplicationWindow {
     // Commands that work the same in Source Code Mode; the rest act on its
     // text there (SourceView.command), or do nothing.
     readonly property var everywhere: ["new", "newWindow", "open", "openFolder", "openPath", "reopenClosed", "save",
-        "saveAs", "saveAll", "moveTo", "revealInSidebar", "deleteFile", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
+        "saveAs", "saveAll", "moveTo", "revealInSidebar", "deleteFile", "clearRecent", "reload", "encoding", "openLocation", "getInfo", "pageSetup", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
         "quickOpen", "newFileInFolder", "refreshFolder", "searchFolder", "sidebarView", "sourceMode", "focusMode",
-        "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "replaceNext", "findNext",
-        "findPrevious", "wordCount", "emoji", "readonly", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
+        "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "magnify", "zoom", "theme", "find", "replace", "replaceNext", "findNext",
+        "findPrevious", "wordCount", "outlinePopover", "emoji", "readonly", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
 
     // Every menu item, shortcut and button runs a command here.
     function run(cmd, arg) {
@@ -544,6 +567,16 @@ ApplicationWindow {
         case "finalNewline": model.setFinalNewline(!model.finalNewline()); return
         case "pref": Prefs.toggle(arg); return
         case "smartTiming": Prefs.smartOnRendering = arg; return
+        case "getInfo":
+            if (model.path !== "")
+                Desktop.showInfo(model.path)
+            return
+        // The Mac's Page Setup…: printing goes through the PDF, so its
+        // page is Preferences ▸ Export ▸ PDF's.
+        case "pageSetup":
+            prefsPanel.exportPrefs.current = "pdf"
+            prefsPanel.show(4)
+            return
         case "preferences":
             if (arg === "image")
                 prefsPanel.show(2, "image-setting-group")
@@ -623,7 +656,13 @@ ApplicationWindow {
         }
         case "jumpTop": view.jumpTop(); return
         case "jumpBottom": view.jumpBottom(); return
-        case "jumpToRow": view.jumpToRow(arg); return
+        case "jumpToRow":
+            outlinePopover.close()
+            view.jumpToRow(arg)
+            return
+        case "outlinePopover":
+            outlinePopover.visible ? outlinePopover.close() : outlinePopover.open()
+            return
 
         case "sidebar": Ui.sidebar = !Ui.sidebar; return
         case "quickOpen": quickOpen.show(); return
@@ -669,6 +708,7 @@ ApplicationWindow {
             win.visibility = win.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
             return
         case "alwaysOnTop": Ui.alwaysOnTop = !Ui.alwaysOnTop; return
+        case "magnify": Ui.magnify = !Ui.magnify; return
         // The Mac's Window menu.
         case "minimize": win.showMinimized(); return
         case "maximize": win.visibility === Window.Maximized ? win.showNormal() : win.showMaximized(); return
@@ -1619,6 +1659,16 @@ ApplicationWindow {
                 turned -= Math.sign(turned) * 120
             }
         }
+    }
+
+    // A pinch scales the zoom, within the steps' range, when View ▸ Allow
+    // Magnification says so.
+    component PinchZoom: PinchHandler {
+        property real from: 1
+        enabled: Ui.magnify
+        target: null
+        onActiveChanged: if (active) from = Ui.zoom
+        onActiveScaleChanged: if (active) Ui.zoom = Math.max(Math.pow(1.2, -7), Math.min(Math.pow(1.2, 8), from * activeScale))
     }
 
     function step(line) {

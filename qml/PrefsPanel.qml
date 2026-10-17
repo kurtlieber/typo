@@ -263,6 +263,8 @@ Rectangle {
         }
     }
 
+    readonly property alias exportPrefs: exporting
+
     // "Global Image Settings…" and the like: the group they point at shows
     // marked for a few seconds.
     function show(section, group) {

@@ -60,6 +60,9 @@ pub fn show_emoji_picker() -> bool {
     std::process::Command::new("omarchy-shell").args(["shell", "toggle", "omarchy.emojis"]).spawn().is_ok()
 }
 
+/// Linux Typora has no File ▸ Get Info…, so typo has none to show.
+pub fn show_info(_path: &Path) {}
+
 /// Print what `render` typesets on the page the print dialog sets up,
 /// starting from `page` (its size and margins in millimetres). `path` is
 /// where the PDF waits while the dialog takes it.
