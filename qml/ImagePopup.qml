@@ -37,6 +37,8 @@ Item {
             r.push([qsTr("Move to %1").arg(folder), "moveImageToFolder", ""])
         if (loadedFile)
             r.push([qsTr("Rename or Move Image to…"), "moveImageTo", ""])
+        if (loadedFile && Prefs.imageUploader !== "")
+            r.push([qsTr("Upload Image"), "uploadImage", ""])
         if (zoomTo !== "")
             r.push([qsTr("Zoom Image to %1").arg(zoomTo), "zoomImage", zoomTo])
         r.push([qsTr("Zoom Image"), "", ""])

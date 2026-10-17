@@ -367,6 +367,13 @@ deletes it again, as Typora's `restoreMedia` / `deleteMedia`. When Insert
 Local Image writes the front matter's `typora-copy-images-to` and
 `typora-root-url` (`edit::set_property`). Reload All Images gives every
 picture's URL a new fragment (`Ui.reloaded`), which misses Qt's cache.
+Upload Image runs the image uploader, a command that takes the files as
+its last arguments and prints their URLs last (`src/upload.rs`), off the
+GUI thread (`Editor.uploadImages`); `imagesUploaded` answers, and
+`repointImages` points every image whose file was uploaded at its URL, as
+one step, by file, so edits made meanwhile don't matter. Main.qml uploads
+inserted images too when When Insert… says Upload image, or the front
+matter's `typora-copy-images-to: upload` once Preferences allow it.
 When a picture loads in the block with the caret (`EditorView.imageLoaded`)
 and the caret is in its source, Main offers its commands in
 `qml/ImagePopup.qml`, under the caret, unless it offered for that URL

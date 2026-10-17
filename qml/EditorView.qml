@@ -375,6 +375,9 @@ Flickable {
         clearSpan()
         const edit = item.editItem
         edit.forceActiveFocus()
+        // A field that kept the focus while rows went in above it (new
+        // front matter) is at a new row now.
+        rowFocused(row)
         const len = edit.length
         edit.select(Math.min(anchor, len), Math.min(pos, len))
         reveal(item, edit.cursorRectangle)

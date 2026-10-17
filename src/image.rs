@@ -37,7 +37,7 @@ pub fn front_matter(doc: &Document, name: &str) -> Option<String> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InsertOptions {
     /// When Insert…: 0 nothing, copy to 1 `./`, 2 `./assets`,
-    /// 3 `./${filename}.assets` or 4 `folder`.
+    /// 3 `./${filename}.assets` or 4 `folder`, or 5 upload.
     pub action: i32,
     pub folder: String,
     /// Apply above rules to local images.
@@ -68,11 +68,11 @@ pub fn storage(setting: Option<&str>, opts: &InsertOptions, file: Option<&Path>)
     let named = |s: &str| -> Option<String> {
         if s.contains("${filename}") { Some(s.replace("${filename}", stem.as_deref()?)) } else { Some(s.to_string()) }
     };
-    // Uploading isn't something typo does.
-    if let (Some(s), Some(folder)) = (setting, folder)
-        && !s.eq_ignore_ascii_case("upload")
-        && !s.eq_ignore_ascii_case("ipic")
-    {
+    // "upload" (or Typora's "ipic") uploads them instead.
+    if setting.is_some_and(|s| s.eq_ignore_ascii_case("upload") || s.eq_ignore_ascii_case("ipic")) {
+        return None;
+    }
+    if let (Some(s), Some(folder)) = (setting, folder) {
         return Some((normalize(&folder.join(named(s)?)), true));
     }
     let path = match opts.action {
@@ -469,7 +469,8 @@ mod tests {
         assert_eq!(at(None, opts(4, "${filename}"), None), None);
         // The front matter wins.
         assert_eq!(at(Some("./img"), opts(2, ""), doc), Some(("/notes/img".into(), true)));
-        assert_eq!(at(Some("upload"), opts(2, ""), doc), Some(("/notes/assets".into(), false)));
+        assert_eq!(at(Some("upload"), opts(2, ""), doc), None);
+        assert_eq!(at(None, opts(5, ""), doc), None);
         let doc = crate::md::parse("---\ntypora-copy-images-to: '../shared'\n---\n");
         assert_eq!(copy_setting(&doc).as_deref(), Some("../shared"));
     }

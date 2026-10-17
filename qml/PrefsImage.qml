@@ -2,8 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Typo
 
-// Preferences ▸ Image. Uploading isn't something typo does, so Typora's
-// "Upload image" and its online-image rules are left out.
+// Preferences ▸ Image. Typora's rules for online images are left out.
 Column {
     id: section
 
@@ -31,7 +30,7 @@ Column {
             key: "imageInsertAction"
             options: [[0, qsTr("No special action")], [1, qsTr("Copy image to current folder (./)")],
                 [2, qsTr("Copy image to ./assets")], [3, qsTr("Copy image to ./${filename}.assets")],
-                [4, qsTr("Copy image to custom folder")]]
+                [5, qsTr("Upload image")], [4, qsTr("Copy image to custom folder")]]
             boxWidth: 300
             onPicked: v => {
                 if (v === 4) {
@@ -102,6 +101,47 @@ Column {
         PrefCheck {
             text: qsTr("Apply above rules to local images")
             key: "imageCopyLocal"
+        }
+        PrefCheck {
+            text: qsTr("Allow upload images automatically based on YAML settings")
+            key: "allowImageUpload"
+        }
+    }
+
+    PrefGroup {
+        title: qsTr("Image Upload Setting")
+        // Typora's iPic, PicGo.app and PicList talk to apps over their own
+        // channels; these are commands.
+        PrefChoice {
+            label: qsTr("Image Uploader")
+            labelWidth: 160
+            key: "imageUploader"
+            options: [["", qsTr("None")]].concat(Qt.platform.os === "osx" ? [["upic", "uPic"], ["picsee", "Picsee"]] : [],
+                [["picgo-cli", "PicGo-Core (command line)"], ["custom", qsTr("Custom Command")]])
+            boxWidth: 260
+        }
+        PrefField {
+            visible: Prefs.imageUploader === "custom"
+            label: qsTr("Command")
+            labelWidth: 160
+            key: "customImageUploader"
+            placeholder: qsTr("e.g: %1").arg('"/usr/bin/uploader" --upload')
+            boxWidth: Math.min(420, parent.width - 180)
+        }
+        Row {
+            visible: Prefs.imageUploader !== ""
+            leftPadding: 160
+            topPadding: 4
+            spacing: 12
+            PrefButton {
+                text: qsTr("Test Uploader")
+                enabled: Desktop.uploaderCommand(Prefs.imageUploader, Prefs.customImageUploader, "") !== ""
+                onClicked: section.app.testUploader()
+            }
+            PrefButton {
+                text: qsTr("Instructions")
+                onClicked: Qt.openUrlExternally("https://support.typora.io/Upload-Image/")
+            }
         }
     }
 

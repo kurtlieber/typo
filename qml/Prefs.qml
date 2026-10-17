@@ -137,12 +137,21 @@ QtObject {
     }
 
     // Image
-    property int imageInsertAction: 0     // 0 none, 1 copy to ./, 2 ./assets, 3 ./${filename}.assets, 4 custom
+    property int imageInsertAction: 0     // 0 none, 1 copy to ./, 2 ./assets, 3 ./${filename}.assets, 4 custom, 5 upload
     property string imageFolder: ""
     property bool imageRelative: true
     property bool imageCopyLocal: true    // Apply above rules to local images
     property bool imageWithDot: false     // Add ./ for relative path
     property bool imageEscape: false      // Auto escape image URL when insert
+    // Image Uploader: "" none, "custom" (customImageUploader), "picgo-cli",
+    // and on the Mac "upic" and "picsee".
+    property string imageUploader: ""
+    property string customImageUploader: ""
+    // Upload images a document's YAML says to (typora-copy-images-to: upload).
+    property bool allowImageUpload: false
+    property bool noWarningUploadDisabled: false
+    // "Do not show this again" on asking before running the uploader.
+    property bool passUploadConfirm: false
 
     // Typewriter mode moves every caret move's line to the middle, not
     // just typing's.
@@ -267,7 +276,8 @@ QtObject {
         "smartOnRendering", "smartQuotes", "smartDashes", "dashesToEm", "quotePairs", "remapPunctuation",
         "useCustomFontSize", "customFontSize", "zoomByWheel", "exportConfig", "pandocPath",
         "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",
-        "imageEscape", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
+        "imageEscape", "imageUploader", "customImageUploader", "allowImageUpload", "noWarningUploadDisabled",
+        "passUploadConfirm", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
         "noExportOverwriteWarning", "noWarningForDeleteFile", "noWarningForMoveFile",
         "noWarningForMoveFileToList", "noWarningForDeleteImage", "noWarningForMoveImage", "recentFiles", "recentFolders", "pinnedFolders", "closedFiles"
     ]

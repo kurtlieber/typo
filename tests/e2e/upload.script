@@ -1,0 +1,59 @@
+# Upload Image: with no image uploader set it says to set one; a custom
+# command's URLs replace the images' sources, the one at the caret or, once
+# asked, every local one; Test Uploader shows what came back; a command
+# that prints no URL leaves the image be. When Insert… ▸ Upload image, and
+# the front matter's `typora-copy-images-to: upload` once Preferences allow
+# it, upload inserted images.
+write @DIR@/up.sh for f; do echo "[up] $f"; echo "file:///typo-uploaded/$(basename "$f")"; done\n
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+write @DIR@/dog.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
+write @DIR@/bird.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>
+write @DIR@/doc.md Pets: ![cat](cat.svg) and ![dog](dog.svg)\n\n| a |\n| - |\n| ![cat](cat.svg) |\n\nend\n
+cmd openPath @DIR@/doc.md
+wait 100
+caret 0 8
+cmd uploadImage
+check dialog.opened && dialog.text.indexOf("Please set an image uploader") === 0
+answer 1
+eval Prefs.imageUploader = "custom"
+eval Prefs.customImageUploader = "sh @DIR@/up.sh"
+cmd uploadImage
+wait 500
+check model.markdown().startsWith("Pets: ![cat](file:///typo-uploaded/cat.svg) and ![dog](dog.svg)")
+check toast.text === "Successfully uploaded 1 images."
+cmd uploadAllImages
+wait 50
+check dialog.checkBox.visible && dialog.text.indexOf("3rd party app") > 0
+answer 0
+wait 500
+check model.markdown().indexOf("](dog.svg)") < 0 && !Prefs.passUploadConfirm
+cmd uploadAllImages
+check toast.text === "No local images found."
+eval testUploader()
+wait 500
+check dialog.title === "Validating Image Uploader" && dialog.text.indexOf("Successfully get uploaded image url.") >= 0
+answer 0
+eval Prefs.customImageUploader = "echo done"
+key Ctrl+End
+choose @DIR@/bird.svg
+cmd insertImages
+eval Prefs.imageInsertAction = 5
+choose @DIR@/bird.svg
+cmd insertImages
+wait 500
+check toast.text.indexOf("Failed to upload image. Error Message: fail to parse") === 0
+check model.markdown().indexOf("![bird](bird.svg) ![bird](bird.svg)") > 0
+eval Prefs.customImageUploader = "sh @DIR@/up.sh"
+eval Prefs.imageInsertAction = 0
+cmd imageUploadSetting
+check model.imageSetting("copy") === "upload"
+choose @DIR@/bird.svg
+cmd insertImages
+wait 50
+check dialog.opened && dialog.text.indexOf("must be enabled first") > 0
+answer 1
+eval Prefs.allowImageUpload = true
+choose @DIR@/bird.svg
+cmd insertImages
+wait 500
+dump @OUT@

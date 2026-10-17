@@ -168,6 +168,8 @@ ApplicationWindow {
             const error = view.insertFiles(list, create, s)
             if (error !== "")
                 toast.show(qsTr("Failed to Copy Image to Target Folder.") + " " + error)
+            else
+                uploadInserted(paths)
         }
         if (folder === "") {
             insert(false)
@@ -176,6 +178,91 @@ ApplicationWindow {
         dialog.ask(qsTr("Copy Image to…"),
             qsTr("typo is trying to copy the newly inserted image to folder %1, but the folder does not exist. Create it now?").arg(folder),
             [qsTr("Yes"), qsTr("No")], i => insert(i === 0))
+    }
+
+    // When Insert… ▸ Upload image, or the front matter's
+    // `typora-copy-images-to: upload` once Preferences allow it: the
+    // inserted images' files go to the image uploader.
+    readonly property var imageTypes: ["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico", "tif", "tiff", "avif", "heic"]
+    function uploadInserted(paths) {
+        const images = paths.filter(p => p.startsWith("/") && imageTypes.indexOf(p.split(".").pop().toLowerCase()) >= 0)
+        if (images.length === 0)
+            return
+        const setting = model.imageSetting("copy").toLowerCase()
+        const yaml = setting === "upload" || setting === "ipic"
+        if (yaml && !Prefs.allowImageUpload) {
+            if (Prefs.noWarningUploadDisabled)
+                return
+            dialog.ask("", qsTr("The option `%1` must be enabled first to automatically upload images.")
+                .arg(qsTr("Allow upload images automatically based on YAML settings")),
+                [qsTr("Enable this feature on preferences panel"), qsTr("Close")], (i, checked) => {
+                if (checked)
+                    Prefs.noWarningUploadDisabled = true
+                if (i === 0)
+                    prefsPanel.show(2, "image-setting-group")
+            }, { check: qsTr("Do not show this again") })
+        } else if (yaml || (setting === "" && Prefs.imageInsertAction === 5)) {
+            uploadImages(images)
+        }
+    }
+
+    // Upload Image: Preferences' image uploader runs on `paths`, local
+    // image files, and their images point at the URLs it prints.
+    function uploaderCommand() {
+        return Desktop.uploaderCommand(Prefs.imageUploader, Prefs.customImageUploader, model.path)
+    }
+    function canUpload() {
+        if (uploaderCommand() !== "")
+            return true
+        dialog.ask("", qsTr("Please set an image uploader in Preferences panel before using this function."),
+            [qsTr("Open Preferences"), qsTr("Cancel")], i => {
+            if (i === 0)
+                prefsPanel.show(2, "image-setting-group")
+        })
+        return false
+    }
+    function uploadImages(paths) {
+        if (!canUpload())
+            return
+        toast.show(qsTr("Uploading in progress…"), true)
+        model.uploadImages(uploaderCommand(), paths.join("\n"))
+    }
+    // Preferences' Test Uploader: a test image through it, and what came
+    // of that.
+    property string uploadTest: ""
+    function testUploader() {
+        const image = Desktop.uploadTestImage()
+        if (image === "" || uploaderCommand() === "")
+            return
+        uploadTest = image
+        toast.show(qsTr("Uploading in progress…"), true)
+        model.uploadImages(uploaderCommand(), image)
+    }
+    Connections {
+        target: model
+        function onImagesUploaded(paths, urls, error, output, stderr) {
+            if (paths === win.uploadTest) {
+                win.uploadTest = ""
+                toast.visible = false
+                let text = qsTr("Testing image uploading using command:") + preText(uploaderCommand() + " " + paths)
+                text += urls !== "" ? qsTr("Successfully get uploaded image url.") + preText(urls)
+                    : qsTr("Failed to fetch uploaded image from command output.") + preText(error)
+                if (output.trim() !== "")
+                    text += preText(output)
+                dialog.wide = true
+                dialog.ask(qsTr("Validating Image Uploader"), text, [qsTr("OK")], () => {})
+                return
+            }
+            const n = paths.split("\n").length
+            if (urls === "") {
+                toast.show((n === 1 ? qsTr("Failed to upload image. Error Message:") : qsTr("Failed to upload images:")) + " " + error)
+                return
+            }
+            const s = view.selection()
+            model.repointImages(paths, urls, s.zRow, s.zPos)
+            imageMoved()
+            toast.show(qsTr("Successfully uploaded {0} images.").replace("{0}", n))
+        }
     }
 
     // Files dropped on the page, as Typora takes them: a folder opens in
@@ -377,10 +464,14 @@ ApplicationWindow {
     Rectangle {
         id: toast
         property alias text: toastText.text
-        function show(message) {
+        // `sticky` stays until the next message.
+        function show(message, sticky) {
             text = message
             visible = true
-            toastTimer.restart()
+            if (sticky)
+                toastTimer.stop()
+            else
+                toastTimer.restart()
         }
         visible: false
         z: 100
@@ -848,6 +939,31 @@ ApplicationWindow {
             })
             return
         }
+        case "uploadImage": {
+            const img = imageHere()
+            if (img && img.path !== "")
+                uploadImages([img.path])
+            return
+        }
+        case "uploadAllImages": {
+            if (!canUpload())
+                return
+            const files = model.localImages()
+            if (files === "") {
+                toast.show(qsTr("No local images found."))
+                return
+            }
+            shouldContinue(qsTr("Upload All Local Images"),
+                qsTr("typo will launch 3rd party app with file paths of all local images. The image uploader and cloud image storage will then have access to your local images. Are you sure to continue?"),
+                "passUploadConfirm", () => uploadImages(files.split("\n")))
+            return
+        }
+        case "imageUploadSetting": {
+            const s = view.selection()
+            const on = ["upload", "ipic"].indexOf(model.imageSetting("copy").toLowerCase()) >= 0
+            model.setImageSetting("copy", on ? "" : "upload", s.zRow, s.zPos)
+            return
+        }
         case "copyAllImages":
             Desktop.chooseFile("imagesCopy", qsTr("Select Container Folder"), model.pastedImageFolder(startFolder()), "")
             return
@@ -862,7 +978,8 @@ ApplicationWindow {
         case "imageRootSetting": {
             const name = cmd === "imageFolderSetting" ? "copy" : "root"
             const s = view.selection()
-            if (model.imageSetting(name) !== "")
+            const set = model.imageSetting(name)
+            if (set !== "" && !(name === "copy" && ["upload", "ipic"].indexOf(set.toLowerCase()) >= 0))
                 model.setImageSetting(name, "", s.zRow, s.zPos)
             else if (name === "copy" && model.path === "")
                 dialog.ask(qsTr("Document must be saved first."),
@@ -1198,6 +1315,11 @@ ApplicationWindow {
             documents: documentsFolder()
         })
     }
+    // A command's output in a dialog: its last lines, so it fits.
+    function preText(s) {
+        return "<pre>" + s.replace(/\s+$/, "").split("\n").slice(-20).join("\n")
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>"
+    }
     // After Export, as the format's options say: what the command wrote,
     // when it failed or is to be shown, else the notice; then the file's
     // folder, or the file, opened.
@@ -1210,8 +1332,7 @@ ApplicationWindow {
             notice.close()
             // The command as set, then what it said: the last lines,
             // so the dialog fits on the screen.
-            const pre = s => "<pre>" + s.replace(/\s+$/, "").split("\n").slice(-20).join("\n")
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>"
+            const pre = preText
             // What it wrote to stderr only when it failed; its stdout
             // unless that is empty and stderr isn't.
             const error = ran.ok ? "" : ran.error

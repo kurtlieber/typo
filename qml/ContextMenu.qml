@@ -221,6 +221,11 @@ TMenu {
         visible: menu.loadedFile
         onTriggered: menu.run("moveImageTo")
     }
+    TMenuItem {
+        text: qsTr("Upload Image")
+        visible: menu.loadedFile && Prefs.imageUploader !== ""
+        onTriggered: menu.run("uploadImage")
+    }
     // A HiDPI picture's own size, as Typora offers it.
     TMenuItem {
         text: qsTr("Zoom Image to %1").arg(menu.hasImage ? Math.round(100 / menu.image.ratio) + "%" : "")

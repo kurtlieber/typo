@@ -17,6 +17,7 @@ mod source;
 mod qt;
 mod session;
 mod strut;
+mod upload;
 
 use cxx_qt_lib::{QGuiApplication, QQuickStyle, QString};
 

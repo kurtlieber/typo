@@ -637,6 +637,29 @@ pub mod qobject {
         #[cxx_name = "relocateAllImages"]
         fn relocate_all_images(self: Pin<&mut Editor>, folder: &QString, move_file: bool, row: i32, pos: i32) -> QString;
 
+        /// Upload Image: the files of the document's local images, one per
+        /// line, each once.
+        #[qinvokable]
+        #[cxx_name = "localImages"]
+        fn local_images(self: &Editor) -> QString;
+        /// Run the image uploader `command` on `paths` (one per line) off
+        /// the GUI thread; `imagesUploaded` answers.
+        #[qinvokable]
+        #[cxx_name = "uploadImages"]
+        fn upload_images(self: Pin<&mut Editor>, command: &QString, paths: &QString);
+        /// An upload finished: `urls` has a line for each of `paths`, or
+        /// none when it failed, and `error` says why. `output` and
+        /// `stderr` are what the command printed.
+        #[qsignal]
+        #[cxx_name = "imagesUploaded"]
+        fn images_uploaded(self: Pin<&mut Editor>, paths: QString, urls: QString, error: QString, output: QString, stderr: QString);
+        /// Point every image whose file is a line of `paths` at the URL on
+        /// the same line of `urls`, as one step; the caret at (`row`,
+        /// `pos`) stays where it is. How many of the files were shown.
+        #[qinvokable]
+        #[cxx_name = "repointImages"]
+        fn repoint_images(self: Pin<&mut Editor>, paths: &QString, urls: &QString, row: i32, pos: i32) -> i32;
+
         /// Format ▸ Image ▸ When Insert Local Image: the folder the front
         /// matter's `typora-copy-images-to` ("copy") or `typora-root-url`
         /// ("root") names, as written; empty when it names none.
@@ -644,7 +667,7 @@ pub mod qobject {
         #[cxx_name = "imageSetting"]
         fn image_setting(self: &Editor, name: &QString) -> QString;
         /// Point it at `folder`, written relative to the document's folder,
-        /// or take it out when `folder` is empty; the caret at (`row`,
+        /// or at "upload", or take it out when `folder` is empty; the caret at (`row`,
         /// `pos`) stays where it is. False when nothing changed.
         #[qinvokable]
         #[cxx_name = "setImageSetting"]
@@ -723,7 +746,7 @@ pub mod qobject {
     impl cxx_qt::Threading for Editor {}
 }
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -2523,11 +2546,40 @@ impl qobject::Editor {
         }
         let folder = PathBuf::from(folder.to_string());
         let root = self.image_root_path();
-        let file = self.file.clone();
+        let (file, opts) = (self.file.clone(), self.image_opts.clone());
         // A file shown by several images is copied once.
         let mut copies: HashMap<PathBuf, PathBuf> = HashMap::new();
         let mut error = String::new();
-        let (refs, opts) = (&self.refs, &self.image_opts);
+        self.as_mut().repoint(row, pos, |from| {
+            if from.parent() == Some(folder.as_path()) {
+                return None;
+            }
+            let to = match copies.get(from) {
+                Some(to) => to.clone(),
+                None => match image::copy_into(from, &folder) {
+                    Ok(to) => copies.entry(from.to_path_buf()).or_insert(to).clone(),
+                    Err(e) => {
+                        error = e.to_string();
+                        return None;
+                    }
+                },
+            };
+            Some(image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), &opts))
+        });
+        if move_file {
+            for from in copies.keys() {
+                let _ = fs::remove_file(from);
+            }
+        }
+        QString::from(&format!("{{\"count\":{},\"error\":{}}}", copies.len(), json_str(&error)))
+    }
+
+    /// Give every image with a local file the source `to` has for that
+    /// file, as one undo step; the caret at (`row`, `pos`) stays put.
+    fn repoint(mut self: Pin<&mut Self>, row: i32, pos: i32, mut to: impl FnMut(&Path) -> Option<String>) {
+        let root = self.image_root_path();
+        let file = self.file.clone();
+        let refs = &self.refs;
         let mut repoint = |old: &str| {
             let mut text = old.to_string();
             // Last to first, so the ranges before stay put.
@@ -2535,21 +2587,9 @@ impl qobject::Editor {
                 let Some(from) = image::local_path(&src, file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
                     continue;
                 };
-                if from.parent() == Some(folder.as_path()) {
-                    continue;
-                }
-                let to = match copies.get(&from) {
-                    Some(to) => to.clone(),
-                    None => match image::copy_into(&from, &folder) {
-                        Ok(to) => copies.entry(from).or_insert(to).clone(),
-                        Err(e) => {
-                            error = e.to_string();
-                            continue;
-                        }
-                    },
-                };
-                let new_src = image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), opts);
-                if let Some((out, _)) = edit::set_image_src(&text, range, refs, &new_src) {
+                if let Some(new_src) = to(&from)
+                    && let Some((out, _)) = edit::set_image_src(&text, range, refs, &new_src)
+                {
                     text = out;
                 }
             }
@@ -2570,26 +2610,78 @@ impl qobject::Editor {
                 changed.push((i, new));
             }
         }
-        if move_file {
-            for from in copies.keys() {
-                let _ = fs::remove_file(from);
+        if changed.is_empty() {
+            return;
+        }
+        let old = self.doc.blocks.clone();
+        let caret = pos_of(&self.doc, row, pos).unwrap_or(Pos::new(0, 0));
+        for (i, block) in changed {
+            self.as_mut().rust_mut().doc.blocks[i] = block;
+        }
+        let text = &self.doc.blocks[caret.block].text;
+        let mut offset = caret.offset.min(text.len());
+        while !text.is_char_boundary(offset) {
+            offset -= 1;
+        }
+        let after = Sel::caret(Pos::new(caret.block, offset));
+        self.as_mut().commit(old, Sel::caret(caret), after, Merge::Never);
+    }
+
+    fn local_images(&self) -> QString {
+        let root = self.image_root_path();
+        let mut files: Vec<String> = Vec::new();
+        let mut add = |text: &str| {
+            for (_, src) in edit::images(text, &self.refs) {
+                let path = image::local_path(&src, self.file.as_deref(), root.as_deref()).filter(|f| f.is_file());
+                if let Some(path) = path.map(|p| p.to_string_lossy().into_owned())
+                    && !files.contains(&path)
+                {
+                    files.push(path);
+                }
+            }
+        };
+        for b in &self.doc.blocks {
+            match &b.kind {
+                k if k.is_inline_text() => add(&b.text),
+                BlockKind::Table { rows, .. } => rows.iter().flatten().for_each(|cell| add(cell)),
+                _ => {}
             }
         }
-        if !changed.is_empty() {
-            let old = self.doc.blocks.clone();
-            let caret = pos_of(&self.doc, row, pos).unwrap_or(Pos::new(0, 0));
-            for (i, block) in changed {
-                self.as_mut().rust_mut().doc.blocks[i] = block;
-            }
-            let text = &self.doc.blocks[caret.block].text;
-            let mut offset = caret.offset.min(text.len());
-            while !text.is_char_boundary(offset) {
-                offset -= 1;
-            }
-            let after = Sel::caret(Pos::new(caret.block, offset));
-            self.as_mut().commit(old, Sel::caret(caret), after, Merge::Never);
+        QString::from(&files.join("\n"))
+    }
+
+    fn upload_images(self: Pin<&mut Self>, command: &QString, paths: &QString) {
+        let (command, paths) = (command.to_string(), paths.to_string());
+        let thread = self.qt_thread();
+        std::thread::spawn(move || {
+            let files: Vec<String> = paths.lines().map(String::from).collect();
+            let ran = crate::upload::run(&command, &files);
+            let (urls, error) = match ran.urls {
+                Ok(urls) => (urls.join("\n"), String::new()),
+                Err(e) => (String::new(), e),
+            };
+            let _ = thread.queue(move |obj| {
+                obj.images_uploaded(QString::from(&paths), QString::from(&urls), QString::from(&error), QString::from(&ran.output), QString::from(&ran.error))
+            });
+        });
+    }
+
+    fn repoint_images(mut self: Pin<&mut Self>, paths: &QString, urls: &QString, row: i32, pos: i32) -> i32 {
+        if self.readonly {
+            return 0;
         }
-        QString::from(&format!("{{\"count\":{},\"error\":{}}}", copies.len(), json_str(&error)))
+        let (paths, urls) = (paths.to_string(), urls.to_string());
+        // By the file itself, so `/tmp/a.png` finds `/private/tmp/a.png`.
+        let real = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+        let map: HashMap<PathBuf, &str> = paths.lines().map(|p| real(Path::new(p))).zip(urls.lines()).collect();
+        let mut shown = HashSet::new();
+        self.as_mut().repoint(row, pos, |from| {
+            let from = real(from);
+            let url = map.get(&from)?;
+            shown.insert(from);
+            Some(url.to_string())
+        });
+        shown.len() as i32
     }
 
     fn math_tags(&self, numbering: &QString, fences: bool) -> QString {
@@ -2631,6 +2723,7 @@ impl qobject::Editor {
         let folder = folder.to_string();
         let value = match self.file.as_deref().and_then(Path::parent) {
             _ if folder.is_empty() => None,
+            _ if folder == "upload" => Some(folder),
             Some(base) => Some(image::relative(base, Path::new(&folder), true)),
             None => Some(folder),
         };

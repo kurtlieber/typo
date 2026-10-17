@@ -253,6 +253,18 @@ pub mod qobject {
         #[cxx_name = "mathPhysics"]
         fn math_physics(self: &Desktop, tex: &QString) -> QString;
 
+        /// The command Upload Image runs for Preferences' `uploader` (and
+        /// Custom Command's `custom`) for the document at `doc`, or "".
+        #[qinvokable]
+        #[cxx_name = "uploaderCommand"]
+        fn uploader_command(self: &Desktop, uploader: &QString, custom: &QString, doc: &QString) -> QString;
+
+        /// Test Uploader's image: a small PNG written to the temp folder,
+        /// its path.
+        #[qinvokable]
+        #[cxx_name = "uploadTestImage"]
+        fn upload_test_image(self: &Desktop) -> QString;
+
         /// Copy as Image: formula `tex` typeset in black, `em` pixels to the
         /// em, on the clipboard. False when it doesn't typeset.
         #[qinvokable]
@@ -594,6 +606,23 @@ impl qobject::Desktop {
 
     fn math_physics(&self, tex: &QString) -> QString {
         QString::from(&crate::physics::expand(&tex.to_string()))
+    }
+
+    fn uploader_command(&self, uploader: &QString, custom: &QString, doc: &QString) -> QString {
+        let doc = doc.to_string();
+        let doc = (!doc.is_empty()).then(|| PathBuf::from(doc));
+        QString::from(&crate::upload::command(&uploader.to_string(), &custom.to_string(), doc.as_deref()))
+    }
+
+    fn upload_test_image(&self) -> QString {
+        // A typo-blue square.
+        let rgba: Vec<u8> = [0x3a, 0x7b, 0xd5, 0xff].repeat(64 * 64);
+        let png = super::glue::ffi::encode_image(64, 64, &rgba, &QString::from("png"));
+        let path = std::env::temp_dir().join("typo-upload-test.png");
+        match std::fs::write(&path, png) {
+            Ok(()) => QString::from(&*path.to_string_lossy()),
+            Err(_) => QString::default(),
+        }
     }
 
     fn copy_math_image(&self, tex: &QString, display: bool, em: f64) -> bool {

@@ -33,6 +33,7 @@ MenuBar {
     // object each time, so the check marks follow it even after a click
     // toggled them and the chooser was cancelled.
     property var imageSettings: ({})
+    readonly property bool uploadSetting: ["upload", "ipic"].indexOf(String(imageSettings.copy || "").toLowerCase()) >= 0
     readonly property bool hasImage: image !== null
     property bool finalNewline: true
     function lookAround() {
@@ -442,16 +443,22 @@ MenuBar {
             Cmd { text: qsTr("Delete Image File"); cmd: "deleteImageFile"; enabled: bar.hasImage }
             Cmd { text: qsTr("Copy Image to…"); cmd: "copyImageTo"; enabled: bar.hasImage }
             Cmd { text: qsTr("Rename or Move Image to…"); cmd: "moveImageTo"; enabled: bar.hasImage }
+            Cmd { text: qsTr("Upload Image"); cmd: "uploadImage"; enabled: bar.hasImage }
             TSep {}
             Cmd { text: qsTr("Copy All Images to…"); cmd: "copyAllImages" }
             Cmd { text: qsTr("Move All Images to…"); cmd: "moveAllImages" }
+            Cmd { text: qsTr("Upload All Local Images"); cmd: "uploadAllImages" }
             Cmd { text: qsTr("Reload All Images"); cmd: "reloadImages" }
             TSep {}
             TMenu {
                 title: qsTr("When Insert Local Image")
                 Cmd {
                     text: qsTr("Copy Image File to Folder"); cmd: "imageFolderSetting"
-                    checkable: true; checked: !!bar.imageSettings.copy
+                    checkable: true; checked: !!bar.imageSettings.copy && !bar.uploadSetting
+                }
+                Cmd {
+                    text: qsTr("Upload Image"); cmd: "imageUploadSetting"
+                    checkable: true; checked: bar.uploadSetting
                 }
                 Cmd {
                     text: qsTr("Use Image Root Path"); cmd: "imageRootSetting"
