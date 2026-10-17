@@ -18,6 +18,7 @@ use crate::code::{Highlight, Token};
 pub struct CodeHighlighterRust {
     pub(crate) language: QString,
     pub(crate) hits: QString,
+    pub(crate) errors: QString,
     /// The text and language last parsed.
     text: String,
     parsed_language: String,
@@ -73,17 +74,18 @@ impl qobject::CodeHighlighter {
             let flags = if token.style().1 { ITALIC } else { 0 };
             self.as_mut().apply_format(s, e - s, flags, 0.0, ink.tokens[i], 0);
         }
-        // Find's matches on this line: the lines before it and their breaks
-        // come first.
-        let hits = hit_ranges(&self.hits);
-        if !hits.is_empty() {
+        // Find's matches and a diagram's error on this line: the lines
+        // before it and their breaks come first.
+        let (hits, errors) = (hit_ranges(&self.hits), hit_ranges(&self.errors));
+        if !hits.is_empty() || !errors.is_empty() {
             let base: i32 = self.text.split('\n').take(n).map(|l| utf16_of(l, usize::MAX) + 1).sum();
             let end = base + utf16_of(&line, usize::MAX);
-            for h in hits {
-                let (s, e) = (h.start.max(base), h.end.min(end));
-                if s < e {
-                    self.as_mut().add_background(s - base, e - s, ink.find);
-                }
+            let on_line = |h: &std::ops::Range<i32>| (h.start.max(base) - base, h.end.min(end) - base);
+            for (s, e) in hits.iter().map(on_line).filter(|(s, e)| s < e) {
+                self.as_mut().add_background(s, e - s, ink.find);
+            }
+            for (s, e) in errors.iter().map(on_line).filter(|(s, e)| s < e) {
+                self.as_mut().add_wave(s, e - s, ink.error);
             }
         }
         if self.dim.greys(n as i32) {

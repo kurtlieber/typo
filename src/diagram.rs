@@ -6,10 +6,11 @@
 //! as Typora feeds its own theme's colours to Mermaid.
 
 use std::collections::HashMap;
+use std::ops::Range;
 
 use merman::svg::export::RasterOptions;
 use merman::svg::{RootBackgroundPostprocessor, SvgPipeline};
-use merman::{Engine, MermaidConfig, OperationControl, PngRequest, RenderOutput, RenderRequest, Renderer, SvgRequest};
+use merman::{Engine, MermaidConfig, OperationControl, PngRequest, RenderError, RenderOutput, RenderRequest, Renderer, SvgRequest};
 
 use crate::palette::Rgb;
 
@@ -94,20 +95,45 @@ impl Colors {
 
 /// Draw the `lang` diagram `src` as a PNG, `scale` pixels to the point.
 /// The error is Typora's: `ERROR: [Mermaid] …`, `[Flowchart]` or
-/// `[Sequence]`.
-pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64) -> Result<Vec<u8>, String> {
-    let (mermaid, renderer, error) = prepare(lang, src, colors)?;
+/// `[Sequence]`, with the bytes of a Mermaid fence's code it is about.
+pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64) -> Result<Vec<u8>, (String, Option<Range<usize>>)> {
+    let (mermaid, renderer, error) = prepare(lang, src, colors).map_err(|e| (e, None))?;
     let output = renderer
         .render(RenderRequest::png(
             &mermaid,
             OperationControl::new(),
             PngRequest { svg: svg_request(), options: RasterOptions::default().with_scale(scale.clamp(0.25, 8.0) as f32) },
         ))
-        .map_err(|e| error(e.to_string()))?;
+        .map_err(|e| {
+            // flowchart.js and sequence code is translated first, so only
+            // Mermaid's own code has the spans.
+            let span = match &e {
+                RenderError::Parse(d) if mermaid == src => d.terminal_diagnostic_details().span.map(|s| widen(src, s.start..s.end)),
+                _ => None,
+            };
+            (error(e.to_string()), span)
+        })?;
     match output {
         RenderOutput::Png(Some(png)) => Ok(png.bytes),
-        _ => Err(error("No diagram type detected".into())),
+        _ => Err((error("No diagram type detected".into()), None)),
     }
+}
+
+/// The code an error marks: merman's span, or, when that is empty or
+/// blank, its line from the first word to the last (the nearest line
+/// before with any, past the end), as Typora's lint marks a line.
+fn widen(src: &str, span: Range<usize>) -> Range<usize> {
+    if !src.get(span.clone()).unwrap_or("").trim().is_empty() {
+        return span;
+    }
+    let line = |at: usize| src[..at].rfind('\n').map_or(0, |i| i + 1)..src[at..].find('\n').map_or(src.len(), |i| at + i);
+    let mut l = line(if src.is_char_boundary(span.start) { span.start } else { src.len() });
+    while src[l.clone()].trim().is_empty() && l.start > 0 {
+        l = line(l.start - 1);
+    }
+    let text = &src[l.clone()];
+    let start = l.start + text.len() - text.trim_start().len();
+    start..start + text.trim().len()
 }
 
 /// Draw the `lang` diagram `src` as SVG markup, for export.
@@ -392,7 +418,18 @@ mod tests {
                 std::fs::write(format!("{dir}/{lang}.png"), &png).unwrap();
             }
         }
-        let error = render("mermaid", "graph TD\n  A -->", &colors, 1.0).unwrap_err();
+        let (error, span) = render("mermaid", "graph TD\n  A -->", &colors, 1.0).unwrap_err();
         assert!(error.starts_with("ERROR: [Mermaid] "), "{error}");
+        assert_eq!(span, Some(11..16));
+        assert_eq!(render("sequence", "A->B no colon", &colors, 1.0).unwrap_err().1, None);
+    }
+
+    #[test]
+    fn widens_empty_spans_to_their_line() {
+        let src = "classDiagram\n  class A {\n";
+        assert_eq!(widen(src, 25..25), 15..24);
+        assert_eq!(widen("x\n  A-x\n", 7..8), 4..7);
+        assert_eq!(widen("graph TD\n  A -- B\n", 16..18), 16..18);
+        assert!(widen(" \n", 2..2).is_empty());
     }
 }

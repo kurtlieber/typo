@@ -222,6 +222,12 @@ pub mod qobject {
         #[cxx_name = "diagramError"]
         fn diagram_error(self: &Desktop, lang: &QString, src: &QString) -> QString;
 
+        /// Where in its code the diagram's error is, as a highlighter's
+        /// `hits`, once its image has loaded.
+        #[qinvokable]
+        #[cxx_name = "diagramErrorMark"]
+        fn diagram_error_mark(self: &Desktop, lang: &QString, src: &QString) -> QString;
+
         /// How far down inline formula `tex` its baseline is, as a part of
         /// its height, once its image has loaded; -1 before.
         #[qinvokable]
@@ -516,6 +522,10 @@ impl qobject::Desktop {
 
     fn diagram_error(&self, lang: &QString, src: &QString) -> QString {
         QString::from(&super::diagram::error(&lang.to_string(), &src.to_string()))
+    }
+
+    fn diagram_error_mark(&self, lang: &QString, src: &QString) -> QString {
+        QString::from(&super::diagram::error_mark(&lang.to_string(), &src.to_string()))
     }
 
     fn math_baseline(&self, tex: &QString) -> f64 {

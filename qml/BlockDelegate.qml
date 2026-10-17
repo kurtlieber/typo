@@ -753,6 +753,7 @@ Item {
                 ? info.trim().toLowerCase() : ""
             readonly property bool diagramFence: diagramLang !== ""
             readonly property alias diagramView: diagram
+            readonly property alias codeHighlighter: hl
             readonly property alias languageBox: langBox
             // The code is out of sight, but keeps the caret's place.
             readonly property bool folded: (mathFence || diagramFence) && !active
@@ -943,6 +944,15 @@ Item {
                 onDimmingChanged: dim(Ui.focusMode, keep)
                 hits: block.hits
                 onHitsChanged: refresh()
+                // A broken diagram's code, but not while the caret is on
+                // its line, as Typora's. (Repainting signals the edit's
+                // text, so this reads the block's.)
+                errors: {
+                    const m = JSON.parse(diagram.mark)
+                    return m.length && code.activeFocus
+                        && block.lineOf(block.text, code.cursorPosition) === block.lineOf(block.text, m[0][0]) ? "[]" : diagram.mark
+                }
+                onErrorsChanged: refresh()
                 readonly property int revision: Theme.revision
                 onRevisionChanged: refresh()
             }

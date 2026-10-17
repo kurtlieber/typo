@@ -32,6 +32,8 @@ pub struct Ink {
     pub find: u32,
     /// Focus mode's text away from the caret.
     pub blur: u32,
+    /// The wave under a broken diagram's code.
+    pub error: u32,
     /// Alert titles, in `query::ALERTS` order.
     pub alerts: [u32; 5],
     /// Code tokens, in `Token::ALL` order.
@@ -54,6 +56,7 @@ impl Ink {
             footnote_background: argb(s.background.mix(s.foreground, 0.1)),
             find: argb(s.palette.get("yellow")) & 0x00ff_ffff | 0x5900_0000,
             blur: argb(s.blur),
+            error: argb(s.error),
             alerts: crate::palette::ALERT_COLORS.map(|k| argb(s.palette.get(k))),
             tokens: Token::ALL.map(|t| argb(s.palette.get(t.style().0))),
             // Typora's source view: pink headers, green quotes, red tags, blue

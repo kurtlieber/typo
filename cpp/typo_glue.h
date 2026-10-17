@@ -190,6 +190,19 @@ public:
         }
     }
 
+    // A wave in `color` under `count` characters from `start`, keeping the
+    // rest of their format: a broken diagram's error, as Typora's lint.
+    // ponytail: Qt Quick draws the wave as a straight line; a wavy one
+    // would need painting over the TextEdit.
+    void addWave(int start, int count, quint32 color) {
+        for (int i = start; i < start + count; ++i) {
+            QTextCharFormat f = format(i);
+            f.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+            f.setUnderlineColor(QColor::fromRgba(color));
+            setFormat(i, 1, f);
+        }
+    }
+
     // Add `px` after each of `count` characters from `start`, keeping the
     // rest of their format: room for a code span's box.
     void addSpacing(int start, int count, double px) {

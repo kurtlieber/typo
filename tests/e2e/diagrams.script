@@ -1,6 +1,7 @@
 # Diagram fences: ```mermaid draws its code in a bordered panel under it
 # while the caret is in it, and only the drawing once the caret leaves.
-# A broken diagram says what is wrong, as Typora words it; ```flow and
+# A broken diagram says what is wrong, as Typora words it, and waves red
+# under the code at fault while the caret is off its line; ```flow and
 # ```sequence are drawn too.
 type ```mermaid\ngraph TD\nA-->B
 wait 2000
@@ -17,6 +18,11 @@ type  -->
 wait 2000
 check view.itemAt(0).body.diagramView.error.indexOf("ERROR: [Mermaid] ") === 0
 check view.itemAt(0).body.diagramView.good === ""
+check view.itemAt(0).body.diagramView.mark !== "[]" && view.itemAt(0).body.codeHighlighter.errors === "[]"
+caret 0 2
+check view.itemAt(0).body.codeHighlighter.errors === view.itemAt(0).body.diagramView.mark
+shot @DIR@/error.png
+caret 0 17
 key BackSpace BackSpace BackSpace BackSpace
 key Ctrl+End
 type \n```flow\nst=>start: Go\ne=>end\nst->e

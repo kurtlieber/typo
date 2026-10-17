@@ -185,6 +185,8 @@ pub mod qobject {
         #[qproperty(QString, language)]
         /// Find's matches, as the inline highlighter's `hits`.
         #[qproperty(QString, hits)]
+        /// A broken diagram's code at fault, the same way.
+        #[qproperty(QString, errors)]
         type CodeHighlighter = super::CodeHighlighterRust;
 
         #[cxx_override]
@@ -198,6 +200,10 @@ pub mod qobject {
         #[inherit]
         #[cxx_name = "addBackground"]
         fn add_background(self: Pin<&mut Self>, start: i32, count: i32, bg: u32);
+
+        #[inherit]
+        #[cxx_name = "addWave"]
+        fn add_wave(self: Pin<&mut Self>, start: i32, count: i32, color: u32);
 
         #[inherit]
         #[cxx_name = "blockNumber"]

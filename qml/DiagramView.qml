@@ -5,7 +5,8 @@ import Typo
 // A diagram fence's drawing, from the `image://diagram/` provider
 // (src/qt/diagram.rs), laid out as Typora's diagram panel: centred, shrunk
 // to the width but never enlarged, "Painting Diagram..." while there is
-// nothing to show, and what is wrong in red beneath, left-aligned. A new
+// nothing to show, and what is wrong in red beneath, left-aligned, with
+// `mark` saying where in the code (for the fence's red wave). A new
 // drawing loads off screen and replaces the old one when it is ready, so
 // typing doesn't flicker; one that fails clears it, as Typora's does.
 Item {
@@ -21,6 +22,7 @@ Item {
     property bool live: true
 
     property string error: ""
+    property string mark: "[]"
     // The drawing shown, already in Qt's cache.
     property string good: ""
 
@@ -31,6 +33,9 @@ Item {
     readonly property real above: (lang === "sequence" ? 16 : 0) * zoom + pad
     readonly property string colors: [Theme.background, Theme.foreground, Theme.accent, Theme.border]
         .map(c => c.toString().slice(1)).join(",")
+
+    // An edit moves the code under the old mark.
+    onCodeChanged: mark = "[]"
 
     implicitHeight: above + (drawn ? shown.height : painting.height + 10 * zoom)
         + (error !== "" ? message.height : 0) + pad
@@ -45,6 +50,7 @@ Item {
             if (status !== Image.Ready)
                 return
             view.error = Desktop.diagramError(view.lang, view.code)
+            view.mark = Desktop.diagramErrorMark(view.lang, view.code)
             view.good = view.error === "" ? source.toString() : ""
         }
     }
