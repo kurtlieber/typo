@@ -60,6 +60,15 @@ pub fn emoji_suggestions(token: &str) -> Vec<(&'static str, &'static str)> {
         let exact = out.remove(i);
         out.insert(0, exact);
     }
+    // Then those whose name has it as a word, as Typora's keyword map
+    // (which is its own data) adds those for the word: "heart" finds 💘.
+    for e in emojis::iter() {
+        let Some(code) = e.shortcode() else { continue };
+        let named = e.name().split(|c: char| !c.is_alphanumeric()).any(|w| w.eq_ignore_ascii_case(token));
+        if named && !out.iter().any(|p| p.1 == e.as_str()) {
+            out.push((code, e.as_str()));
+        }
+    }
     out
 }
 

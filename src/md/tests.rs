@@ -1545,6 +1545,11 @@ fn emoji_suggestions() {
     // Case only matters for the first group.
     assert!(names("Smile").contains(&"smile"));
     assert!(names("zzzz").is_empty());
+    // Then emoji named with the word, each once.
+    let heart = query::emoji_suggestions("heart");
+    assert_eq!(heart.last(), Some(&("cupid", "💘")));
+    assert_eq!(heart.iter().filter(|p| p.1 == "❤️").count(), 1);
+    assert!(names("Face").contains(&"grinning"));
 }
 
 #[test]
