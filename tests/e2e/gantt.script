@@ -1,0 +1,17 @@
+# A gantt chart's diagram panel takes the window's width, as Typora's
+# does at the top level while the sidebar is closed, and Mermaid draws
+# the chart to it; with the sidebar open it keeps the column's.
+type ```mermaid\ngantt\nsection A\nTask :a1, 2024-01-01, 3d
+wait 2000
+check view.itemAt(0).body.diagramView.gantt && view.itemAt(0).body.diagramView.width > view.itemAt(0).body.width
+check view.itemAt(0).body.diagramView.good !== ""
+shot @DIR@/open.png
+key Down
+type after
+wait 2000
+check view.itemAt(0).body.folded && view.itemAt(0).body.diagramView.width > view.itemAt(0).body.width
+shot @DIR@/folded.png
+eval Ui.sidebar = true
+wait 2000
+check view.itemAt(0).body.diagramView.width === view.itemAt(0).body.width
+dump @OUT@

@@ -93,11 +93,13 @@ impl Colors {
     }
 }
 
-/// Draw the `lang` diagram `src` as a PNG, `scale` pixels to the point.
-/// The error is Typora's: `ERROR: [Mermaid] …`, `[Flowchart]` or
-/// `[Sequence]`, with the bytes of a Mermaid fence's code it is about.
-pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64) -> Result<Vec<u8>, (String, Option<Range<usize>>)> {
-    let (mermaid, renderer, error) = prepare(lang, src, colors).map_err(|e| (e, None))?;
+/// Draw the `lang` diagram `src` as a PNG, `scale` pixels to the point, a
+/// gantt chart `width` points wide (Mermaid's 1200 for 0), as Mermaid
+/// draws one to its panel. The error is Typora's: `ERROR: [Mermaid] …`,
+/// `[Flowchart]` or `[Sequence]`, with the bytes of a Mermaid fence's code
+/// it is about.
+pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64, width: f64) -> Result<Vec<u8>, (String, Option<Range<usize>>)> {
+    let (mermaid, renderer, error) = prepare(lang, src, colors, width).map_err(|e| (e, None))?;
     let output = renderer
         .render(RenderRequest::png(
             &mermaid,
@@ -138,7 +140,7 @@ fn widen(src: &str, span: Range<usize>) -> Range<usize> {
 
 /// Draw the `lang` diagram `src` as SVG markup, for export.
 pub fn svg(lang: &str, src: &str, colors: &Colors) -> Result<String, String> {
-    let (mermaid, renderer, error) = prepare(lang, src, colors)?;
+    let (mermaid, renderer, error) = prepare(lang, src, colors, 0.0)?;
     let output =
         renderer.render(RenderRequest::svg(&mermaid, OperationControl::new(), svg_request())).map_err(|e| error(e.to_string()))?;
     match output {
@@ -151,7 +153,7 @@ type Error = Box<dyn Fn(String) -> String>;
 
 /// The Mermaid to draw, a renderer coloured like the page, and how to word
 /// an error.
-fn prepare(lang: &str, src: &str, colors: &Colors) -> Result<(String, Renderer, Error), String> {
+fn prepare(lang: &str, src: &str, colors: &Colors, width: f64) -> Result<(String, Renderer, Error), String> {
     let lang = lang.trim().to_lowercase();
     let (name, mermaid) = match lang.as_str() {
         "flow" => ("Flowchart", flow_to_mermaid(src)),
@@ -162,13 +164,18 @@ fn prepare(lang: &str, src: &str, colors: &Colors) -> Result<(String, Renderer, 
     let mermaid = mermaid.map_err(&error)?;
     // Typora draws an empty Mermaid fence as the words "Empty Diagram".
     let mermaid = if mermaid.trim().is_empty() { "flowchart TD\n  empty[\"Empty Diagram\"]".to_string() } else { mermaid };
-    let config = MermaidConfig::from_value(serde_json::json!({
+    let mut config = serde_json::json!({
         "theme": "base",
         "darkMode": colors.dark(),
         "fontFamily": FONTS,
         "themeVariables": colors.theme(),
         "sequence": { "diagramMarginX": 8, "diagramMarginY": 8, "boxMargin": 8 },
-    }));
+        "gantt": { "leftPadding": 75, "rightPadding": 20 },
+    });
+    if width > 0.0 {
+        config["gantt"]["useWidth"] = width.into();
+    }
+    let config = MermaidConfig::from_value(config);
     Ok((mermaid, Renderer::new().with_engine(Engine::new().with_site_config(config)), error))
 }
 
@@ -412,16 +419,21 @@ mod tests {
     fn renders_png() {
         let colors = Colors::parse("1a1b26,c0caf5,7aa2f7,414868");
         for (lang, src) in [("mermaid", "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]"), ("flow", "a=>start: A\nb=>end: B\na->b"), ("sequence", "A->B: hi")] {
-            let png = render(lang, src, &colors, 1.0).unwrap();
+            let png = render(lang, src, &colors, 1.0, 0.0).unwrap();
             assert_eq!(&png[1..4], b"PNG", "{lang}");
             if let Ok(dir) = std::env::var("TYPO_DIAGRAM_OUT") {
                 std::fs::write(format!("{dir}/{lang}.png"), &png).unwrap();
             }
         }
-        let (error, span) = render("mermaid", "graph TD\n  A -->", &colors, 1.0).unwrap_err();
+        let (error, span) = render("mermaid", "graph TD\n  A -->", &colors, 1.0, 0.0).unwrap_err();
         assert!(error.starts_with("ERROR: [Mermaid] "), "{error}");
         assert_eq!(span, Some(11..16));
-        assert_eq!(render("sequence", "A->B no colon", &colors, 1.0).unwrap_err().1, None);
+        assert_eq!(render("sequence", "A->B no colon", &colors, 1.0, 0.0).unwrap_err().1, None);
+        let gantt = |width| {
+            let png = render("mermaid", "gantt\n  section A\n  Task :a1, 2024-01-01, 3d", &colors, 1.0, width).unwrap();
+            u32::from_be_bytes(png[16..20].try_into().unwrap())
+        };
+        assert!(gantt(600.0) < gantt(0.0), "{} {}", gantt(600.0), gantt(0.0));
     }
 
     #[test]

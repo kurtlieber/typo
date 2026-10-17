@@ -757,8 +757,14 @@ Item {
             readonly property alias languageBox: langBox
             // The code is out of sight, but keeps the caret's place.
             readonly property bool folded: (mathFence || diagramFence) && !active
-            // Typora's diagram panel sits 10px below the code.
+            // Typora's diagram panel sits 10px below the code. A gantt
+            // chart's takes the window's width at the top level while the
+            // sidebar is closed: 98% of it folded, less .8em a side (at
+            // most 1140px) open.
             readonly property real panelGap: 10 * block.scale
+            readonly property bool wide: diagram.gantt && block.containers.length === 0 && !Ui.sidebar && block.host !== null
+            readonly property real panelWidth: !wide ? width
+                : folded ? block.host.width * 0.98 : Math.min(block.host.width - 1.6 * block.em, 1140 * block.scale)
             // Line numbers: the preference, or `{.numberLines startFrom="N"}`
             // after the language, as Typora reads fence attributes.
             readonly property bool numbered: fenced && (Prefs.codeLineNumbers || /\.number(-?l|L)ines\b/.test(info))
@@ -776,7 +782,7 @@ Item {
             width: parent ? parent.width : 0
             height: folded ? (diagramFence ? panelGap + diagram.height : formula.height + 20 * block.scale)
                 : box.height + (diagramFence ? panelGap + panel.height : 0) + (active ? langBox.height + 8 * block.scale : 0)
-            clip: folded
+            clip: folded && !wide
 
             // The language box takes clicks itself.
             function controlAt(x, y) {
@@ -915,7 +921,8 @@ Item {
                 id: panel
                 visible: fence.diagramFence
                 y: fence.folded ? fence.panelGap : box.height + fence.panelGap
-                width: parent.width
+                x: (parent.width - width) / 2
+                width: fence.panelWidth
                 height: fence.diagramFence ? diagram.height + (fence.folded ? 0 : 2) : 0
                 color: "transparent"
                 border.width: fence.folded ? 0 : 1

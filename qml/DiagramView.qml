@@ -20,6 +20,10 @@ Item {
     property real zoom: Ui.zoom
     // Off, it draws nothing (a fence that isn't a diagram).
     property bool live: true
+    // Mermaid draws a gantt chart to its panel's width (the rest have
+    // their own), past front matter, directives and comments.
+    readonly property bool gantt: lang === "mermaid"
+        && /^\s*gantt/.test(code.replace(/^\s*---\n[\s\S]*?\n---\n/, "").replace(/^\s*%%.*\n?/gm, ""))
 
     property string error: ""
     property string mark: "[]"
@@ -45,6 +49,7 @@ Item {
         visible: false
         asynchronous: true
         source: !view.live ? "" : "image://diagram/" + view.lang + "/" + (view.zoom * view.dpr).toFixed(2) + "/"
+                + (view.gantt ? Math.round(view.width / view.zoom) : 0) + "/"
                 + view.colors + "/" + encodeURIComponent(view.code)
         onStatusChanged: {
             if (status !== Image.Ready)

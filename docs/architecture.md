@@ -203,7 +203,8 @@ renderer has no fontconfig, so the font list names Arial's metric twin,
 Liberation Sans, before `sans-serif`. Errors read as Typora's:
 `ERROR: [Mermaid] …`, `[Flowchart]`, `[Sequence]`.
 
-QML asks for `image://diagram/<lang>/<pixels per point>/<colours>/<source>`;
+QML asks for
+`image://diagram/<lang>/<pixels per point>/<gantt width>/<colours>/<source>`;
 the provider in `cpp/typo_math.cpp` calls `qt::diagram::render_diagram` on
 Qt's image threads and decodes the PNG, and a failure is one clear pixel
 with its message for `Desktop.diagramError`. `DiagramView.qml` swaps each
@@ -212,7 +213,10 @@ drawing in when it is ready, centred and shrunk to the width (Typora's
 error under it. A diagram fence folds to its drawing when the caret is
 elsewhere; with the caret in it, the code shows with the drawing in a
 bordered panel 10px below, as Typora's focused `md-diagram-panel`
-(Preferences: "Diagrams", on by default).
+(Preferences: "Diagrams", on by default). A top-level gantt chart's panel
+takes the window's width while the sidebar is closed (98% folded, less
+.8em a side and at most 1140px open), and Mermaid draws the chart to it
+with Typora's paddings (75 left, 20 right).
 
 ## HTML
 
