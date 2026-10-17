@@ -45,6 +45,8 @@ Item {
         minus: "M2.5 8 H13.5",
         cells: "M2.5 2.5 H13.5 V13.5 H2.5 Z M2.5 6.2 H13.5 M2.5 9.8 H13.5",
         close: "M4 4 L12 12 M12 4 L4 12",
+        // Pinning a recent location.
+        pin: "M5.5 2.5 H10.5 M6.5 2.5 V7 L4 9.5 H12 L9.5 7 V2.5 M8 9.5 V14",
         // Find's previous and next.
         up: "M3.5 10.5 L8 6 L12.5 10.5",
         down: "M3.5 6 L8 10.5 L12.5 6",

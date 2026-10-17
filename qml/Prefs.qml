@@ -235,8 +235,10 @@ QtObject {
     // Recently opened files, newest first, and files closed in any window,
     // for Reopen Closed File.
     property var recentFiles: []
-    // Folders opened in the sidebar, newest first.
+    // Folders opened in the sidebar, newest first, and those pinned in its
+    // Recent Locations, which come first and stay.
     property var recentFolders: []
+    property var pinnedFolders: []
     property var closedFiles: []
 
     // What persists. A window writes only the key that changed and reads the
@@ -258,7 +260,7 @@ QtObject {
         "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",
         "imageEscape", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
         "noExportOverwriteWarning", "noWarningForDeleteFile", "noWarningForMoveFile",
-        "noWarningForMoveFileToList", "noWarningForDeleteImage", "noWarningForMoveImage", "recentFiles", "recentFolders", "closedFiles"
+        "noWarningForMoveFileToList", "noWarningForDeleteImage", "noWarningForMoveImage", "recentFiles", "recentFolders", "pinnedFolders", "closedFiles"
     ]
     property Settings store: Settings { category: "prefs" }
     property bool loading: false
@@ -324,9 +326,20 @@ QtObject {
         list.unshift(path)
         recentFolders = list.slice(0, 8)
     }
+    function pinFolder(path, pinned) {
+        const list = fresh("pinnedFolders").filter(p => p !== path)
+        if (pinned)
+            list.push(path)
+        pinnedFolders = list
+    }
+    function removeRecentFolder(path) {
+        recentFolders = fresh("recentFolders").filter(p => p !== path)
+        pinFolder(path, false)
+    }
     function clearRecent() {
         recentFiles = []
         recentFolders = []
+        pinnedFolders = []
     }
 
     function addClosed(path) {

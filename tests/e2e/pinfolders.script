@@ -1,0 +1,31 @@
+# Typora's pins in the sidebar folder menu's Recent Locations: a pinned
+# folder comes first and stays as the list moves on, and can't be removed
+# until it is unpinned; Remove from List takes one away; the open folder
+# comes last, checked.
+write @DIR@/doc.md pins\n
+cmd openPath @DIR@/doc.md
+wait 100
+eval openFolder("@REPO@/qml")
+eval openFolder("@REPO@/src")
+eval openFolder("@DIR@")
+check sidebar.locations.length === 3 && sidebar.locations[0].endsWith("/src") && sidebar.locations[2] === folder
+eval sidebar.footerMenu.popup()
+wait 200
+check sidebar.footerMenu.itemAt(15).checked && !sidebar.footerMenu.itemAt(14).checked && !sidebar.footerMenu.itemAt(15).remove.visible
+clickItem sidebar.footerMenu.itemAt(14).pin
+wait 100
+check sidebar.footerMenu.opened && Prefs.pinnedFolders.length === 1 && sidebar.locations[0].endsWith("/qml")
+check !sidebar.footerMenu.itemAt(13).remove.visible && sidebar.footerMenu.itemAt(13).pinned
+clickItem sidebar.footerMenu.itemAt(14).remove
+wait 100
+check sidebar.locations.length === 2 && Prefs.recentFolders.every(p => !p.endsWith("/src"))
+eval sidebar.footerMenu.close()
+eval for (let i = 0; i < 9; i++) Prefs.addRecentFolder("/x" + i)
+check sidebar.locations.length === 7 && sidebar.locations[0].endsWith("/qml") && sidebar.locations[1] === "/x8"
+eval sidebar.footerMenu.popup()
+wait 200
+clickItem sidebar.footerMenu.itemAt(13).pin
+wait 100
+check Prefs.pinnedFolders.length === 0 && sidebar.locations.every(p => !p.endsWith("/qml"))
+eval sidebar.footerMenu.close()
+dump @OUT@

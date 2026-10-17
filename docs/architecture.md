@@ -552,7 +552,8 @@ fontconfig resolves to the Omarchy font.
   settles.
 - `Sidebar.qml` owns the tabs (Files | Outline, or Files | Search while
   searching), the footer (New File, the folder menu with Typora's sort
-  orders and recent locations, list/tree switch) and every file operation,
+  orders and recent locations, `Prefs.pinnedFolders` first and the open
+  folder last, list/tree switch) and every file operation,
   so the views share them: `open` replaces this window's document after
   `Main.openInPlace` settles unsaved changes (Typora opens sidebar files in
   place), new files open at once and are named in place (`RenameField`),

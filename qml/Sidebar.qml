@@ -502,15 +502,23 @@ Rectangle {
         SortItem { key: "name"; label: qsTr("Sort by Name") }
         SortItem { key: "modified"; label: qsTr("Sort by Modification Date") }
         SortItem { key: "created"; label: qsTr("Sort by Creation Date") }
-        TSep { visible: sidebar.otherFolders.length > 0 }
-        TMenuItem { visible: sidebar.otherFolders.length > 0; text: qsTr("Recent Locations"); enabled: false }
+        TSep { visible: sidebar.locations.length > 0 }
+        TMenuItem { visible: sidebar.locations.length > 0; text: qsTr("Recent Locations"); enabled: false }
         RecentItem { index: 0 }
         RecentItem { index: 1 }
         RecentItem { index: 2 }
         RecentItem { index: 3 }
         RecentItem { index: 4 }
+        RecentItem { index: 5 }
+        RecentItem { index: 6 }
     }
-    readonly property var otherFolders: Prefs.recentFolders.filter(p => p !== app.folder)
+    // Recent Locations, as Typora's: up to six, the pinned first, then the
+    // open folder.
+    readonly property var locations: {
+        const pinned = Prefs.pinnedFolders
+        const others = pinned.concat(Prefs.recentFolders.filter(p => pinned.indexOf(p) < 0)).filter(p => p !== app.folder)
+        return others.slice(0, 6).concat(app.folder !== "" ? [app.folder] : [])
+    }
     // The order of the view the Files tab shows, the tree's or the list's.
     readonly property string sortKey: Ui.fileTree ? Ui.treeSort : Ui.fileSort
     readonly property bool sortDescending: Ui.fileTree ? Ui.treeSortDescending : Ui.fileSortDescending
@@ -541,12 +549,61 @@ Rectangle {
         // Picking the order in use turns it around.
         onTriggered: sidebar.setSort(key, on ? !descending : descending, sidebar.sortGrouped)
     }
+    // Pin and Remove from List show on the hovered entry; a pinned one
+    // and the open folder can't be removed.
     component RecentItem: TMenuItem {
+        id: recent
         required property int index
-        readonly property string path: index < sidebar.otherFolders.length ? sidebar.otherFolders[index] : ""
+        readonly property string path: index < sidebar.locations.length ? sidebar.locations[index] : ""
+        readonly property bool open: path === sidebar.app.folder
+        readonly property bool pinned: Prefs.pinnedFolders.indexOf(path) >= 0
         visible: path !== ""
         text: sidebar.tilde(path)
-        onTriggered: sidebar.app.openFolder(path)
+        checkable: true
+        checked: open
+        rightPadding: 48
+        onTriggered: if (!open) sidebar.app.openFolder(path)
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4
+            FolderIcon {
+                id: pin
+                entry: recent
+                name: "pin"
+                rotation: recent.pinned ? 30 : 0
+                ToolTip.text: recent.pinned ? qsTr("Unpin") : qsTr("Pin")
+                onClicked: Prefs.pinFolder(recent.path, !recent.pinned)
+            }
+            FolderIcon {
+                id: remove
+                entry: recent
+                name: "trash"
+                visible: !recent.pinned && !recent.open
+                ToolTip.text: qsTr("Remove from List")
+                onClicked: Prefs.removeRecentFolder(recent.path)
+            }
+        }
+        // For scripts.
+        readonly property alias pin: pin
+        readonly property alias remove: remove
+    }
+    component FolderIcon: Glyph {
+        id: icon
+        required property MenuItem entry
+        signal clicked()
+        size: 14
+        opacity: area.containsMouse ? 1 : entry.hovered ? 0.7 : 0
+        color: entry.highlighted ? Theme.accentText : Theme.foreground
+        MouseArea {
+            id: area
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: icon.clicked()
+        }
+        ToolTip.visible: area.containsMouse
+        ToolTip.delay: 600
     }
 
     TMenu {
