@@ -417,8 +417,14 @@ ApplicationWindow {
     // Typora's shortcut for the sidebar's Search.
     Shortcut {
         sequence: "Ctrl+Shift+F"
-        context: Qt.ApplicationShortcut
         onActivated: sidebar.openSearch()
+    }
+    // The Mac's ⌘`: the next window, in the order they opened. macOS's own
+    // key, so Typora's menus don't list it.
+    Shortcut {
+        enabled: Ui.mac
+        sequence: "Ctrl+`"
+        onActivated: Desktop.raiseWindow((Desktop.frontWindow() + 1) % Desktop.windowTitles().split("\n").length)
     }
 
     // Commands that work the same in Source Code Mode; the rest act on its

@@ -493,8 +493,10 @@ fontconfig resolves to the Omarchy font.
   (`typoOpenWindow`), so the QML singletons are still per window; the
   engine goes when its window closes. Each window has its own session file
   (`<pid>` or `<pid>.<n>`), and Quit tells every window. New and Open reuse the window only when it holds
-  an untitled, unedited document. Recent and closed files live in the shared
-  settings file, so `Prefs` re-reads them before each change.
+  an untitled, unedited document. Preferences live in the shared
+  settings file: a window writes only the keys it changed and reads the
+  file back every second, so a change reaches every window. Recent and
+  closed files are read back before each change too.
 - Closing an edited document asks Save / Discard / Cancel (`TDialog.qml`),
   unless auto save is on and the file exists. While a document is edited, a
   draft is written to `$XDG_DATA_HOME/typo/drafts` every 30 seconds and

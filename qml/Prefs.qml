@@ -235,104 +235,75 @@ QtObject {
     property var recentFolders: []
     property var closedFiles: []
 
-    property Settings store: Settings {
-        category: "prefs"
-        property alias launchAction: prefs.launchAction
-        property alias launchFolder: prefs.launchFolder
-        property alias defaultExtension: prefs.defaultExtension
-        property alias autoSave: prefs.autoSave
-        property alias saveOnSwitch: prefs.saveOnSwitch
-        property alias recordRecent: prefs.recordRecent
-        property alias dropFolder: prefs.dropFolder
-        property alias dropMarkdown: prefs.dropMarkdown
-        property alias dropImportable: prefs.dropImportable
-        property alias showHiddenFiles: prefs.showHiddenFiles
-        property alias treeFilter: prefs.treeFilter
-        property alias treePatterns: prefs.treePatterns
-        property alias libraryFilter: prefs.libraryFilter
-        property alias libraryPatterns: prefs.libraryPatterns
-        property alias indentSize: prefs.indentSize
-        property alias prettyIndent: prefs.prettyIndent
-        property alias autoPairBrackets: prefs.autoPairBrackets
-        property alias autoPairMarkdown: prefs.autoPairMarkdown
-        property alias showSourceOnFocus: prefs.showSourceOnFocus
-        property alias emojiAutocomplete: prefs.emojiAutocomplete
-        property alias copyMarkdownAsPlain: prefs.copyMarkdownAsPlain
-        property alias lineWiseCopy: prefs.lineWiseCopy
-        property alias spellCheck: prefs.spellCheck
-        property alias defaultLineEnding: prefs.defaultLineEnding
-        property alias alwaysShowWordCount: prefs.alwaysShowWordCount
-        property alias readingSpeed: prefs.readingSpeed
-        property alias countMode: prefs.countMode
-        property alias inlineMath: prefs.inlineMath
-        property alias subscript: prefs.subscript
-        property alias superscript: prefs.superscript
-        property alias highlight: prefs.highlight
-        property alias diagrams: prefs.diagrams
-        property alias strictMode: prefs.strictMode
-        property alias headingStyle: prefs.headingStyle
-        property alias bulletMarker: prefs.bulletMarker
-        property alias orderedSame: prefs.orderedSame
-        property alias autoLinks: prefs.autoLinks
-        property alias alerts: prefs.alerts
-        property alias codeLineNumbers: prefs.codeLineNumbers
-        property alias codeWrap: prefs.codeWrap
-        property alias codeIndentSize: prefs.codeIndentSize
-        property alias defaultCodeLang: prefs.defaultCodeLang
-        property alias defaultCodeLangWhen: prefs.defaultCodeLangWhen
-        property alias mathCopyFormat: prefs.mathCopyFormat
-        property alias mathNumbering: prefs.mathNumbering
-        property alias latexDelimiters: prefs.latexDelimiters
-        property alias mathFences: prefs.mathFences
-        property alias indentFirstLine: prefs.indentFirstLine
-        property alias preserveLineBreaks: prefs.preserveLineBreaks
-        property alias visibleBr: prefs.visibleBr
-        property alias exportLineBreaks: prefs.exportLineBreaks
-        property alias smartOnRendering: prefs.smartOnRendering
-        property alias smartQuotes: prefs.smartQuotes
-        property alias smartDashes: prefs.smartDashes
-        property alias dashesToEm: prefs.dashesToEm
-        property alias quotePairs: prefs.quotePairs
-        property alias remapPunctuation: prefs.remapPunctuation
-        property alias useCustomFontSize: prefs.useCustomFontSize
-        property alias customFontSize: prefs.customFontSize
-        property alias zoomByWheel: prefs.zoomByWheel
-        property alias exportConfig: prefs.exportConfig
-        property alias pandocPath: prefs.pandocPath
-        property alias imageInsertAction: prefs.imageInsertAction
-        property alias imageFolder: prefs.imageFolder
-        property alias imageRelative: prefs.imageRelative
-        property alias imageCopyLocal: prefs.imageCopyLocal
-        property alias imageWithDot: prefs.imageWithDot
-        property alias imageEscape: prefs.imageEscape
-        property alias caretAlwaysCentred: prefs.caretAlwaysCentred
-        property alias noFocusModeNotice: prefs.noFocusModeNotice
-        property alias noTypewriterNotice: prefs.noTypewriterNotice
-        property alias lastExport: prefs.lastExport
-        property alias noExportOverwriteWarning: prefs.noExportOverwriteWarning
-        property alias noWarningForDeleteFile: prefs.noWarningForDeleteFile
-        property alias noWarningForMoveFile: prefs.noWarningForMoveFile
-        property alias noWarningForMoveFileToList: prefs.noWarningForMoveFileToList
-        property alias recentFiles: prefs.recentFiles
-        property alias recentFolders: prefs.recentFolders
-        property alias closedFiles: prefs.closedFiles
+    // What persists. A window writes only the key that changed and reads the
+    // others back every second, so a preference changed in one window
+    // reaches every open one (each has a Prefs of its own: its process's, or
+    // on the Mac its engine's).
+    readonly property var keys: [
+        "launchAction", "launchFolder", "defaultExtension", "autoSave", "saveOnSwitch", "recordRecent",
+        "dropFolder", "dropMarkdown", "dropImportable", "showHiddenFiles", "treeFilter", "treePatterns",
+        "libraryFilter", "libraryPatterns", "indentSize", "prettyIndent", "autoPairBrackets",
+        "autoPairMarkdown", "showSourceOnFocus", "emojiAutocomplete", "copyMarkdownAsPlain", "lineWiseCopy",
+        "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "readingSpeed", "countMode", "inlineMath",
+        "subscript", "superscript", "highlight", "diagrams", "strictMode", "headingStyle", "bulletMarker",
+        "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "codeIndentSize",
+        "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",
+        "mathFences", "indentFirstLine", "preserveLineBreaks", "visibleBr", "exportLineBreaks",
+        "smartOnRendering", "smartQuotes", "smartDashes", "dashesToEm", "quotePairs", "remapPunctuation",
+        "useCustomFontSize", "customFontSize", "zoomByWheel", "exportConfig", "pandocPath",
+        "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",
+        "imageEscape", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
+        "noExportOverwriteWarning", "noWarningForDeleteFile", "noWarningForMoveFile",
+        "noWarningForMoveFileToList", "recentFiles", "recentFolders", "closedFiles"
+    ]
+    property Settings store: Settings { category: "prefs" }
+    property bool loading: false
+    property Timer poll: Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: prefs.reload()
+    }
+    Component.onCompleted: {
+        reload()
+        for (const k of keys)
+            prefs[k + "Changed"].connect(() => { if (!loading) store.setValue(k, prefs[k]) })
+    }
+
+    // The stored value of `key`, as its property's type; undefined when
+    // there is none. INI keeps it all as text, a one-item list as a plain
+    // string and an empty one as nothing.
+    function stored(key) {
+        const v = store.value(key, "\u0001")
+        if (v === "\u0001")
+            return undefined
+        switch (typeof prefs[key]) {
+        case "boolean": return v === true || v === "true"
+        case "number": return Number(v)
+        case "string": return String(v)
+        }
+        return v === undefined || v === "" ? [] : typeof v === "string" ? [v] : Array.from(v)
+    }
+    function reload() {
+        store.sync()
+        loading = true
+        for (const k of keys) {
+            const v = stored(k)
+            if (v !== undefined && JSON.stringify(v) !== JSON.stringify(prefs[k]))
+                prefs[k] = v
+        }
+        loading = false
     }
 
     function toggle(name) {
         prefs[name] = !prefs[name]
     }
 
-    // Every window has a Prefs of its own (its process's, or on the Mac its
-    // engine's), so lists are read back from disk before they change. A one-item list comes back as a plain string.
+    // Lists are read back from disk before they change, as another window
+    // may have changed them since the last poll.
     function fresh(key) {
         store.sync()
-        const v = store.value(key, [])
-        return typeof v === "string" ? [v] : Array.from(v || [])
-    }
-    function refresh() {
-        recentFiles = fresh("recentFiles")
-        recentFolders = fresh("recentFolders")
-        closedFiles = fresh("closedFiles")
+        return stored(key) || []
     }
 
     function addRecent(path) {

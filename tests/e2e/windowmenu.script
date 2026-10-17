@@ -1,10 +1,15 @@
-# The Mac's Window menu: Minimize (⌘M), Zoom (maximize, and back) and Bring
-# All to Front. Linux goes without it, ⌘M (Ctrl+M) and all. On the Mac, Qt
-# moves About, Preferences… and Quit to the app menu, so the separators before
-# them go.
+# The Mac's Window menu: Minimize (⌘M), Zoom (maximize, and back), Bring All
+# to Front, then the open windows. Linux goes without it, ⌘M (Ctrl+M) and
+# all. On the Mac, Qt moves About, Preferences… and Quit to the app menu, so
+# the separators before them go.
 check (win.menuBar.menuAt(win.menuBar.count - 2).title === "&Window") === Ui.mac
 check win.menuBar.menuAt(win.menuBar.count - 1).itemAt(win.menuBar.menuAt(win.menuBar.count - 1).count - 2).text === (Ui.mac ? "Website" : undefined)
 check win.menuBar.menuAt(0).itemAt(win.menuBar.menuAt(0).count - 5).text === (Ui.mac ? "Print…" : undefined)
+# It ends with the open windows, this one checked.
+eval if (Ui.mac) win.menuBar.menuAt(win.menuBar.count - 2).open()
+wait 200
+check !Ui.mac || (() => { const m = win.menuBar.menuAt(win.menuBar.count - 2); return m.count === 6 && m.itemAt(5).text === win.title && m.itemAt(5).checked })()
+eval if (Ui.mac) win.menuBar.menuAt(win.menuBar.count - 2).close()
 key Ctrl+M
 wait 300
 check win.visibility === (Ui.mac ? Window.Minimized : Window.Windowed)

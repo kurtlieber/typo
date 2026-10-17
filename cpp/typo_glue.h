@@ -325,6 +325,35 @@ inline void typoRaiseAll()
         front->raise();
 }
 
+// The Mac's windows, in the order they opened (a window's root has
+// `quitting`), for the Window menu's list and ⌘`: their titles, a line
+// each; which one is in front (-1 for none); and bringing one to the front.
+inline QList<QWindow *> typoWindows()
+{
+    QList<QWindow *> list;
+    for (QWindow *w : QGuiApplication::topLevelWindows())
+        if (w->isVisible() && w->property("quitting").isValid())
+            list += w;
+    return list;
+}
+inline QString typoWindowTitles()
+{
+    QStringList titles;
+    for (QWindow *w : typoWindows())
+        titles += w->title();
+    return titles.join(QChar('\n'));
+}
+inline int typoFrontWindow() { return typoWindows().indexOf(QGuiApplication::focusWindow()); }
+inline bool typoRaiseWindow(int i)
+{
+    const QList<QWindow *> list = typoWindows();
+    if (i < 0 || i >= list.size())
+        return false;
+    list[i]->raise();
+    list[i]->requestActivate();
+    return true;
+}
+
 // The Mac hands over files as events (a double-click in Finder, Open With,
 // a drop on the Dock icon): each goes to the front window's `openFile`, as
 // one named on the command line. And a quit from outside (the Dock, logging

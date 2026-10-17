@@ -86,7 +86,7 @@ MenuBar {
             id: recentMenu
             title: qsTr("Open Recent")
             // Other windows may have opened files since.
-            onAboutToShow: Prefs.refresh()
+            onAboutToShow: Prefs.reload()
             Instantiator {
                 model: bar.app.recentFiles
                 delegate: TMenuItem {
@@ -469,14 +469,35 @@ MenuBar {
         }
     }
 
-    // The Mac's; Linux's window manager has these.
+    // The Mac's; Linux's window manager has these. The open windows follow,
+    // as macOS lists them, the front one checked.
     TMenu {
         id: windowMenu
         title: qsTr("&Window")
+        property var windows: []
+        property int front: -1
+        onAboutToShow: {
+            windows = Desktop.windowTitles().split("\n")
+            front = Desktop.frontWindow()
+        }
         Cmd { text: qsTr("Minimize"); cmd: "minimize"; shortcut: "Ctrl+M" }
         Cmd { text: qsTr("Zoom"); cmd: "maximize" }
         TSep {}
         Cmd { text: qsTr("Bring All to Front"); cmd: "front" }
+        TSep {}
+        Instantiator {
+            model: windowMenu.windows
+            delegate: TMenuItem {
+                required property string modelData
+                required property int index
+                text: modelData
+                checkable: true
+                checked: index === windowMenu.front
+                onTriggered: Desktop.raiseWindow(index)
+            }
+            onObjectAdded: (index, object) => windowMenu.insertItem(5 + index, object)
+            onObjectRemoved: (index, object) => windowMenu.removeItem(object)
+        }
     }
 
     TMenu {

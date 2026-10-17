@@ -1,0 +1,23 @@
+# A preference changed in another window reaches this one within a second or
+# so: here another process writing the settings file, and on the Mac a second
+# window of this one. A window writes only the keys it changed, and a key
+# nobody stored keeps its value.
+type Prefs follow.
+eval Prefs.autoSave = true
+wait 300
+check (() => { const t = Desktop.readFile("@DIR@/config/typo/typo." + (Ui.mac ? "ini" : "conf")); return t.indexOf("autoSave=true") >= 0 && t.indexOf("smartQuotes") < 0 })()
+eval Desktop.writeFile("@DIR@/config/typo/typo." + (Ui.mac ? "ini" : "conf"), "[prefs]\ncodeLineNumbers=true\nrecentFiles=@DIR@/a.md, @DIR@/b.md\n")
+wait 1500
+check Prefs.codeLineNumbers && Prefs.autoSave && Prefs.recentFiles.length === 2 && Prefs.recentFiles[1] === "@DIR@/b.md"
+# The second window toggles Smart Quotes from a key bound to it.
+write @DIR@/b.md B\n
+write @DIR@/config/typo/conf.user.json { "keyBinding": { "Smart Quotes": "Ctrl+Alt+F12" } }\n
+eval if (Ui.mac) Desktop.spawn("@DIR@/b.md")
+wait 800
+eval if (Ui.mac) Desktop.sendKey("Ctrl+Alt+F12")
+wait 1500
+check Prefs.smartQuotes === Ui.mac && Prefs.recentFiles[0] === (Ui.mac ? "@DIR@/b.md" : "@DIR@/a.md")
+eval if (Ui.mac) Desktop.sendKey("Ctrl+W")
+wait 500
+check !Desktop.otherWindowsOpen()
+dump @OUT@

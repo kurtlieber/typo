@@ -25,6 +25,12 @@ pub mod qobject {
         fn open_window_later(args: &QString);
         #[cxx_name = "typoRaiseAll"]
         fn raise_all_windows();
+        #[cxx_name = "typoWindowTitles"]
+        fn window_titles_list() -> QString;
+        #[cxx_name = "typoFrontWindow"]
+        fn front_window_index() -> i32;
+        #[cxx_name = "typoRaiseWindow"]
+        fn raise_window_at(i: i32) -> bool;
         #[cxx_name = "typoWheel"]
         fn wheel_at(x: f64, y: f64, dy: f64, mods: &QString) -> bool;
         #[cxx_name = "typoDrag"]
@@ -256,6 +262,18 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "raiseAll"]
         fn raise_all(self: &Desktop);
+        /// The Mac's Window menu and ⌘`: the typo windows' titles, a line
+        /// each, in the order they opened; the front one's place in that
+        /// order (-1 for none); and bringing the one at `i` to the front.
+        #[qinvokable]
+        #[cxx_name = "windowTitles"]
+        fn window_titles(self: &Desktop) -> QString;
+        #[qinvokable]
+        #[cxx_name = "frontWindow"]
+        fn front_window(self: &Desktop) -> i32;
+        #[qinvokable]
+        #[cxx_name = "raiseWindow"]
+        fn raise_window(self: &Desktop, i: i32) -> bool;
 
         /// The session (src/session.rs): note this window's document and
         /// folder.
@@ -454,6 +472,18 @@ impl qobject::Desktop {
 
     fn raise_all(&self) {
         qobject::raise_all_windows();
+    }
+
+    fn window_titles(&self) -> QString {
+        qobject::window_titles_list()
+    }
+
+    fn front_window(&self) -> i32 {
+        qobject::front_window_index()
+    }
+
+    fn raise_window(&self, i: i32) -> bool {
+        qobject::raise_window_at(i)
     }
 
     fn record_window(&self, path: &QString, folder: &QString) {

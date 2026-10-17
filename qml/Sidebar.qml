@@ -490,7 +490,7 @@ Rectangle {
     TMenu {
         id: footerMenu
         // Other windows may have opened folders since.
-        onAboutToShow: Prefs.refresh()
+        onAboutToShow: Prefs.reload()
         TMenuItem { text: qsTr("New File"); enabled: sidebar.app.folder !== ""; onTriggered: sidebar.newFile(sidebar.app.folder) }
         TMenuItem { text: qsTr("Search"); enabled: sidebar.app.folder !== ""; onTriggered: sidebar.openSearch() }
         TMenuItem { text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); enabled: sidebar.app.folder !== ""; onTriggered: Qt.openUrlExternally("file://" + sidebar.app.folder) }

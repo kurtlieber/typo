@@ -15,7 +15,18 @@ wait 800
 check Desktop.otherWindowsOpen() === Ui.mac
 eval sourceView.highlighter.rehighlight()
 check (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return h.inkAt(t.indexOf("a]")) === h.inkAt(0) })()
+# The Window menu lists them in the order they opened, and ⌘` goes to the
+# next; ⇧⌘F (Search) is the front one's own.
+check Desktop.windowTitles().split("\n").length === (Ui.mac ? 2 : 1) && Desktop.frontWindow() === (Ui.mac ? 1 : 0)
+eval if (Ui.mac) Desktop.sendKey("Ctrl+`")
+wait 300
+check Desktop.frontWindow() === 0
+key Ctrl+Shift+F
+wait 300
+check sidebar.searching
 # Closing it (keys go to it) leaves only this one, and its engine goes.
+eval if (Ui.mac) Desktop.sendKey("Ctrl+`")
+wait 300
 eval if (Ui.mac) Desktop.sendKey("Ctrl+W")
 wait 500
 check !Desktop.otherWindowsOpen()
