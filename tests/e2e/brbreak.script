@@ -1,0 +1,42 @@
+# A <br> tag breaks the line, as Typora: its ">" is a line break in the
+# box, drawn over the break while the tag shows.
+write @DIR@/doc.md one<br>two three\n\n| a | b |\n| --- | --- |\n| c<br>d | e |\n
+cmd openPath @DIR@/doc.md
+wait 300
+check view.editAt(0).text === "one<br\ntwo three"
+check view.editAt(0).positionToRectangle(7).y > view.editAt(0).positionToRectangle(3).y
+# Typing and deleting around it keep the tag and the no-break space.
+caret 0 1
+type X
+key Delete Delete
+check view.editAt(0).text === "oX<br\ntwo three"
+# Visible <br/> off hides the tag away from the caret; the line still
+# breaks.
+caret 0 0
+eval Prefs.visibleBr = false
+wait 100
+check view.editAt(0).positionToRectangle(5).x - view.editAt(0).positionToRectangle(2).x < 4
+check view.editAt(0).positionToRectangle(7).y > view.editAt(0).positionToRectangle(2).y
+shot @SHOT@
+eval Prefs.visibleBr = true
+# Deleting the break deletes the ">"; typed again, it breaks again, the
+# caret after it.
+caret 0 6
+key BackSpace
+check view.editAt(0).text === "oX<brtwo three"
+type >
+check view.editAt(0).text === "oX<br\ntwo three" && view.editAt(0).cursorPosition === 6
+# In a table cell too: typed, the caret after it; copied as markdown.
+check view.itemAt(1).table.cellItem(1, 0).edit.text === "c<br\nd"
+clickCell 1 1 0 1
+type X
+clickCell 1 1 0 6
+key BackSpace
+check view.itemAt(1).table.cellItem(1, 0).edit.text === "cX<brd"
+type >
+check view.itemAt(1).table.cellItem(1, 0).edit.text === "cX<br\nd" && view.itemAt(1).table.cellItem(1, 0).edit.cursorPosition === 6
+check view.itemAt(1).table.cellItem(1, 0).edit.positionToRectangle(6).y > view.itemAt(1).table.cellItem(1, 0).edit.positionToRectangle(1).y
+eval view.itemAt(1).table.cellItem(1, 0).edit.select(1, 7)
+key Ctrl+C
+check Desktop.clipboardText() === "X<br>d"
+dump @OUT@

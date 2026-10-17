@@ -236,6 +236,63 @@ pub fn lone_image<'a>(src: &str, nodes: &'a [Node]) -> Option<&'a Node> {
     alone.then_some(n)
 }
 
+/// The `<br>` tags in `nodes`, which break the line.
+pub fn brs(nodes: &[Node]) -> Vec<&Node> {
+    let mut out = Vec::new();
+    for n in nodes {
+        match &n.kind {
+            Kind::HtmlTag { name, .. } if name.eq_ignore_ascii_case("br") => out.push(n),
+            _ => out.extend(brs(&n.children)),
+        }
+    }
+    out
+}
+
+/// `src` as the editor's text box holds it, at the same UTF-16 positions:
+/// each `<br>`'s `>` a line break, so the line breaks there as in Typora,
+/// and the rest as Qt hands text back (line and paragraph separators as
+/// line breaks, no-break spaces as spaces), so that it hands back this.
+pub fn boxed(src: &str, nodes: &[Node]) -> String {
+    let ends: Vec<usize> = brs(nodes).iter().map(|n| n.range.end - 1).collect();
+    src.char_indices()
+        .map(|(i, c)| match c {
+            '>' if ends.contains(&i) => '\n',
+            '\u{2028}' | '\u{2029}' => '\n',
+            '\u{a0}' => ' ',
+            c => c,
+        })
+        .collect()
+}
+
+/// `src` after its box, showing it as `seen` (`boxed`), came to hold
+/// `now`: what changed is taken from `now`, the rest from `src`.
+pub fn unboxed(src: &str, seen: &str, now: &str) -> String {
+    let (s, n): (Vec<char>, Vec<char>) = (seen.chars().collect(), now.chars().collect());
+    let old: Vec<char> = src.chars().collect();
+    if old.len() != s.len() {
+        return now.to_string();
+    }
+    let a = s.iter().zip(&n).take_while(|(x, y)| x == y).count();
+    let z = s[a..].iter().rev().zip(n[a..].iter().rev()).take_while(|(x, y)| x == y).count();
+    old[..a].iter().chain(&n[a..n.len() - z]).chain(&old[old.len() - z..]).collect()
+}
+
+/// The markdown a box holding `now` shows, given `src`, the block's text
+/// as last known, which may be a step behind: where `now` has what
+/// `boxed` makes of `src`'s character at the same place, that character.
+pub fn shown_source(now: &str, src: &str) -> String {
+    if now.chars().count() != src.chars().count() {
+        return now.to_string();
+    }
+    now.chars()
+        .zip(src.chars())
+        .map(|(n, s)| match (n, s) {
+            ('\n', '>' | '\u{2028}' | '\u{2029}') | (' ', '\u{a0}') => s,
+            _ => n,
+        })
+        .collect()
+}
+
 pub fn parse(src: &str, refs: &Refs, opts: &Options) -> Vec<Node> {
     let mut p = Parser {
         src,

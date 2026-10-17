@@ -79,7 +79,15 @@ quotes and list items. A list item's task state lives on its container.
 
 Text-bearing leaves hold their **inline markdown source** with container
 prefixes stripped (so the TextEdit shows exactly the inline source). Soft line
-breaks are `\n`.
+breaks are `\n`. The one difference is `Editor.boxed` (`inline::boxed`):
+each `<br>` tag's `>` is a `\n` in the box, so the line breaks there as in
+Typora, and line separators and no-break spaces are as Qt hands text back
+(`\n`, a space). Every position stays the same in UTF-16, so the box's
+positions are the markdown's. `edited` and `cellEdited` take what changed
+from the box and the rest from the markdown (`inline::unboxed`); the
+highlighter reads the box as markdown through its `source`
+(`inline::shown_source`) and lists the shown tags' `>`s as `breaks`, which
+the delegate draws over the line ends.
 
 The block parser is our own line-based CommonMark-style parser (container
 matching, then leaf starts), so it can emit stripped leaf text, preserve

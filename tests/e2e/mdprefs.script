@@ -12,12 +12,13 @@ check view.itemAt(0).paraIndent > 0 && view.itemAt(1).paraIndent > 0 && view.ite
 check view.itemAt(2).indent > 30 * Ui.zoom
 shot @SHOT@
 eval Prefs.indentFirstLine = false
-# Visible <br/> off: a <br> tag goes, away from the caret, leaving only
-# the room of its unseen ">" so the words around it stay apart.
-check view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x > 20
+# Visible <br/> off: a <br> tag goes, away from the caret; the line
+# still breaks there (brbreak).
+check view.editAt(1).positionToRectangle(34).x - view.editAt(1).positionToRectangle(31).x > 20
 eval Prefs.visibleBr = false
 wait 100
-check view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x > 4 && view.editAt(1).positionToRectangle(35).x - view.editAt(1).positionToRectangle(31).x < 14
+check view.editAt(1).positionToRectangle(34).x - view.editAt(1).positionToRectangle(31).x < 4
+check view.editAt(1).positionToRectangle(35).y > view.editAt(1).positionToRectangle(31).y
 eval Prefs.visibleBr = true
 # Code fences without line wrapping: a long line scrolls sideways.
 caret 3 5

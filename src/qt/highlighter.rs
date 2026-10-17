@@ -62,6 +62,13 @@ pub mod qobject {
         #[qproperty(QString, hits)]
         /// The document's `Editor.docId`, for its links and options.
         #[qproperty(i32, doc)]
+        /// The markdown the text box shows (`Editor.boxed`), where it
+        /// differs: a `<br>`'s `>` is a line break in the box.
+        #[qproperty(QString, source)]
+        /// Where the `>` of each `<br>` that shows as source would be, as
+        /// JSON `[pos, …]` in UTF-16: it is a line break, so the delegate
+        /// draws it.
+        #[qproperty(QString, breaks)]
         type InlineHighlighter = super::InlineHighlighterRust;
 
         /// Formats changed: objects may have moved.
@@ -135,6 +142,10 @@ pub mod qobject {
         /// Re-parse and repaint everything (theme, options or links changed).
         #[qinvokable]
         fn refresh(self: Pin<&mut Self>);
+
+        /// `source` changed: repaint if the text reads differently now.
+        #[qinvokable]
+        fn reread(self: Pin<&mut Self>);
 
         #[qinvokable]
         #[cxx_name = "fixLineHeight"]
@@ -723,24 +734,9 @@ fn link_def_looks(text: &str) -> Vec<(Range<usize>, Look)> {
     out
 }
 
-/// The `<br>` tags Preferences ▸ Markdown ▸ Visible <br/> hides: all but
-/// the one the caret is at, which shows as Typora shows it expanded.
+/// The `<br>` tags but the one the caret is at.
 fn hidden_brs(nodes: &[Node], caret: Option<usize>) -> Vec<Range<usize>> {
-    fn walk(nodes: &[Node], caret: Option<usize>, out: &mut Vec<Range<usize>>) {
-        for n in nodes {
-            match &n.kind {
-                Kind::HtmlTag { name, .. } if name.eq_ignore_ascii_case("br") => {
-                    if !touches(n, caret) {
-                        out.push(n.range.clone());
-                    }
-                }
-                _ => walk(&n.children, caret, out),
-            }
-        }
-    }
-    let mut out = Vec::new();
-    walk(nodes, caret, &mut out);
-    out
+    inline::brs(nodes).into_iter().filter(|n| !touches(n, caret)).map(|n| n.range.clone()).collect()
 }
 
 /// `runs` with `range` given `look` instead.
@@ -939,6 +935,13 @@ type Sizes = HashMap<String, (f64, f64, f64)>;
 #[derive(Default)]
 struct Cache {
     text: String,
+    /// The text as the box holds it (`inline::boxed`).
+    raw: String,
+    /// Where a `<br>`'s `>` is a line break in the box, in `text`.
+    cuts: HashSet<usize>,
+    /// The `<br>` tags hidden, and where the `>` of those shown is.
+    hidden: Vec<Range<usize>>,
+    breaks: Vec<i32>,
     nodes: Vec<Node>,
     reveal: Vec<Range<usize>>,
     /// The block is an image showing in place of its source.
@@ -964,7 +967,9 @@ struct Cache {
 }
 
 impl Cache {
-    fn parse(&mut self, text: String, caret: Option<usize>, image_shown: bool, alert_title: bool, sizes: &Sizes) {
+    fn parse(&mut self, raw: String, text: String, caret: Option<usize>, image_shown: bool, alert_title: bool, sizes: &Sizes) {
+        self.cuts = text.char_indices().zip(raw.chars()).filter(|((_, a), b)| *a == '>' && *b == '\n').map(|((i, _), _)| i).collect();
+        self.raw = raw;
         self.alert = alert_title
             .then(|| query::alert_of(&text))
             .flatten()
@@ -1007,6 +1012,15 @@ impl Cache {
         self.alert.is_some_and(|(_, len)| caret.is_some_and(|c| c <= len))
     }
 
+    /// The `<br>` tags Preferences ▸ Markdown ▸ Visible <br/> hides: all but
+    /// the one the caret is at, which shows as Typora shows it expanded.
+    fn hidden_brs(&self, caret: Option<usize>) -> Vec<Range<usize>> {
+        if !shared::hide_br(self.doc) || self.pictured || self.link_def {
+            return Vec::new();
+        }
+        hidden_brs(&self.nodes, caret)
+    }
+
     fn layout(&mut self, caret: Option<usize>, image_shown: bool, sizes: &Sizes) {
         self.reveal = revealed(&self.nodes, caret);
         self.alert_open = self.alert_open(caret);
@@ -1034,17 +1048,28 @@ impl Cache {
         let mut runs = if self.pictured { vec![(0..text.len(), HIDE)] } else { looks(&self.nodes, text.len(), caret, &room) };
         if self.link_def {
             runs = link_def_looks(text);
-        } else if shared::hide_br(self.doc) && !self.pictured {
-            // ponytail: Typora still breaks the line at a hidden `<br>`; a
-            // TextEdit line can't break inside the text, so its last
-            // character stays, unseen, as a gap that keeps the words on
-            // each side apart. The real break needs the view's text to
-            // differ from the source, which it doesn't yet.
-            for r in hidden_brs(&self.nodes, caret) {
-                runs = overlay(runs, r.start..r.end - 1, HIDE);
+        }
+        // A `<br>`'s `>` is a line break in the box, so the line breaks
+        // there as in Typora. Where the box holds the tag as written (no
+        // `source`), a hidden one's `>` stays, unseen, as a gap that keeps
+        // the words on each side apart.
+        self.hidden = self.hidden_brs(caret);
+        for r in &self.hidden {
+            runs = overlay(runs, r.start..r.end - 1, HIDE);
+            if !self.cuts.contains(&(r.end - 1)) {
                 runs = overlay(runs, r.end - 1..r.end, GAP);
             }
         }
+        self.breaks = if self.link_def || self.pictured {
+            Vec::new()
+        } else {
+            inline::brs(&self.nodes)
+                .into_iter()
+                .map(|n| n.range.end - 1)
+                .filter(|at| self.cuts.contains(at) && !self.hidden.iter().any(|r| r.end - 1 == *at))
+                .map(|at| u16_at[at])
+                .collect()
+        };
         if let Some((kind, len)) = self.alert {
             let look = if self.alert_open {
                 Look { flags: BOLD | SMALL, fg: Paint::Alert(kind), ..Look::default() }
@@ -1079,6 +1104,11 @@ impl Cache {
         let items: Vec<String> = self.boxes.iter().map(|r| format!("[{},{}]", r.start, r.end)).collect();
         format!("[{}]", items.join(","))
     }
+
+    fn breaks_json(&self) -> String {
+        let items: Vec<String> = self.breaks.iter().map(i32::to_string).collect();
+        format!("[{}]", items.join(","))
+    }
 }
 
 /// The text of every code span in `nodes` that has some.
@@ -1103,6 +1133,8 @@ pub struct InlineHighlighterRust {
     link_def: bool,
     hits: QString,
     doc: i32,
+    source: QString,
+    breaks: QString,
     sizes: Sizes,
     /// Caret in UTF-16, -1 when the block doesn't have it.
     caret: i32,
@@ -1124,6 +1156,8 @@ impl Default for InlineHighlighterRust {
             link_def: false,
             hits: QString::from("[]"),
             doc: -1,
+            source: QString::default(),
+            breaks: QString::from("[]"),
             sizes: Sizes::new(),
             caret: -1,
             cache: Cache::default(),
@@ -1140,6 +1174,18 @@ impl qobject::InlineHighlighter {
     fn refresh(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().cache.valid = false;
         self.rehighlight_all();
+    }
+
+    /// What the box shows read as markdown: its text, with `source`'s
+    /// characters where the box holds them otherwise (`inline::boxed`).
+    fn markdown(&self, raw: &str) -> String {
+        inline::shown_source(raw, &self.source.to_string())
+    }
+
+    fn reread(self: Pin<&mut Self>) {
+        if self.cache.valid && self.markdown(&self.cache.raw) != self.cache.text {
+            self.refresh();
+        }
     }
 
     fn dim(mut self: Pin<&mut Self>, blur: bool, keep: i32) {
@@ -1222,6 +1268,7 @@ impl qobject::InlineHighlighter {
         let caret = (pos >= 0).then(|| byte_of(&self.cache.text, pos));
         let shown = self.image_shown;
         if revealed(&self.cache.nodes, caret) != self.cache.reveal
+            || self.cache.hidden_brs(caret) != self.cache.hidden
             || self.cache.pictured(caret, shown) != self.cache.pictured
             || self.cache.alert_open(caret) != self.cache.alert_open
         {
@@ -1232,14 +1279,15 @@ impl qobject::InlineHighlighter {
     fn highlight_text(mut self: Pin<&mut Self>, line: &QString) {
         // Spans can cross the lines of a paragraph, so parse the whole
         // block once and format each line from the cached runs.
-        let full = self.document_text().to_string();
-        if !self.cache.valid || self.cache.text != full {
+        let raw = self.document_text().to_string();
+        if !self.cache.valid || self.cache.raw != raw {
+            let full = self.markdown(&raw);
             let mut this = self.as_mut().rust_mut();
             let r = &mut *this;
             let caret = (r.caret >= 0).then(|| byte_of(&full, r.caret));
             r.cache.link_def = r.link_def;
             r.cache.doc = r.doc;
-            r.cache.parse(full, caret, r.image_shown, r.alert_title, &r.sizes);
+            r.cache.parse(raw, full, caret, r.image_shown, r.alert_title, &r.sizes);
         }
         let Some(ink) = shared::ink() else { return };
         let paint = |p: Paint| match p {
@@ -1309,6 +1357,10 @@ impl qobject::InlineHighlighter {
         let boxes = QString::from(&self.cache.boxes_json());
         if boxes != self.boxes {
             self.as_mut().set_boxes(boxes);
+        }
+        let breaks = QString::from(&self.cache.breaks_json());
+        if breaks != self.breaks {
+            self.as_mut().set_breaks(breaks);
         }
         let placing = self.cache.placed.iter().any(Option::is_some);
         if placing != self.placing {

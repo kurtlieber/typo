@@ -35,6 +35,11 @@ pub fn size(doc: &Document, i: usize) -> Option<(usize, usize)> {
     parts(doc, i).map(|(align, rows)| (align.len(), rows.len()))
 }
 
+/// Cell (`r`, `c`)'s text.
+pub fn cell(doc: &Document, i: usize, (r, c): Cell) -> Option<String> {
+    parts(doc, i)?.1.get(r)?.get(c).cloned()
+}
+
 /// Typing in a cell. A cell is one line: line breaks in pasted text become
 /// spaces. False when nothing changed.
 pub fn set_cell(doc: &mut Document, i: usize, (r, c): Cell, text: &str) -> bool {

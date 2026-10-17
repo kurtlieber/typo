@@ -420,6 +420,11 @@ pub mod qobject {
         #[cxx_name = "linkAt"]
         fn link_at(self: &Editor, row: i32, pos: i32) -> QString;
 
+        /// Inline markdown `text` as its text box holds it
+        /// (`inline::boxed`): each `<br>`'s `>` a line break.
+        #[qinvokable]
+        fn boxed(self: &Editor, text: &QString) -> QString;
+
         /// The URL to load for the image a paragraph's `text` consists of,
         /// or empty when it is anything else; local paths resolve as
         /// Typora resolves them.
@@ -1107,6 +1112,14 @@ fn file_title(path: Option<&Path>) -> String {
 }
 
 impl qobject::Editor {
+    /// `inline::boxed` for `text` in this document.
+    fn box_of(&self, text: &str) -> String {
+        if !text.contains(['<', '\u{2028}', '\u{2029}', '\u{a0}']) {
+            return text.to_string();
+        }
+        inline::boxed(text, &inline::parse(text, &self.refs, &self.opts))
+    }
+
     fn data(&self, index: &QModelIndex, role: i32) -> QVariant {
         let Some(b) = usize::try_from(index.row()).ok().and_then(|r| self.doc.blocks.get(r)) else {
             return QVariant::default();
@@ -1508,8 +1521,11 @@ impl qobject::Editor {
             return;
         }
         let Some(i) = usize::try_from(row).ok().filter(|&i| i < self.doc.blocks.len()) else { return };
-        let text = text.to_string();
-        if self.doc.blocks[i].text == text {
+        let now = text.to_string();
+        let b = &self.doc.blocks[i];
+        let inline = b.kind.is_inline_text() || b.kind == BlockKind::LinkRefDef;
+        let text = if inline { inline::unboxed(&b.text, &self.box_of(&b.text), &now) } else { now.clone() };
+        if b.text == text {
             return;
         }
         let old = self.doc.blocks.clone();
@@ -1534,7 +1550,8 @@ impl qobject::Editor {
         }
         let merge = if ruled { Merge::Never } else { Merge::Typing(id) };
         self.as_mut().commit(old, before, Sel::caret(caret_after), merge);
-        if ruled {
+        // A `<br>` typed or undone sets the box's text anew, caret and all.
+        if ruled || inline && self.box_of(&self.doc.blocks[i].text) != now {
             let b = &self.doc.blocks[caret_after.block];
             let u = utf16_of(&b.text, caret_after.offset);
             self.caret_requested(caret_after.block as i32, u, u);
@@ -1805,7 +1822,12 @@ impl qobject::Editor {
         let (Some(at), Ok(r), Ok(c)) = (pos_of(&self.doc, row, 0), usize::try_from(r), usize::try_from(c)) else { return };
         let i = at.block;
         let old = self.doc.blocks.clone();
-        if !table::set_cell(&mut self.as_mut().rust_mut().doc, i, (r, c), &text.to_string()) {
+        let now = text.to_string();
+        let text = match table::cell(&self.doc, i, (r, c)) {
+            Some(md) => inline::unboxed(&md, &self.box_of(&md), &now),
+            None => now,
+        };
+        if !table::set_cell(&mut self.as_mut().rust_mut().doc, i, (r, c), &text) {
             return;
         }
         let id = self.doc.blocks[i].id;
@@ -2151,6 +2173,10 @@ impl qobject::Editor {
         let Some(p) = pos_of(&self.doc, row, pos) else { return false };
         let b = &self.doc.blocks[p.block];
         !edit::is_atomic(&b.kind) && md::pair::paired(&b.kind, &b.text, p.offset, markdown, &self.opts)
+    }
+
+    fn boxed(&self, text: &QString) -> QString {
+        QString::from(&self.box_of(&text.to_string()))
     }
 
     fn image_url(&self, text: &QString) -> QString {

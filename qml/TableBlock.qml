@@ -438,7 +438,9 @@ Item {
         }
         if (!editItem || editItem.selectedText === "")
             return false
-        Desktop.setClipboard(editItem.selectedText, "", editItem.selectedText)
+        // The markdown, `<br>`s and all: the box breaks the line at them.
+        const md = cellItem(curR, curC).value.substring(editItem.selectionStart, editItem.selectionEnd)
+        Desktop.setClipboard(md, "", md)
         return true
     }
     function cut() {
@@ -500,13 +502,13 @@ Item {
         const e = editItem
         if (e && ["link", "image", "zoomImage", "imageSyntax", "footnote", "imageSrc", "deleteImage"].indexOf(name) >= 0) {
             // The new text and selection, as the editor makes them.
-            const json = editor.editText(e.text, e.selectionStart, e.selectionEnd, name, text || "")
+            const json = editor.editText(cellItem(curR, curC).value, e.selectionStart, e.selectionEnd, name, text || "")
             if (json !== "") {
                 const r = JSON.parse(json)
                 // Only what changed is replaced: setting the text would cut
                 // it loose from the model's, which undo puts back.
                 const t = e.text
-                const out = r[2]
+                const out = editor.boxed(r[2])
                 let a = 0
                 while (a < t.length && a < out.length && t[a] === out[a])
                     a++
@@ -767,6 +769,8 @@ Item {
                 readonly property int r: Math.floor(index / table.columns)
                 readonly property int c: index % table.columns
                 readonly property string value: (table.spec.rows[r] || [])[c] || ""
+                // As its box holds it: each `<br>`'s `>` a line break.
+                readonly property string boxed: table.editor.boxed(value)
                 // Find's current match is in this cell; and its matches here.
                 readonly property bool found: table.owner.found && table.host.found.r === r && table.host.found.c === c
                 onFoundChanged: hl.caretMoved(edit.activeFocus || found ? edit.cursorPosition : -1)
@@ -810,7 +814,7 @@ Item {
                     x: table.padX
                     y: table.padY
                     width: Math.max(0, cell.width - 2 * table.padX)
-                    text: cell.value
+                    text: cell.boxed
                     textFormat: TextEdit.PlainText
                     wrapMode: TextEdit.Wrap
                     selectByMouse: true
@@ -837,8 +841,13 @@ Item {
                             return
                         seen = text
                         hl.fixLineHeight()
-                        if (text !== cell.value)
+                        if (text !== cell.boxed) {
+                            // A `<br>` typed sets the box's text anew; the
+                            // caret stays.
+                            const at = cursorPosition
                             table.editor.cellEdited(table.owner.index, cell.r, cell.c, text)
+                            cursorPosition = at
+                        }
                         if (table.host && activeFocus)
                             Qt.callLater(() => table.host.emojiSuggest.typed(edit))
                     }
@@ -878,6 +887,8 @@ Item {
                     lineHeight: table.lineHeight
                     fontSize: table.em
                     doc: table.editor.docId
+                    source: cell.value
+                    onSourceChanged: reread()
                     onLineHeightChanged: fixLineHeight()
                     onFontSizeChanged: refresh()
                     onPlacingChanged: Qt.callLater(() => hl.fixLineHeight())
@@ -898,6 +909,24 @@ Item {
                     target: edit
                     function onWidthChanged() { placeLater.restart() }
                     function onContentHeightChanged() { placeLater.restart() }
+                }
+                // The `>` of each `<br>` that shows, as in paragraphs.
+                Repeater {
+                    model: JSON.parse(hl.breaks)
+                    delegate: Text {
+                        required property int modelData
+                        readonly property point at: {
+                            cell.placeRevision
+                            edit.width
+                            return Qt.point(edit.positionToRectangle(modelData).x, hl.baselineAt(modelData))
+                        }
+                        x: edit.x + at.x
+                        y: edit.y + edit.topPadding + at.y - baselineOffset
+                        text: ">"
+                        color: Theme.muted
+                        font.family: Ui.monoFont
+                        font.pixelSize: Math.max(1, Math.round(table.em * 0.9))
+                    }
                 }
                 readonly property var objects: JSON.parse(hl.objects)
                 Repeater {

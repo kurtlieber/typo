@@ -539,7 +539,10 @@ Item {
             TextEdit {
                 id: edit
                 width: parent.width
-                text: block.text
+                // Each `<br>`'s `>` is a line break here, so the line
+                // breaks there, as in Typora (`Editor.boxed`). Not on
+                // inlineRevision: refs change mid-edit, before the text.
+                text: block.editor.boxed(block.text)
                 readOnly: block.locked
                 readonly property bool live: activeFocus && !readOnly
                 textFormat: TextEdit.PlainText
@@ -607,6 +610,8 @@ Item {
                 onFirstIndentChanged: fixLineHeight()
                 alertTitle: block.alertTitle
                 doc: block.editor.docId
+                source: block.text
+                onSourceChanged: reread()
                 onAlertTitleChanged: refresh()
                 linkDef: block.kind === "linkref"
                 onLinkDefChanged: refresh()
@@ -637,6 +642,25 @@ Item {
                 onHoveredChanged: {
                     if (!hovered)
                         block.host.footnoteHover(block.index, -1)
+                }
+            }
+
+            // The `>` of each `<br>` that shows, where the box breaks the
+            // line instead.
+            Repeater {
+                model: JSON.parse(hl.breaks)
+                delegate: Text {
+                    required property int modelData
+                    readonly property point at: {
+                        textItem.placeRevision
+                        edit.width
+                        return Qt.point(edit.positionToRectangle(modelData).x, hl.baselineAt(modelData))
+                    }
+                    x: edit.x + at.x
+                    y: edit.y + edit.topPadding + at.y - baselineOffset
+                    text: ">"
+                    color: Theme.muted
+                    font: codeFm.font
                 }
             }
 

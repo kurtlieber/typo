@@ -1556,3 +1556,17 @@ fn math_is_drawn_when_copied_as_svg() {
     assert!(out.contains("|true</svg></span>"), "{out}");
     assert!(html::render(&doc, &inline::Options::all()).contains("<span class=\"math math-inline\">x</span>"));
 }
+
+#[test]
+fn br_tags_break_the_box_and_edits_keep_them() {
+    let src = "a<br>b<BR />`<br>`\u{a0}c";
+    let seen = inline::boxed(src, &inline::parse(src, &inline::Refs::new(), &inline::Options::all()));
+    assert_eq!(seen, "a<br\nb<BR /\n`<br>` c");
+    // Typed after a break; the rest is the markdown's.
+    let now = seen.replace("/\n`", "/\nY`");
+    assert_eq!(inline::unboxed(src, &seen, &now), "a<br>b<BR />Y`<br>`\u{a0}c");
+    // Deleting the break deletes the `>`.
+    assert_eq!(inline::unboxed(src, &seen, &seen.replacen('\n', "", 1)), "a<brb<BR />`<br>`\u{a0}c");
+    assert_eq!(inline::shown_source(&seen, src), src);
+    assert_eq!(inline::shown_source("a\nb", "a>"), "a\nb");
+}
