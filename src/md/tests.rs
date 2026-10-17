@@ -1024,6 +1024,10 @@ fn finds_and_repoints_images() {
     assert_eq!(point("![x](x.png \"t\")", 3, "a b.png").as_deref(), Some("![x](<a b.png> \"t\")"));
     assert_eq!(point("![r][r]", 3, "s.png").as_deref(), Some("![r](s.png)"));
     assert_eq!(point("<img src=z.png alt=z>", 3, "w.png").as_deref(), Some(r#"<img src="w.png" alt=z>"#));
+    // In a table cell, through the cell's commands.
+    let cell = |name, arg| edit::text_command("a ![x](x.png) b", 4..4, name, arg, &refs);
+    assert_eq!(cell("imageSrc", "y.png"), Some(("a ![x](y.png) b".into(), 2..13)));
+    assert_eq!(cell("deleteImage", ""), Some(("a  b".into(), 2..2)));
 }
 
 #[test]

@@ -721,13 +721,13 @@ ApplicationWindow {
         case "deleteImage": {
             const img = imageHere()
             if (img)
-                model.deleteImage(img.row, img.pos)
+                deleteImage(img)
             return
         }
         // Typora takes the image out first, then asks about its file.
         case "deleteImageFile": {
             const img = imageHere()
-            if (!img || !model.deleteImage(img.row, img.pos) || img.path === "" || !Desktop.exists(img.path))
+            if (!img || !deleteImage(img) || img.path === "" || !Desktop.exists(img.path))
                 return
             shouldContinue(qsTr("Delete Image File"), qsTr("Delete original image file?"), "noWarningForDeleteImage", () => {
                 if (!Desktop.moveToTrash(img.path))
@@ -777,15 +777,23 @@ ApplicationWindow {
 
     // The image at the caret, as the editor describes it (imageAt), with
     // where the caret is, so a chooser's answer finds it again; or null.
+    // In a table cell, `cell` is set and the cell edits it (TableBlock.format).
     function imageHere() {
         const s = view.selection()
-        const info = model.imageAt(s.zRow, s.zPos)
+        const t = view.tableAt()
+        const e = t ? t.editItem : null
+        const info = e ? model.cellImageAt(e.text, e.cursorPosition) : model.imageAt(s.zRow, s.zPos)
         if (info === "")
             return null
         const img = JSON.parse(info)
         img.row = s.zRow
         img.pos = s.zPos
+        img.cell = e !== null
         return img
+    }
+    // Delete Image: from its cell, or the document; false when it isn't there.
+    function deleteImage(img) {
+        return img.cell ? view.command("deleteImage") : model.deleteImage(img.row, img.pos)
     }
     // The formula at the caret (Editor.mathAt), or null.
     function mathHere() {
@@ -802,7 +810,15 @@ ApplicationWindow {
     // The image Copy Image to… or Rename or Move Image to… asked about.
     property var imageTarget: null
     function relocateImage(img, target, move) {
-        const error = model.relocateImage(img.row, img.pos, target, move)
+        let error
+        if (img.cell) {
+            const r = JSON.parse(model.copyImageFile(img.src, target, move))
+            if (r.src !== "")
+                view.command("imageSrc", 0, r.src)
+            error = r.error
+        } else {
+            error = model.relocateImage(img.row, img.pos, target, move)
+        }
         if (error !== "")
             toast.show(qsTr("Failed to Copy Image to Target Folder.") + " " + error)
         imageMoved()

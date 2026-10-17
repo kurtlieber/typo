@@ -488,12 +488,25 @@ Item {
         if (["paragraphBefore", "paragraphAfter", "deleteBlock", "undo", "redo"].indexOf(name) >= 0)
             return false
         const e = editItem
-        if (e && ["link", "image", "zoomImage", "imageSyntax", "footnote"].indexOf(name) >= 0) {
+        if (e && ["link", "image", "zoomImage", "imageSyntax", "footnote", "imageSrc", "deleteImage"].indexOf(name) >= 0) {
             // The new text and selection, as the editor makes them.
             const json = editor.editText(e.text, e.selectionStart, e.selectionEnd, name, text || "")
             if (json !== "") {
                 const r = JSON.parse(json)
-                e.text = r[2]
+                // Only what changed is replaced: setting the text would cut
+                // it loose from the model's, which undo puts back.
+                const t = e.text
+                const out = r[2]
+                let a = 0
+                while (a < t.length && a < out.length && t[a] === out[a])
+                    a++
+                let z = 0
+                while (z < t.length - a && z < out.length - a && t[t.length - 1 - z] === out[out.length - 1 - z])
+                    z++
+                if (a < t.length - z)
+                    e.remove(a, t.length - z)
+                if (a < out.length - z)
+                    e.insert(a, out.substring(a, out.length - z))
                 e.select(r[0], r[1])
             }
             return true
@@ -818,8 +831,10 @@ Item {
                     onHeightChanged: rowsLater.restart()
                     onCursorPositionChanged: {
                         hl.caretMoved(activeFocus || cell.found ? cursorPosition : -1)
-                        if (table.host)
+                        if (table.host) {
                             table.host.emojiSuggest.caretMoved(edit)
+                            table.host.caretMoved()
+                        }
                     }
                     onActiveFocusChanged: {
                         hl.caretMoved(activeFocus || cell.found ? cursorPosition : -1)
@@ -884,6 +899,7 @@ Item {
                         scale: table.scale
                         revision: cell.placeRevision
                         opacity: hl.dimmed ? 0.3 : 1
+                        onPictureLoaded: if (edit.activeFocus && table.host) table.host.imageLoaded(edit)
                     }
                 }
             }

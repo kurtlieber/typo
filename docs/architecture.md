@@ -329,7 +329,8 @@ density as Typora does, which offers Zoom Image to N% for its own size).
 The edits are text edits on its block: Zoom Image rewrites the style
 (a markdown image becomes a tag first), Switch Image Syntax rewrites the
 node, and the file commands copy or move the file and repoint the image
-(`relocateImage`, `relocateAllImages`), each one undo step. Deleting an
+(`relocateImage`, `relocateAllImages`, which also goes through table
+cells), each one undo step. Deleting an
 image's file sends it to the trash (`Desktop.moveToTrash`). When Insert
 Local Image writes the front matter's `typora-copy-images-to` and
 `typora-root-url` (`edit::set_property`). Reload All Images gives every
@@ -407,7 +408,13 @@ across blocks. Its cells are edited on their own.
   their edges. Undo, page keys and the menu key go on to the view. `hit`
   returns the cell under the pointer; a drag that leaves or enters the
   table takes it whole. Copy, paste, select all and inline styles act in
-  the cell (`EditorView.tableAt`).
+  the cell (`EditorView.tableAt`). So do links, footnotes and the image
+  commands: `TableBlock.format` gets the new text from `Editor.editText`
+  (`edit::text_command`) and replaces only what changed, so the cell's
+  text stays bound to the model's for undo. For an image in a cell, Main
+  reads it with `Editor.cellImageAt`, copies its file with
+  `Editor.copyImageFile` and repoints or deletes it there; a cell's
+  picture loading offers the image popup as a paragraph's does.
 - **Several cells.** A drag from one cell into another, or Shift+click
   from the caret's cell, makes `TableBlock.cellSpan` ({a, z}): Typora's
   (the browser's) selection, in reading order, each cell's part selected

@@ -1,0 +1,48 @@
+# The image commands in a table cell, as in a paragraph: what Typora offers
+# once a cell's picture loads, Zoom Image, Copy Image to…, Copy to assets,
+# Move All Images to… and Delete Image File, each changing the cell's text
+# so that undo puts it back.
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+write @DIR@/doc.md | a | b |\n| --- | --- |\n| ![cat](cat.svg) | y |\n\nend\n
+cmd openPath @DIR@/doc.md
+wait 500
+clickCell 0 1 1 0
+eval view.itemAt(0).table.cellItem(1, 1).edit.insert(0, "![p](@REPO@/tests/e2e/hidpi.png)")
+wait 1000
+check imagePopup.shown && imagePopup.rows.map(r => r[0]).join("|") === "Copy Image to…|Rename or Move Image to…|Zoom Image to 50%|Zoom Image"
+clickItem imagePopup.row(2)
+wait 100
+check !imagePopup.shown && model.markdown().indexOf('| <img src="@REPO@/tests/e2e/hidpi.png" alt="p" style="zoom:50%;" />y |') > 0
+choose @DIR@/dot.png
+cmd copyImageTo
+wait 500
+check Desktop.exists("@DIR@/dot.png") && model.markdown().indexOf('<img src="dot.png" alt="p" style="zoom:50%;" />y |') > 0 && !imagePopup.shown
+key End
+check !imagePopup.shown
+clickCell 0 1 0 0
+eval view.itemAt(0).table.cellItem(1, 0).edit.cursorPosition = 3
+check imageHere() !== null && imageHere().cell && imageHere().src === "cat.svg"
+cmd zoomImage 33%
+check model.markdown().indexOf('| <img src="cat.svg" alt="cat" style="zoom:33%;" /> |') > 0
+eval Prefs.imageInsertAction = 2
+cmd copyImageToFolder
+wait 100
+check Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf('<img src="assets/cat.svg"') > 0
+eval Prefs.noWarningForMoveImage = true
+choose @DIR@/assets
+cmd moveAllImages
+wait 100
+check Desktop.exists("@DIR@/assets/dot.png") && !Desktop.exists("@DIR@/dot.png")
+check model.markdown().indexOf('<img src="assets/dot.png"') > 0 && view.itemAt(0).table.cellItem(1, 1).edit.text.indexOf("assets/dot.png") > 0
+cmd undo
+wait 100
+check view.itemAt(0).table.cellItem(1, 1).edit.text.indexOf('"dot.png"') > 0
+cmd redo
+wait 100
+clickCell 0 1 0 0
+eval view.itemAt(0).table.cellItem(1, 0).edit.cursorPosition = 3
+cmd deleteImageFile
+wait 50
+answer 0
+check !Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf("cat") < 0
+dump @OUT@

@@ -1461,8 +1461,9 @@ pub fn set_image_src(text: &str, sel: Range<usize>, refs: &Refs, src: &str) -> O
 
 /// The edits that work on one line of text, for a paragraph and a table
 /// cell alike: Hyperlink, Insert Image (`arg` is the clipboard), Zoom Image
-/// (`arg` is the zoom) and Switch Image Syntax (`arg` is "html" or
-/// "markdown"). None when it doesn't apply or changes nothing.
+/// (`arg` is the zoom), Switch Image Syntax (`arg` is "html" or
+/// "markdown"), and pointing the image at `arg` or deleting it, after a
+/// copy or move of its file. None when it doesn't apply or changes nothing.
 pub fn text_command(text: &str, sel: Range<usize>, name: &str, arg: &str, refs: &Refs) -> Option<(String, Range<usize>)> {
     let sel = floor_char(text, sel.start)..floor_char(text, sel.end);
     match name {
@@ -1470,6 +1471,8 @@ pub fn text_command(text: &str, sel: Range<usize>, name: &str, arg: &str, refs: 
         "image" => Some(toggle_image(text, sel, refs, arg)),
         "zoomImage" => zoom_image(text, sel, refs, arg),
         "imageSyntax" => switch_image_syntax(text, sel, refs, arg == "html"),
+        "imageSrc" => set_image_src(text, sel, refs, arg),
+        "deleteImage" => image_at(text, sel, refs).map(|(r, ..)| (format!("{}{}", &text[..r.start], &text[r.end..]), r.start..r.start)),
         "footnote" => Some(toggle_footnote(text, sel, refs)),
         _ => None,
     }

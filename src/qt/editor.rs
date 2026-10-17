@@ -575,6 +575,18 @@ pub mod qobject {
         #[cxx_name = "imageAt"]
         fn image_at(self: &Editor, row: i32, pos: i32) -> QString;
 
+        /// imageAt for the image at `pos` (UTF-16) in a table cell's `text`.
+        #[qinvokable]
+        #[cxx_name = "cellImageAt"]
+        fn cell_image_at(self: &Editor, text: &QString, pos: i32) -> QString;
+
+        /// relocateImage's copy, for an image in a table cell, whose text
+        /// the cell changes itself: JSON `{src, error}`, the source that
+        /// points at the copy ("" when nothing was copied) and the error.
+        #[qinvokable]
+        #[cxx_name = "copyImageFile"]
+        fn copy_image_file(self: &Editor, src: &QString, target: &QString, move_file: bool) -> QString;
+
         /// Copy the file of the image at (`row`, `pos`) to `target`, or into
         /// the folder images are copied to when `target` is empty, and point
         /// the image at the copy; with `move_file` the original goes. The
@@ -2271,9 +2283,20 @@ impl qobject::Editor {
 
     fn image_at(&self, row: i32, pos: i32) -> QString {
         let Some((_, _, src, syntax)) = self.image_here(row, pos) else { return QString::default() };
+        self.image_info(&src, syntax)
+    }
+
+    fn cell_image_at(&self, text: &QString, pos: i32) -> QString {
+        let text = text.to_string();
+        let at = byte_of(&text, pos);
+        let Some((_, src, syntax)) = edit::image_at(&text, at..at, &self.refs) else { return QString::default() };
+        self.image_info(&src, syntax)
+    }
+
+    fn image_info(&self, src: &str, syntax: &str) -> QString {
         let root = self.image_root_path();
-        let url = image::url(&src, self.file.as_deref(), root.as_deref());
-        let path = image::local_path(&src, self.file.as_deref(), root.as_deref());
+        let url = image::url(src, self.file.as_deref(), root.as_deref());
+        let path = image::local_path(src, self.file.as_deref(), root.as_deref());
         // "Copy to assets" shows when the image isn't directly in the folder.
         let folder = self
             .image_storage()
@@ -2285,38 +2308,54 @@ impl qobject::Editor {
         let path = path.map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
         QString::from(&format!(
             "{{\"src\":{},\"url\":{},\"path\":{},\"syntax\":\"{syntax}\",\"folder\":{},\"ratio\":{ratio}}}",
-            json_str(&src),
+            json_str(src),
             json_str(&url),
             json_str(&path),
             json_str(&folder)
         ))
     }
 
-    fn relocate_image(mut self: Pin<&mut Self>, row: i32, pos: i32, target: &QString, move_file: bool) -> QString {
-        let Some((p, range, src, _)) = self.image_here(row, pos) else { return QString::default() };
+    /// Copy the file of the image written `src` to `target`, or into the
+    /// folder images are copied to when `target` is empty; with `move_file`
+    /// the original goes. The source that points at the copy, or None when
+    /// there is nothing to copy.
+    fn copy_image(&self, src: &str, target: &str, move_file: bool) -> Result<Option<String>, String> {
         let root = self.image_root_path();
-        let Some(from) = image::local_path(&src, self.file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
-            return QString::from("Image src is not a file");
+        let Some(from) = image::local_path(src, self.file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
+            return Err("Image src is not a file".into());
         };
-        let target = target.to_string();
         let copied = if target.is_empty() {
-            let Some((folder, _)) = self.image_storage() else { return QString::default() };
+            let Some((folder, _)) = self.image_storage() else { return Ok(None) };
             fs::create_dir_all(&folder).and_then(|_| image::copy_into(&from, &folder))
         } else {
-            let to = PathBuf::from(&target);
+            let to = PathBuf::from(target);
             if to == from {
-                return QString::default();
+                return Ok(None);
             }
             fs::copy(&from, &to).map(|_| to)
         };
-        let to = match copied {
-            Ok(to) => to,
-            Err(e) => return QString::from(&e.to_string()),
-        };
+        let to = copied.map_err(|e| e.to_string())?;
         if move_file {
             let _ = fs::remove_file(&from);
         }
-        let new_src = image::insert_src(&to.to_string_lossy(), self.file.as_deref(), root.as_deref(), &self.image_opts);
+        Ok(Some(image::insert_src(&to.to_string_lossy(), self.file.as_deref(), root.as_deref(), &self.image_opts)))
+    }
+
+    fn copy_image_file(&self, src: &QString, target: &QString, move_file: bool) -> QString {
+        let (src, error) = match self.copy_image(&src.to_string(), &target.to_string(), move_file) {
+            Ok(src) => (src.unwrap_or_default(), String::new()),
+            Err(e) => (String::new(), e),
+        };
+        QString::from(&format!("{{\"src\":{},\"error\":{}}}", json_str(&src), json_str(&error)))
+    }
+
+    fn relocate_image(mut self: Pin<&mut Self>, row: i32, pos: i32, target: &QString, move_file: bool) -> QString {
+        let Some((p, range, src, _)) = self.image_here(row, pos) else { return QString::default() };
+        let new_src = match self.copy_image(&src, &target.to_string(), move_file) {
+            Ok(Some(new_src)) => new_src,
+            Ok(None) => return QString::default(),
+            Err(e) => return QString::from(&e),
+        };
         let text = self.doc.blocks[p.block].text.clone();
         let Some((out, sel)) = edit::set_image_src(&text, range, &self.refs, &new_src) else { return QString::default() };
         let old = self.doc.blocks.clone();
@@ -2346,14 +2385,11 @@ impl qobject::Editor {
         // A file shown by several images is copied once.
         let mut copies: HashMap<PathBuf, PathBuf> = HashMap::new();
         let mut error = String::new();
-        let mut changed = Vec::new();
-        for (i, b) in self.doc.blocks.iter().enumerate() {
-            if !b.kind.is_inline_text() {
-                continue;
-            }
-            let mut text = b.text.clone();
+        let (refs, opts) = (&self.refs, &self.image_opts);
+        let mut repoint = |old: &str| {
+            let mut text = old.to_string();
             // Last to first, so the ranges before stay put.
-            for (range, src) in edit::images(&b.text, &self.refs).into_iter().rev() {
+            for (range, src) in edit::images(old, refs).into_iter().rev() {
                 let Some(from) = image::local_path(&src, file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
                     continue;
                 };
@@ -2370,13 +2406,26 @@ impl qobject::Editor {
                         }
                     },
                 };
-                let new_src = image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), &self.image_opts);
-                if let Some((out, _)) = edit::set_image_src(&text, range, &self.refs, &new_src) {
+                let new_src = image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), opts);
+                if let Some((out, _)) = edit::set_image_src(&text, range, refs, &new_src) {
                     text = out;
                 }
             }
-            if text != b.text {
-                changed.push((i, text));
+            text
+        };
+        let mut changed = Vec::new();
+        for (i, b) in self.doc.blocks.iter().enumerate() {
+            let mut new = b.clone();
+            match &b.kind {
+                k if k.is_inline_text() => new.set_text(repoint(&b.text)),
+                BlockKind::Table { align, rows } => new.set_kind(BlockKind::Table {
+                    align: align.clone(),
+                    rows: rows.iter().map(|row| row.iter().map(|cell| repoint(cell)).collect()).collect(),
+                }),
+                _ => continue,
+            }
+            if new != *b {
+                changed.push((i, new));
             }
         }
         if move_file {
@@ -2387,8 +2436,8 @@ impl qobject::Editor {
         if !changed.is_empty() {
             let old = self.doc.blocks.clone();
             let caret = pos_of(&self.doc, row, pos).unwrap_or(Pos::new(0, 0));
-            for (i, text) in changed {
-                self.as_mut().rust_mut().doc.blocks[i].set_text(text);
+            for (i, block) in changed {
+                self.as_mut().rust_mut().doc.blocks[i] = block;
             }
             let text = &self.doc.blocks[caret.block].text;
             let mut offset = caret.offset.min(text.len());
