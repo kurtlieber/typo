@@ -868,6 +868,7 @@ Item {
                 }
             TextEdit {
                 id: code
+                readonly property var highlighter: hl
                 // Unwrapped, as wide as its longest line.
                 width: Prefs.codeWrap ? codeView.width : undefined
                 opacity: fence.folded ? 0 : 1
@@ -1180,6 +1181,7 @@ Item {
                 }
                 TextEdit {
                     id: source
+                    readonly property var highlighter: texHighlighter
                     x: mathItem.pad
                     y: before.y + before.height + 4 * block.scale
                     width: parent.width - 2 * mathItem.pad
@@ -1445,6 +1447,7 @@ Item {
 
                 TextEdit {
                     id: source
+                    readonly property var highlighter: htmlHighlighter
                     x: htmlItem.pad
                     y: 6 * block.scale
                     width: parent.width - 2 * htmlItem.pad

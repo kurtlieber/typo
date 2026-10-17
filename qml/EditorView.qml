@@ -1012,6 +1012,24 @@ Flickable {
             edit.select(a, z)
     }
 
+    // Shift+Tab with "Use Shift+Tab to auto indent selected code" on: the
+    // lines touched take the indent of the line above, as CodeMirror's
+    // indentAuto.
+    function codeAutoIndent(edit) {
+        const s = edit.selectionStart
+        const e = edit.selectionEnd
+        const caret = edit.cursorPosition
+        const r = JSON.parse(edit.highlighter.autoIndent(caret === s ? e : s, caret, Prefs.codeIndentSize))
+        if (edit.text.substring(r[0], r[1]) !== r[2]) {
+            edit.remove(r[0], r[1])
+            edit.insert(r[0], r[2])
+        }
+        if (r[3] === r[4])
+            edit.cursorPosition = r[4]
+        else
+            edit.select(r[3], r[4])
+    }
+
     // Keys with structural meaning, before the text field sees them.
     // Everything else (typing, moving within a line) is the field's own.
     function keyPressed(row, edit, event) {
@@ -1187,7 +1205,7 @@ Flickable {
         }
         // Code keeps CodeMirror's keys, as in Typora's fences: Enter keeps
         // the line's indentation, Tab types a tab or indents the selected
-        // lines, Shift+Tab outdents.
+        // lines, Shift+Tab outdents (or auto indents, if set).
         if (edit && !multi && codeKinds.indexOf(itemAt(row).kind) >= 0) {
             if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && plain) {
                 codeNewline(edit)
@@ -1203,7 +1221,10 @@ Flickable {
                 return
             }
             if (event.key === Qt.Key_Backtab) {
-                codeIndent(edit, false)
+                if (Prefs.shiftTabAutoIndent && edit.highlighter)
+                    codeAutoIndent(edit)
+                else
+                    codeIndent(edit, false)
                 event.accepted = true
                 return
             }

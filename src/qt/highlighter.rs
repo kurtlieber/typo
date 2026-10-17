@@ -254,6 +254,25 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "fixLineHeight"]
         fn fix_line_height(self: Pin<&mut Self>, pixels: f64);
+
+        #[inherit]
+        #[cxx_name = "docLineNumber"]
+        fn doc_line_number(self: &Self, pos: i32) -> i32;
+
+        #[inherit]
+        #[cxx_name = "docLinePosition"]
+        fn doc_line_position(self: &Self, line: i32) -> i32;
+
+        #[inherit]
+        #[cxx_name = "docLineText"]
+        fn doc_line_text(self: &Self, pos: i32) -> QString;
+
+        /// Shift+Tab with Preferences' "Use Shift+Tab to auto indent": each
+        /// line from `anchor` to `caret` takes the indent of the line
+        /// above, JSON as SourceHighlighter's `indentAt`.
+        #[qinvokable]
+        #[cxx_name = "autoIndent"]
+        fn auto_indent(self: &Self, anchor: i32, caret: i32, tab: i32) -> QString;
     }
 
     unsafe extern "RustQt" {

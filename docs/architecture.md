@@ -138,7 +138,11 @@ fence's `TextEdit` line by line from it; each line's Qt block state hashes
 how the next line looks, so Qt repaints exactly the lines that changed.
 The language box under a focused fence edits the info string through
 `editor.setInfo`, one undo step that leaves the caret alone; a block's
-`controlAt(x, y)` lets the editor-wide pointer hand it clicks.
+`controlAt(x, y)` lets the editor-wide pointer hand it clicks. Shift+Tab
+outdents by the code indent size, or, with "Use Shift+Tab to auto indent
+selected code", gives each line the indent of the line above:
+`CodeHighlighter.autoIndent` runs Source Code Mode's `source::reindent`
+over the fence's lines (`indent_lines`, shared with `indentAt`).
 
 ## Math
 

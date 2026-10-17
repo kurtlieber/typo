@@ -72,6 +72,7 @@ QtObject {
     property bool alerts: true
     property bool codeLineNumbers: false
     property bool codeWrap: true
+    property bool shiftTabAutoIndent: false
     property int codeIndentSize: 4
     // A new code fence's language: "" none, "__LAST" the last one used;
     // applied to fences typed (1), made from the menu (2), or both (3).
@@ -252,8 +253,8 @@ QtObject {
         "autoPairMarkdown", "showSourceOnFocus", "emojiAutocomplete", "copyMarkdownAsPlain", "lineWiseCopy",
         "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "readingSpeed", "countMode", "inlineMath",
         "subscript", "superscript", "highlight", "diagrams", "strictMode", "headingStyle", "bulletMarker",
-        "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "codeIndentSize",
-        "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",
+        "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "shiftTabAutoIndent",
+        "codeIndentSize", "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",
         "mathFences", "indentFirstLine", "preserveLineBreaks", "visibleBr", "exportLineBreaks",
         "smartOnRendering", "smartQuotes", "smartDashes", "dashesToEm", "quotePairs", "remapPunctuation",
         "useCustomFontSize", "customFontSize", "zoomByWheel", "exportConfig", "pandocPath",

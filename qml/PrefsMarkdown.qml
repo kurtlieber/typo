@@ -132,6 +132,11 @@ Column {
             text: qsTr("Auto wrap long lines")
             key: "codeWrap"
         }
+        PrefCheck {
+            text: qsTr("Use Shift+Tab to auto indent selected code")
+            key: "shiftTabAutoIndent"
+            hint: qsTr("When disabled, Shift+Tab will outdent selected code or current line. When enabled, Shift+Tab will auto apply indentation for selected code or current line in code blocks.")
+        }
         Item { width: 1; height: 6 }
         PrefChoice {
             label: qsTr("Indent Size for Code")

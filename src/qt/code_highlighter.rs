@@ -12,6 +12,7 @@ use cxx_qt_lib::QString;
 use super::editor::utf16_of;
 use super::highlighter::{Dim, ITALIC, hit_ranges, qobject};
 use super::shared;
+use super::source_highlighter::indent_lines;
 use crate::code::{Highlight, Token};
 
 #[derive(Default)]
@@ -40,6 +41,14 @@ impl qobject::CodeHighlighter {
 
     pub(crate) fn fix_line_height(self: Pin<&mut Self>, pixels: f64) {
         self.apply_line_height(pixels, false, 0.0);
+    }
+
+    // ponytail: CodeMirror's indentAuto asks the language how to indent
+    // (mode.indent); every fence here takes the line above's indent, as
+    // CodeMirror does for languages with no rules.
+    pub(crate) fn auto_indent(&self, anchor: i32, caret: i32, tab: i32) -> QString {
+        let text = |n: i32| self.doc_line_text(self.doc_line_position(n)).to_string();
+        indent_lines(|p| self.doc_line_number(p), |n| self.doc_line_position(n), text, anchor, caret, false, tab)
     }
 
     pub(crate) fn dim(mut self: Pin<&mut Self>, blur: bool, keep: i32) {
