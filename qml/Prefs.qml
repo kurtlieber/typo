@@ -158,21 +158,54 @@ QtObject {
     // The advanced settings (conf.user.json), read when a window opens:
     // keyBinding, searchService and autoHideMenuBar.
     property var advanced: ({})
-    // The keys for the menu item labelled `label`, whose own are `builtIn`:
-    // keyBinding's for it, else none when keyBinding gave them to another
-    // item (Qt fires neither of two items with one key), else its own.
-    // Labels match as Typora's are written, "..." for "…".
+    // Typora Mac's keys where they aren't Linux's, by label. On the Mac Qt's
+    // Ctrl is ⌘, Meta ⌃ and Alt ⌥. Test scripts press Linux's keys, so they
+    // keep them unless they set macKeys.
+    property bool macKeys: (Qt.platform.os === "osx" || Qt.platform.os === "macos")
+                           && !Qt.application.arguments.some(a => a.startsWith("--script="))
+    readonly property var macTable: ({
+        "Open Quickly...": "Ctrl+Shift+O", "Print...": "Ctrl+P", "Save All": "Ctrl+Alt+S",
+        "Redo": "Ctrl+Shift+Z",
+        "Select Paragraph / Block": "Ctrl+Alt+P", "Delete Paragraph / Block": "Ctrl+Alt+Shift+P",
+        "Delete Line / Sentence": "Ctrl+Alt+Shift+L", "Delete Styled Scope": "Ctrl+Alt+Shift+E",
+        "Jump to Top": "Ctrl+Up", "Jump to Bottom": "Ctrl+Down",
+        "Find Next": "Ctrl+G", "Find Previous": "Ctrl+Shift+G", "Replace": "Ctrl+Alt+F",
+        "Insert Table": "Ctrl+Alt+T", "Move Row Up": "Ctrl+Meta+Up", "Move Row Down": "Ctrl+Meta+Down",
+        "Move Column Left": "Ctrl+Meta+Left", "Move Column Right": "Ctrl+Meta+Right",
+        "Code Fences": "Ctrl+Alt+C", "Math Block": "Ctrl+Alt+B", "Quote": "Ctrl+Alt+Q",
+        "Ordered List": "Ctrl+Alt+O", "Unordered List": "Ctrl+Alt+U", "Task List": "Ctrl+Alt+X",
+        "Toggle Task Status": "Meta+X", "Indent": "Ctrl+]", "Outdent": "Ctrl+[",
+        "Link Reference": "Ctrl+Alt+L", "Footnotes": "Ctrl+Alt+R", "Horizontal Line": "Ctrl+Alt+-",
+        "Code": "Meta+`", "Inline Math": "Meta+M", "Strike": "Shift+Meta+`", "Highlight": "Ctrl+Shift+H",
+        "Comment": "Meta+-", "Insert Image": "Ctrl+Meta+I",
+        "Outline": "Ctrl+Meta+1", "Articles": "Ctrl+Meta+2", "File Tree": "Ctrl+Meta+3",
+        "Toggle Fullscreen": "Ctrl+Meta+F", "Switch Between Opened Documents": "Meta+Tab"
+    })
+    // The keys for the menu item labelled `label`, whose own are `builtIn`
+    // (or the Mac table's): keyBinding's for it, else none when keyBinding
+    // gave them to another item (Qt fires neither of two items with one
+    // key), else its own. Labels match as Typora's are written, "..." for "…".
     function keysFor(label, builtIn) {
         const bindings = advanced.keyBinding || {}
         const name = String(label).replace(/&/g, "").replace(/…/g, "...").trim()
         if (typeof bindings[name] === "string")
             return normalKeys(bindings[name])
-        const own = normalKeys(builtIn || "")
+        const keys = macKeys && macTable[name] !== undefined ? macTable[name] : builtIn || ""
+        const own = normalKeys(keys)
         if (own !== "")
             for (const k in bindings)
                 if (k !== name && typeof bindings[k] === "string" && normalKeys(bindings[k]) === own)
                     return ""
-        return builtIn || ""
+        return keys
+    }
+    // Keys as the Mac shows them: "Ctrl+Shift+C" is "⇧⌘C".
+    function macText(keys) {
+        const parts = String(keys).split(/\+(?=.)/)
+        const key = parts.pop()
+        const names = { Up: "↑", Down: "↓", Left: "←", Right: "→", Return: "↩", Enter: "↩", Backspace: "⌫",
+                        Del: "⌦", Tab: "⇥", Esc: "⎋" }
+        return [["Meta", "⌃"], ["Alt", "⌥"], ["Shift", "⇧"], ["Ctrl", "⌘"]]
+            .filter(m => parts.indexOf(m[0]) >= 0).map(m => m[1]).join("") + (names[key] || key)
     }
     // Keys as Typora (Electron accelerators) or Qt write them, the way Qt
     // writes them: "CmdOrCtrl+shift+p" is "Ctrl+Shift+P".

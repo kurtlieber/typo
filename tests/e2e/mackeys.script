@@ -1,0 +1,21 @@
+# Typora Mac's keys, on by default on the Mac outside test scripts: ⌥⌘X
+# makes a task list, ⌃X ticks it, ⌘] indents, ⌥⌘C makes a code fence and
+# Linux's Ctrl+Shift+K does nothing. keyBinding still wins, and an item
+# whose Mac keys it gives another loses them.
+eval Prefs.macKeys = true
+check Prefs.keysFor("Code Fences", "Ctrl+Shift+K") === "Ctrl+Alt+C" && Prefs.keysFor("Save", "Ctrl+S") === "Ctrl+S"
+check Prefs.keysFor("Open Quickly…", "Ctrl+P") === "Ctrl+Shift+O"
+check Prefs.macText("Ctrl+Shift+C") === "⇧⌘C" && Prefs.macText("Ctrl+Meta+Up") === "⌃⌘↑" && Prefs.macText("Alt+Shift+Meta+`") === "⌃⌥⇧`"
+eval Prefs.advanced = { keyBinding: { "Code Fences": "Ctrl+Shift+K", "Strong": "Ctrl+Alt+X" } }
+check Prefs.keysFor("Code Fences", "Ctrl+Shift+K") === "Ctrl+Shift+K" && Prefs.keysFor("Task List", "Ctrl+Shift+X") === ""
+eval Prefs.advanced = {}
+type one
+key Ctrl+Alt+X
+key Meta+X
+type \ntwo
+key Ctrl+]
+type \n\n\n
+key Ctrl+Shift+K
+key Ctrl+Alt+C
+type x
+dump @OUT@

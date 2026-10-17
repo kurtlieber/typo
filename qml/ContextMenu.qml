@@ -404,12 +404,12 @@ TMenu {
     }
     TMenu {
         title: qsTr("Insert")
-        TMenuItem { text: qsTr("Image"); hint: "Ctrl+Shift+I"; visible: !menu.codeLike; onTriggered: menu.run("image") }
+        TMenuItem { text: qsTr("Image"); hint: Prefs.keysFor("Insert Image", "Ctrl+Shift+I"); visible: !menu.codeLike; onTriggered: menu.run("image") }
         TSep { visible: !menu.codeLike }
         TMenuItem { text: qsTr("Footnotes"); enabled: menu.normal; onTriggered: menu.run("footnote") }
         TMenuItem { text: qsTr("Link Reference"); enabled: menu.normal; onTriggered: menu.run("linkReference") }
         TMenuItem { text: qsTr("Horizontal Line"); enabled: menu.normal; onTriggered: menu.run("horizontalLine") }
-        TMenuItem { text: qsTr("Table"); hint: "Ctrl+T"; enabled: menu.normal; onTriggered: menu.run("table") }
+        TMenuItem { text: qsTr("Table"); hint: Prefs.keysFor("Insert Table", "Ctrl+T"); enabled: menu.normal; onTriggered: menu.run("table") }
         TMenuItem { text: qsTr("Code Fences"); hint: "Ctrl+Shift+K"; enabled: menu.normal; onTriggered: menu.run("codeBlock") }
         TMenuItem { text: qsTr("Math Block"); hint: "Ctrl+Shift+M"; enabled: menu.normal; onTriggered: menu.run("mathBlock") }
         TMenuItem { text: qsTr("Table of Contents"); enabled: menu.normal; onTriggered: menu.run("toc") }

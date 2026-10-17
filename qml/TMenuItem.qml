@@ -38,7 +38,7 @@ MenuItem {
         }
         Text {
             id: shortcut
-            text: item.keys
+            text: Ui.mac ? Prefs.macText(item.keys) : item.keys
             visible: text !== ""
             color: item.highlighted ? Theme.accentText : Theme.faint
             font: item.font
