@@ -12,6 +12,15 @@ Column {
     width: parent ? parent.width : 0
 
     PrefGroup {
+        visible: Ui.mac
+        title: qsTr("Quit")
+        PrefCheck {
+            text: qsTr("Quit typo when last window is closed")
+            key: "quitAfterWindowClose"
+        }
+    }
+
+    PrefGroup {
         title: qsTr("Shortcut Keys")
         PrefButton {
             text: qsTr("Custom Shortcut Keys")

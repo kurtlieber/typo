@@ -1246,9 +1246,9 @@ ApplicationWindow {
         Prefs.addClosed(model.path)
         if (!model.modified)
             model.discardDraft()
-        // A window closed while others stay isn't part of the session
-        // the next launch brings back.
-        if (!quitting && Desktop.otherWindowsOpen())
+        // A window closed while others stay, or while the Mac's typo
+        // stays open, isn't part of the session the next launch brings back.
+        if (!quitting && (Desktop.otherWindowsOpen() || Ui.mac && !Prefs.quitAfterWindowClose))
             Desktop.forgetWindow()
     }
     function confirmClose(proceed) {

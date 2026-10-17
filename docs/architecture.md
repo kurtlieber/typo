@@ -521,7 +521,10 @@ fontconfig resolves to the Omarchy font.
   Typora's windows are independent. On the Mac they share one process (one
   Dock icon), each on a `QQmlApplicationEngine` of its own
   (`typoOpenWindow`), so the QML singletons are still per window; the
-  engine goes when its window closes. Each window has its own session file
+  engine goes when its window closes. The Mac's typo stays open with no
+  window, and a click on the Dock icon opens one, unless "Quit typo when
+  last window is closed" is set; the next launch doesn't bring back a
+  window closed while typo stayed open. Each window has its own session file
   (`<pid>` or `<pid>.<n>`), and Quit tells every window. New and Open reuse the window only when it holds
   an untitled, unedited document. Preferences live in the shared
   settings file: a window writes only the keys it changed and reads the

@@ -290,12 +290,15 @@ inline bool typoPrefersLight() { return QGuiApplication::styleHints()->colorSche
 
 void typoAddMathProvider(QQmlApplicationEngine &engine);
 void typoAddDiagramProvider(QQmlApplicationEngine &engine);
+inline QList<QWindow *> typoWindows();
 
 // A window on an engine of its own, so its singletons (Ui, Prefs, Desktop,
 // Folder…) are its own: each process's first, and the Mac's later windows,
 // which share the one process (one Dock icon). `args` are its command line,
 // as `Qt.application.arguments` would be. The engine goes with the window.
-// False when Main.qml doesn't load; Qt has already printed why.
+// The Mac stays open with no window, unless that was a quit or "Quit typo
+// when last window is closed" is set. False when Main.qml doesn't load;
+// Qt has already printed why.
 inline bool typoOpenWindow(const QStringList &args)
 {
     auto *engine = new QQmlApplicationEngine;
@@ -308,9 +311,15 @@ inline bool typoOpenWindow(const QStringList &args)
         delete engine;
         return false;
     }
-    QObject::connect(window, &QWindow::visibleChanged, engine, [engine](bool visible) {
-        if (!visible)
-            engine->deleteLater();
+    QObject::connect(window, &QWindow::visibleChanged, engine, [engine, window](bool visible) {
+        if (visible)
+            return;
+        engine->deleteLater();
+#ifdef Q_OS_MACOS
+        if (typoWindows().isEmpty()
+            && (window->property("quitting").toBool() || QSettings().value("prefs/quitAfterWindowClose").toBool()))
+            QMetaObject::invokeMethod(QCoreApplication::instance(), &QCoreApplication::quit, Qt::QueuedConnection);
+#endif
     });
     return true;
 }
@@ -371,8 +380,18 @@ inline bool typoRaiseWindow(int i)
 // a drop on the Dock icon): each goes to the front window's `openFile`, as
 // one named on the command line. And a quit from outside (the Dock, logging
 // out) quits each window, so they all stay in the session, as File ▸ Quit's.
+// With no window left, a click on the Dock icon opens one.
 inline void typoOpenFileEvents()
 {
+#ifdef Q_OS_MACOS
+    // ponytail: Qt passes the Dock's reopen on as an activation, so
+    // switching to a windowless typo with ⌘Tab opens a window too.
+    QGuiApplication::setQuitOnLastWindowClosed(false);
+    QObject::connect(qGuiApp, &QGuiApplication::applicationStateChanged, [](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive && typoWindows().isEmpty())
+            typoOpenWindowLater(QString());
+    });
+#endif
     struct Filter : QObject {
         bool eventFilter(QObject *o, QEvent *e) override
         {

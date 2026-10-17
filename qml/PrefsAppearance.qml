@@ -90,6 +90,11 @@ Column {
 
     PrefGroup {
         title: qsTr("Word Count")
+        PrefCheck {
+            visible: Ui.mac
+            text: qsTr("Always Show Word Count")
+            key: "alwaysShowWordCount"
+        }
         Row {
             spacing: 8
             PrefField {

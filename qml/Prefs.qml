@@ -51,6 +51,7 @@ QtObject {
     property bool spellCheck: false
     property string defaultLineEnding: "lf"
     property bool alwaysShowWordCount: true
+    property bool quitAfterWindowClose: false
     property int readingSpeed: 382        // words a minute: 120, 240 or 382
     // What the status bar counts: 0 words, 1 characters, 2 lines, 3 minutes
     property int countMode: 0
@@ -251,7 +252,7 @@ QtObject {
         "dropFolder", "dropMarkdown", "dropImportable", "showHiddenFiles", "treeFilter", "treePatterns",
         "libraryFilter", "libraryPatterns", "indentSize", "prettyIndent", "autoPairBrackets",
         "autoPairMarkdown", "showSourceOnFocus", "emojiAutocomplete", "copyMarkdownAsPlain", "lineWiseCopy",
-        "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "readingSpeed", "countMode", "inlineMath",
+        "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "quitAfterWindowClose", "readingSpeed", "countMode", "inlineMath",
         "subscript", "superscript", "highlight", "diagrams", "strictMode", "headingStyle", "bulletMarker",
         "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "shiftTabAutoIndent",
         "codeIndentSize", "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",
