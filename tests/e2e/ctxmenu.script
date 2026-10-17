@@ -12,7 +12,7 @@ key End
 type \n```\nlet x = 1;
 key Shift+F10
 wait 300
-key Down Down Down Down Down Return
+key Down Down Down Down Down Down Down Return
 wait 100
 type after
 dump @OUT@

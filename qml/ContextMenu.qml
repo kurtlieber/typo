@@ -311,6 +311,8 @@ TMenu {
         visible: menu.kind === "code"
         onTriggered: menu.run("copyCode")
     }
+    TMenuItem { text: qsTr("Auto Indent Selected Code"); visible: menu.kind === "code"; onTriggered: menu.run("autoIndentCode", "selected") }
+    TMenuItem { text: qsTr("Auto Indent Whole Code"); visible: menu.kind === "code"; onTriggered: menu.run("autoIndentCode", "whole") }
 
     TSep {}
 

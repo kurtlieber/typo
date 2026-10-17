@@ -1012,17 +1012,30 @@ Flickable {
             edit.select(a, z)
     }
 
-    // Shift+Tab with "Use Shift+Tab to auto indent selected code" on: the
-    // lines touched take the indent of the line above, as CodeMirror's
-    // indentAuto.
-    function codeAutoIndent(edit) {
-        const s = edit.selectionStart
-        const e = edit.selectionEnd
+    // Shift+Tab with "Use Shift+Tab to auto indent selected code" on, or
+    // Auto Indent Selected Code: the lines touched (every line, for the
+    // whole code) take the indent of the line above, as CodeMirror's
+    // indentAuto. The whole code's selection keeps its lines and columns,
+    // as Typora puts it back.
+    function codeAutoIndent(edit, whole) {
         const caret = edit.cursorPosition
-        const r = JSON.parse(edit.highlighter.autoIndent(caret === s ? e : s, caret, Prefs.codeIndentSize))
+        const anchor = caret === edit.selectionStart ? edit.selectionEnd : edit.selectionStart
+        // Each end as [line, column].
+        const ends = [anchor, caret].map(p => {
+            const lines = edit.text.substring(0, p).split("\n")
+            return [lines.length - 1, lines[lines.length - 1].length]
+        })
+        const r = JSON.parse(whole ? edit.highlighter.autoIndent(0, edit.length, Prefs.codeIndentSize)
+                                   : edit.highlighter.autoIndent(anchor, caret, Prefs.codeIndentSize))
         if (edit.text.substring(r[0], r[1]) !== r[2]) {
             edit.remove(r[0], r[1])
             edit.insert(r[0], r[2])
+        }
+        if (whole) {
+            const lines = edit.text.split("\n")
+            const at = ([n, c]) => lines.slice(0, n).reduce((p, l) => p + l.length + 1, 0) + Math.min(c, lines[n].length)
+            r[3] = at(ends[0])
+            r[4] = at(ends[1])
         }
         if (r[3] === r[4])
             edit.cursorPosition = r[4]

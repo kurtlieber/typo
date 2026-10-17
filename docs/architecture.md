@@ -142,7 +142,10 @@ The language box under a focused fence edits the info string through
 outdents by the code indent size, or, with "Use Shift+Tab to auto indent
 selected code", gives each line the indent of the line above:
 `CodeHighlighter.autoIndent` runs Source Code Mode's `source::reindent`
-over the fence's lines (`indent_lines`, shared with `indentAt`).
+over the fence's lines (`indent_lines`, shared with `indentAt`). Code
+Tools ▸ Auto Indent Selected Code does the same, and Auto Indent Whole
+Code does every line, the selection keeping its lines and columns; out of
+code both outdent, as Typora's.
 
 ## Math
 

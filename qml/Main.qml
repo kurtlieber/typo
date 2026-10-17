@@ -574,6 +574,15 @@ ApplicationWindow {
                 Desktop.setClipboard(edit.text, "", "")
             return
         }
+        // Out of code, Typora outdents.
+        case "autoIndentCode": {
+            const edit = view.editAt(view.selection().zRow)
+            if (edit && edit.highlighter)
+                view.codeAutoIndent(edit, arg === "whole")
+            else
+                view.command("outdent")
+            return
+        }
         case "jumpTop": view.jumpTop(); return
         case "jumpBottom": view.jumpBottom(); return
         case "jumpToRow": view.jumpToRow(arg); return

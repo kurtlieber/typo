@@ -2,6 +2,8 @@
 # selected code": Shift+Tab gives the caret's line, or the selected
 # lines, the indent of the line above (as CodeMirror's indentAuto), not
 # an outdent; selected blank lines lose their spaces. Off, it outdents.
+# Code Tools ▸ Auto Indent Whole Code does every line, the caret keeping
+# its line and column.
 eval Prefs.shiftTabAutoIndent = true
 write @DIR@/doc.md ```\nif x {\n    y();\nz();\n  w();\n   \nv();\n}\n```\n
 cmd openPath @DIR@/doc.md
@@ -17,4 +19,7 @@ key Ctrl+Home
 key Down
 key Shift+Tab
 check view.editAt(0).text.split("\n")[1] === "y();"
+caret 0 18
+cmd autoIndentCode whole
+check view.editAt(0).text === "if x {\ny();\nz();\nw();\n\nv();\n}" && view.editAt(0).cursorPosition === 16
 dump @OUT@

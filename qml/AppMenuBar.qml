@@ -291,6 +291,12 @@ MenuBar {
             Cmd { text: qsTr("Delete Table"); cmd: "tableDelete"; arg: "table" }
         }
         Cmd { text: qsTr("Code Fences"); cmd: "codeBlock"; shortcut: "Ctrl+Shift+K" }
+        TMenu {
+            title: qsTr("Code Tools")
+            Cmd { text: qsTr("Copy Code Content"); cmd: "copyCode" }
+            Cmd { text: qsTr("Auto Indent Selected Code"); cmd: "autoIndentCode"; arg: "selected" }
+            Cmd { text: qsTr("Auto Indent Whole Code"); cmd: "autoIndentCode"; arg: "whole" }
+        }
         Cmd { text: qsTr("Math Block"); cmd: "mathBlock"; shortcut: "Ctrl+Shift+M" }
         Cmd { text: qsTr("Quote"); cmd: "quote"; shortcut: "Ctrl+Shift+Q" }
         TMenu {
