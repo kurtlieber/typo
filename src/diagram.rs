@@ -247,11 +247,17 @@ mod tests {
     #[test]
     fn renders_png() {
         let colors = Colors::parse("1a1b26,c0caf5,7aa2f7,414868");
-        for (lang, src) in [("mermaid", "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]"), ("flow", FLOW), ("sequence", "A->B: hi")] {
+        let zenuml = "zenuml\n  title Order\n  Client->Server.post() {\n    if(ok) {\n      return done\n    }\n  }";
+        for (name, lang, src) in [
+            ("mermaid", "mermaid", "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]"),
+            ("zenuml", "mermaid", zenuml),
+            ("flow", "flow", FLOW),
+            ("sequence", "sequence", "A->B: hi"),
+        ] {
             let png = render(lang, src, &colors, 1.0, 0.0).unwrap();
-            assert_eq!(&png[1..4], b"PNG", "{lang}");
+            assert_eq!(&png[1..4], b"PNG", "{name}");
             if let Ok(dir) = std::env::var("TYPO_DIAGRAM_OUT") {
-                std::fs::write(format!("{dir}/{lang}.png"), &png).unwrap();
+                std::fs::write(format!("{dir}/{name}.png"), &png).unwrap();
             }
         }
         let (error, span) = render("mermaid", "graph TD\n  A -->", &colors, 1.0, 0.0).unwrap_err();
