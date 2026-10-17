@@ -3,7 +3,8 @@
 # Image Syntax goes either way. Copy Image to…, Rename or Move Image to…
 # (asking first), Copy to assets and Move All Images to… copy or move the
 # files and point the images at them; Delete Image File takes the image
-# out, then, once asked, its file. When Insert Local Image keeps the
+# out, then, once asked, its file. "Do not show this again" stops the
+# asking about moves. When Insert Local Image keeps the
 # document's own folders in its front matter.
 write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
 write @DIR@/dog.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
@@ -24,8 +25,9 @@ check Desktop.exists("@DIR@/dog.svg") && Desktop.exists("@DIR@/dog2.svg")
 choose @DIR@/renamed.svg
 cmd moveImageTo
 wait 50
+check dialog.checkBox.visible && dialog.checkBox.text === "Do not show this again"
 answer 0
-check !Desktop.exists("@DIR@/dog2.svg") && Desktop.exists("@DIR@/renamed.svg")
+check !Desktop.exists("@DIR@/dog2.svg") && Desktop.exists("@DIR@/renamed.svg") && !Prefs.noWarningForMoveImage
 caret 1 3
 cmd imageSyntax html
 eval Prefs.imageInsertAction = 2
@@ -35,9 +37,16 @@ check Desktop.exists("@DIR@/cat.svg") && Desktop.exists("@DIR@/assets/cat.svg")
 choose @DIR@/assets
 cmd moveAllImages
 wait 50
+eval dialog.checkBox.checked = true
 answer 0
+check Prefs.noWarningForMoveImage
 check !Desktop.exists("@DIR@/renamed.svg") && Desktop.exists("@DIR@/assets/renamed.svg")
 check !Desktop.exists("@DIR@/dog.svg") && Desktop.exists("@DIR@/assets/dog.svg")
+caret 1 3
+choose @DIR@/bird.svg
+cmd moveImageTo
+wait 500
+check !dialog.opened && Desktop.exists("@DIR@/bird.svg")
 cmd reloadImages
 caret 0 8
 cmd deleteImageFile

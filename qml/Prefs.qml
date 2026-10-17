@@ -154,6 +154,10 @@ QtObject {
     property bool noWarningForDeleteFile: false
     property bool noWarningForMoveFile: false
     property bool noWarningForMoveFileToList: false
+    // Likewise before deleting an image's file and before moving one
+    // (Typora's noWarningForDeleteImage and noWarningForMoveImage).
+    property bool noWarningForDeleteImage: false
+    property bool noWarningForMoveImage: false
 
     // The advanced settings (conf.user.json), read when a window opens:
     // keyBinding, searchService and autoHideMenuBar.
@@ -254,7 +258,7 @@ QtObject {
         "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",
         "imageEscape", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
         "noExportOverwriteWarning", "noWarningForDeleteFile", "noWarningForMoveFile",
-        "noWarningForMoveFileToList", "recentFiles", "recentFolders", "closedFiles"
+        "noWarningForMoveFileToList", "noWarningForDeleteImage", "noWarningForMoveImage", "recentFiles", "recentFolders", "closedFiles"
     ]
     property Settings store: Settings { category: "prefs" }
     property bool loading: false

@@ -718,8 +718,8 @@ ApplicationWindow {
             const img = imageHere()
             if (!img || !model.deleteImage(img.row, img.pos) || img.path === "" || !Desktop.exists(img.path))
                 return
-            dialog.ask(qsTr("Delete Image File"), qsTr("Delete original image file?"), [qsTr("OK"), qsTr("Cancel")], i => {
-                if (i === 0 && !Desktop.moveToTrash(img.path))
+            shouldContinue(qsTr("Delete Image File"), qsTr("Delete original image file?"), "noWarningForDeleteImage", () => {
+                if (!Desktop.moveToTrash(img.path))
                     toast.show(qsTr("Failed to delete %1").arg(img.path))
             })
             return
@@ -805,8 +805,21 @@ ApplicationWindow {
     }
     // Moving an image deletes its file where it was, so Typora asks first.
     function confirmMove(then) {
-        dialog.ask(qsTr("Move Image"), qsTr("Move image will delete the image file at original path, are you sure to continue?"),
-            [qsTr("OK"), qsTr("Cancel")], i => { if (i === 0) then() })
+        shouldContinue(qsTr("Move Image"), qsTr("Move image will delete the image file at original path, are you sure to continue?"),
+            "noWarningForMoveImage", then)
+    }
+    // Typora's warnings with "Do not show this again": `then` runs on OK,
+    // or at once after OK with the box ticked, which sets `Prefs[never]`.
+    function shouldContinue(title, text, never, then) {
+        if (Prefs[never])
+            return then()
+        dialog.ask(title, text, [qsTr("OK"), qsTr("Cancel")], (i, checked) => {
+            if (i !== 0)
+                return
+            if (checked)
+                Prefs[never] = true
+            then()
+        }, { check: qsTr("Do not show this again") })
     }
 
     // Source Code Mode in and out, as Typora: the find bar closes, and the
