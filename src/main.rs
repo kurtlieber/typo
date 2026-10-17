@@ -28,6 +28,17 @@ fn main() {
     // Before the application exists, so Qt registers with the host portal
     // under this app id instead of registering twice.
     qt::glue::ffi::set_desktop_file_name(&QString::from("typo"));
+    // Opened from Finder, an app has launchd's PATH, without Homebrew's
+    // folders, so pandoc and the uploaders wouldn't be found; Typora puts
+    // them first too.
+    #[cfg(target_os = "macos")]
+    {
+        let path = std::env::var("PATH").unwrap_or_default();
+        let mut dirs: Vec<&str> = ["/opt/homebrew/bin", "/usr/local/bin"].into_iter().filter(|d| !path.split(':').any(|p| p == *d)).collect();
+        dirs.push(&path);
+        // SAFETY: no other thread runs yet.
+        unsafe { std::env::set_var("PATH", dirs.join(":")) };
+    }
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {
         // Settings live in ~/.config/typo/typo.conf (typo.ini on the Mac).
