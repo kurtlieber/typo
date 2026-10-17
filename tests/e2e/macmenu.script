@@ -1,0 +1,50 @@
+# The Mac's own menu items, run as commands: Linux's menus leave them out,
+# and the Mac's leave out Reveal in Sidebar.
+check (() => { const m = win.menuBar.menuAt(0); const t = []; for (let i = 0; i < m.count; i++) t.push(m.itemAt(i).text); return t.includes("Reveal in Library") === Ui.mac && t.includes("Delete…") === Ui.mac && t.includes("Reveal in Sidebar") !== Ui.mac })()
+check (() => { const m = win.menuBar.menuAt(1); const t = []; for (let i = 0; i < m.count; i++) t.push(m.itemAt(i).text); return t.includes("Paste and Match Style") === Ui.mac && t.includes("Paste as Plain Text") })()
+eval Folder.create("@DIR@/notes", true)
+write @DIR@/notes/a.md # Alpha pear pear
+write @DIR@/notes/b.md # Beta\n
+cmd openPath @DIR@/notes
+wait 300
+clickItem sidebar.fileList.itemAtIndex(0)
+wait 200
+check model.path === "@DIR@/notes/a.md"
+# Insert Final New Line On Save follows the file and turns on for the save.
+check !model.finalNewline()
+cmd finalNewline
+check model.finalNewline() && model.modified
+key Ctrl+S
+wait 300
+check Desktop.readFile("@DIR@/notes/a.md") === "# Alpha pear pear\n"
+# Replace Next opens Replace, then replaces a match each time.
+cmd replaceNext
+check findBar.visible && findBar.replacing
+type pear
+key Tab
+type plum
+cmd replaceNext
+wait 100
+check findBar.count === 1
+cmd replaceNext
+wait 100
+check findBar.count === 0 && model.markdown() === "# Alpha plum plum\n"
+key Escape
+# Reveal in Library and in File Tree pick the view.
+cmd sidebarView 0
+cmd revealInSidebar 2
+check Ui.sidebar && Ui.sidebarView === 2
+cmd revealInSidebar 1
+check Ui.sidebarView === 1
+# Toggle Word Count Popover.
+cmd wordCount
+check footer.countMenu.visible
+cmd wordCount
+check !footer.countMenu.visible
+# Delete… sends the file to the Trash, the next one opening in its place.
+eval Prefs.noWarningForDeleteFile = true
+cmd deleteFile
+wait 300
+check !Desktop.exists("@DIR@/notes/a.md") && model.path === "@DIR@/notes/b.md"
+eval Prefs.noWarningForDeleteFile = false
+dump @OUT@

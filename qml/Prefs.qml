@@ -176,6 +176,7 @@ QtObject {
         "Delete Line / Sentence": "Ctrl+Alt+Shift+L", "Delete Styled Scope": "Ctrl+Alt+Shift+E",
         "Jump to Top": "Ctrl+Up", "Jump to Bottom": "Ctrl+Down",
         "Find Next": "Ctrl+G", "Find Previous": "Ctrl+Shift+G", "Replace": "Ctrl+Alt+F",
+        "Replace Next": "Ctrl+Alt+E", "Paste and Match Style": "Ctrl+Alt+Shift+V",
         "Insert Table": "Ctrl+Alt+T", "Move Row Up": "Ctrl+Meta+Up", "Move Row Down": "Ctrl+Meta+Down",
         "Move Column Left": "Ctrl+Meta+Left", "Move Column Right": "Ctrl+Meta+Right",
         "Code Fences": "Ctrl+Alt+C", "Math Block": "Ctrl+Alt+B", "Quote": "Ctrl+Alt+Q",

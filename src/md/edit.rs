@@ -594,13 +594,109 @@ pub fn toggle_quote(doc: &mut Document, a: usize, z: usize) {
             return;
         }
     }
+    wrap_quote(doc, a, z);
+}
+
+/// Quote the blocks `a..=z`, grown to whole containers. Returns the quoted
+/// blocks and the quote's depth.
+fn wrap_quote(doc: &mut Document, a: usize, z: usize) -> (Range<usize>, usize) {
     let depth = common_depth_of(doc, a..z + 1);
     let range = whole_containers(doc, a..z + 1, depth);
     let q = Container::new(ContainerKind::Quote { padding: syntax().quote_padding() });
     for j in range.clone() {
         doc.blocks[j].containers.insert(depth, q.clone());
     }
-    moved(doc, range);
+    moved(doc, range.clone());
+    (range, depth)
+}
+
+/// Paragraph ▸ Alert ▸ `kind` on the selection `sel`, as Typora: in an alert
+/// of that kind, unquote it; in one of another kind, or partly selected in
+/// its own, switch or drop the kind; a plain quote held whole becomes the
+/// alert; anything else is quoted as one. Returns `sel` moved to match.
+pub fn toggle_alert(doc: &mut Document, sel: [Pos; 2], kind: &str) -> [Pos; 2] {
+    let (a, z) = (sel[0].block.min(sel[1].block), sel[0].block.max(sel[1].block));
+    let mut sel = sel;
+    let quote = doc.blocks[a].containers.last().filter(|c| matches!(c.kind, ContainerKind::Quote { .. })).map(|c| c.id);
+    let d = doc.blocks[a].containers.len().saturating_sub(1);
+    let held = quote.filter(|&id| (a..=z).all(|j| id_at(&doc.blocks[j], d) == Some(id)));
+    if held.is_some() {
+        let whole = span(doc, a, d);
+        let f = whole.start;
+        let alert = (doc.blocks[f].containers.len() == d + 1).then(|| super::query::alert_of(&doc.blocks[f].text)).flatten();
+        let all = a == f && z + 1 == whole.end;
+        match alert {
+            Some((k, len)) if k == kind && (sel[0] == sel[1] || all) => {
+                unmark(doc, f, len, &mut sel, whole.len() > 1);
+                let whole = span(doc, f, d);
+                for j in whole.clone() {
+                    doc.blocks[j].containers.remove(d);
+                }
+                moved(doc, whole);
+            }
+            Some((k, len)) if k == kind => unmark(doc, f, len, &mut sel, whole.len() > 1),
+            Some((_, len)) => {
+                let text = format!("[!{}]{}", kind.to_uppercase(), &doc.blocks[f].text[len..]);
+                let delta = kind.len() as isize - (len as isize - 3);
+                doc.blocks[f].set_text(text);
+                shift(&mut sel, f, delta);
+            }
+            None if all => mark(doc, f, d, kind, &mut sel),
+            None => {
+                let (range, depth) = wrap_quote(doc, a, z);
+                mark(doc, range.start, depth, kind, &mut sel);
+            }
+        }
+    } else {
+        let (range, depth) = wrap_quote(doc, a, z);
+        mark(doc, range.start, depth, kind, &mut sel);
+    }
+    sel
+}
+
+/// Offsets in block `f` move by `delta`.
+fn shift(sel: &mut [Pos; 2], f: usize, delta: isize) {
+    for p in sel.iter_mut().filter(|p| p.block == f) {
+        p.offset = p.offset.saturating_add_signed(delta);
+    }
+}
+
+/// Start the quote at depth `d` around block `f` with the `[!KIND]` line,
+/// joining its first paragraph or as a paragraph of its own.
+fn mark(doc: &mut Document, f: usize, d: usize, kind: &str, sel: &mut [Pos; 2]) {
+    let marker = format!("[!{}]", kind.to_uppercase());
+    let b = &doc.blocks[f];
+    if matches!(b.kind, BlockKind::Paragraph) && b.containers.len() == d + 1 {
+        let text = format!("{marker}\n{}", b.text);
+        doc.blocks[f].set_text(text);
+        shift(sel, f, marker.len() as isize + 1);
+    } else {
+        let containers = b.containers[..=d].to_vec();
+        doc.blocks.insert(f, Block::new(BlockKind::Paragraph, marker, containers));
+        moved(doc, f..f + 1);
+        for p in sel.iter_mut().filter(|p| p.block >= f) {
+            p.block += 1;
+        }
+    }
+}
+
+/// Drop the `len`-byte marker line from block `f`, and the block with it
+/// when nothing else is left and it has company.
+fn unmark(doc: &mut Document, f: usize, len: usize, sel: &mut [Pos; 2], company: bool) {
+    let rest = doc.blocks[f].text[len..].trim_start().to_string();
+    let cut = doc.blocks[f].text.len() - rest.len();
+    if rest.is_empty() && company {
+        doc.blocks.remove(f);
+        moved(doc, f..f);
+        for p in sel.iter_mut().filter(|p| p.block >= f) {
+            *p = if p.block == f { Pos::new(f, 0) } else { Pos::new(p.block - 1, p.offset) };
+        }
+    } else {
+        doc.blocks[f].set_text(rest);
+        for p in sel.iter_mut().filter(|p| p.block == f) {
+            p.offset = p.offset.saturating_sub(cut);
+        }
+    }
 }
 
 fn list_kind_of(item: &ListItem) -> ListKind {

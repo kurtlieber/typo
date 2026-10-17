@@ -23,6 +23,12 @@ qml/           layout and interaction: window, menus, editor delegates,
   menu item, shortcut, footer button and sidebar action calls. Unbuilt
   commands show a "Not available yet" toast, so the menus already mirror
   Typora's in full.
+- `AppMenuBar` holds both platforms' Typora menus and drops the other
+  platform's items as it is built, since the Mac's native menu bar ignores
+  `visible`. The Mac's own (Reveal in Library and in File Tree, Delete…,
+  Revert to Saved, Copy without Theme Styling, Paste and Match Style, Insert
+  Final New Line On Save, Replace Next, Toggle Word Count Popover) mostly run
+  commands Linux reaches by other names.
 - Controls use the Fusion style with the window palette filled from `Theme`.
   Fusion takes every colour from the palette, so stock controls follow the
   Omarchy theme. `TMenu`, `TMenuItem` and `TSep` draw Typora-style menus:

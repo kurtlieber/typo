@@ -1174,6 +1174,17 @@ fn alerts() {
     assert_eq!(query::alert_of("[!NOTE] text"), None);
     assert_eq!(query::alert_of("[!FOO]\nx"), None);
     assert_eq!(query::alert_of("Plain"), None);
+    // Paragraph ▸ Alert, with the caret at offset 1 of block `b`.
+    let alert = |src: &str, b: usize, kind: &str| {
+        edited(src, |d| edit::toggle_alert(d, [Pos::new(b, 1); 2], kind)[0])
+    };
+    assert_eq!(alert("Text\n", 0, "tip"), ("> [!TIP]\n> Text\n".to_string(), Pos::new(0, 8)));
+    assert_eq!(alert("> [!TIP]\n> Text\n", 0, "warning"), ("> [!WARNING]\n> Text\n".to_string(), Pos::new(0, 5)));
+    assert_eq!(alert("> [!TIP]\n> Text\n", 0, "tip"), ("Text\n".to_string(), Pos::new(0, 0)));
+    assert_eq!(alert("> [!NOTE]\n>\n> Text\n", 1, "note"), ("Text\n".to_string(), Pos::new(0, 1)));
+    assert_eq!(alert("> a\n", 0, "note"), ("> [!NOTE]\n> a\n".to_string(), Pos::new(0, 9)));
+    assert_eq!(alert("> a\n>\n> b\n", 1, "note").0, "> a\n>\n> > [!NOTE]\n> > b\n");
+    assert_eq!(alert("# Head\n", 0, "note"), ("> [!NOTE]\n>\n> # Head\n".to_string(), Pos::new(1, 1)));
     // A selected TOC goes as a whole.
     let out = edited("a\n\n[TOC]\n\nb\n", |d| edit::delete_range(d, Pos::new(1, 0), Pos::new(1, 1)));
     assert_eq!(out, ("a\n\nb\n".to_string(), Pos::new(1, 0)));

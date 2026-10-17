@@ -295,6 +295,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "otherWindowsOpen"]
         fn other_windows_open(self: &Desktop) -> bool;
+        /// Switch Between Opened Documents, where each window is a process.
+        #[qinvokable]
+        #[cxx_name = "focusNextWindow"]
+        fn focus_next_window(self: &Desktop);
         /// The windows open when typo last closed, as JSON `[{path,
         /// folder}]`, oldest first; they are forgotten.
         #[qinvokable]
@@ -506,6 +510,10 @@ impl qobject::Desktop {
 
     fn forget_window(&self) {
         session::forget(&session::dir(), &session::key(self.window));
+    }
+
+    fn focus_next_window(&self) {
+        platform::focus_next_window();
     }
 
     fn other_windows_open(&self) -> bool {

@@ -436,16 +436,19 @@ ApplicationWindow {
     Shortcut {
         enabled: Ui.mac
         sequence: "Ctrl+`"
-        onActivated: Desktop.raiseWindow((Desktop.frontWindow() + 1) % Desktop.windowTitles().split("\n").length)
+        onActivated: nextWindow()
+    }
+    function nextWindow() {
+        Desktop.raiseWindow((Desktop.frontWindow() + 1) % Desktop.windowTitles().split("\n").length)
     }
 
     // Commands that work the same in Source Code Mode; the rest act on its
     // text there (SourceView.command), or do nothing.
     readonly property var everywhere: ["new", "newWindow", "open", "openFolder", "openPath", "reopenClosed", "save",
-        "saveAs", "saveAll", "moveTo", "revealInSidebar", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
+        "saveAs", "saveAll", "moveTo", "revealInSidebar", "deleteFile", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
         "quickOpen", "newFileInFolder", "refreshFolder", "searchFolder", "sidebarView", "sourceMode", "focusMode",
-        "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "findNext",
-        "findPrevious", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
+        "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "replaceNext", "findNext",
+        "findPrevious", "wordCount", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
 
     // Every menu item, shortcut and button runs a command here.
     function run(cmd, arg) {
@@ -488,15 +491,24 @@ ApplicationWindow {
                 Desktop.chooseFile("moveTo", qsTr("Move To"), startFolder(), fileName(model.path))
             return
         // The sidebar's files, the current one shown, as Typora's: out of a
-        // folder search, and onto the files view from the outline.
+        // folder search, and onto the files view from the outline, or the
+        // view `arg` names (the Mac's Reveal in Library and in File Tree).
         case "revealInSidebar":
             sidebar.closeSearch()
             if (model.path === "")
                 return
             Ui.sidebar = true
-            if (Ui.sidebarView === 0)
+            if (arg === 1 || arg === 2)
+                Ui.sidebarView = arg
+            else if (Ui.sidebarView === 0)
                 Ui.sidebarView = Ui.fileTree ? 2 : 1
             sidebar.reveal(model.path)
+            return
+        // The Mac's File ▸ Delete…: the current file to the Trash, as the
+        // sidebar's Delete.
+        case "deleteFile":
+            if (model.path !== "")
+                sidebar.remove(model.path)
             return
         case "export": exportAs(arg); return
         case "import":
@@ -529,6 +541,7 @@ ApplicationWindow {
                 win.close()
             return
         case "lineEnding": model.setLineEnding(arg === "crlf"); return
+        case "finalNewline": model.setFinalNewline(!model.finalNewline()); return
         case "pref": Prefs.toggle(arg); return
         case "smartTiming": Prefs.smartOnRendering = arg; return
         case "preferences":
@@ -635,6 +648,10 @@ ApplicationWindow {
             modeNotice("typewriter")
             return
         case "statusBar": Ui.statusBar = !Ui.statusBar; return
+        case "wordCount":
+            if (footer.visible)
+                footer.toggleCount()
+            return
         case "fullscreen":
             win.visibility = win.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
             return
@@ -657,6 +674,12 @@ ApplicationWindow {
             return
         case "find": findBar.show(false); return
         case "replace": findBar.show(true); return
+        case "replaceNext":
+            if (findBar.visible && findBar.replacing)
+                findBar.replaceOne()
+            else
+                findBar.show(true)
+            return
         case "findNext": findBar.next(false); return
         case "findPrevious": findBar.next(true); return
         case "undo":
@@ -796,10 +819,25 @@ ApplicationWindow {
             return
         }
         case "codeBlock": view.command("codeFence"); return
+        case "alert": view.command("alert", 0, arg); return
         case "horizontalLine": view.command("hr"); return
         case "list": view.command(arg + "List"); return
         case "task": view.command({ done: "taskDone", todo: "taskTodo" }[arg] || "taskToggle"); return
         case "style": view.command(arg === "math" ? "inlineMath" : arg); return
+        case "help": {
+            // ponytail: Typora's own guides, online, as typo follows it; write
+            // typo's when they part ways.
+            const page = { "quick-start": "Quick-Start", "markdown-reference": "Markdown-Reference", shortcuts: "Shortcut-Keys" }[arg]
+            Qt.openUrlExternally("https://support.typora.io/" + page + "/")
+            return
+        }
+        case "website": Qt.openUrlExternally("https://github.com/kurtlieber/typo"); return
+        case "switchDocument":
+            if (Ui.mac)
+                nextWindow()
+            else
+                Desktop.focusNextWindow()
+            return
         case "about":
             toast.show(qsTr("typo — a native Typora-style markdown editor for Omarchy"))
             return

@@ -46,6 +46,14 @@ pub fn alive(pid: u32) -> bool {
     name(&pid.to_string()).is_some_and(|n| Some(n) == name("self"))
 }
 
+/// Switch Between Opened Documents: bring the next typo window forward, by
+/// its process, as Hyprland focuses windows.
+pub fn focus_next_window() {
+    if let Some(pid) = crate::session::next_process(&crate::session::dir(), std::process::id(), alive) {
+        let _ = std::process::Command::new("hyprctl").args(["dispatch", "focuswindow", &format!("pid:{pid}")]).output();
+    }
+}
+
 /// Print what `render` typesets on the page the print dialog sets up,
 /// starting from `page` (its size and margins in millimetres). `path` is
 /// where the PDF waits while the dialog takes it.

@@ -1,0 +1,18 @@
+# Paragraph ▸ Alert quotes the paragraph as that alert, switches an alert's
+# kind, and takes the quote away when its own kind is chosen again. The
+# caret keeps its place in the text.
+write @DIR@/doc.md Text here.\n
+cmd openPath @DIR@/doc.md
+wait 400
+caret 0 4
+cmd alert TIP
+wait 300
+check view.itemAt(0).alert === "tip"
+cmd alert WARNING
+wait 300
+check view.itemAt(0).alert === "warning"
+cmd alert WARNING
+wait 300
+check view.itemAt(0).alert === ""
+type  more
+dump @OUT@

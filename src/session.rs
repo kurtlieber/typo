@@ -65,6 +65,14 @@ pub fn others_open(dir: &Path, key: &str, alive: impl Fn(u32) -> bool) -> bool {
     entries(dir).iter().any(|(pid, path)| path.file_name().is_some_and(|f| f != key) && (*pid == me || alive(*pid)))
 }
 
+/// The process after `me` among the live windows in `dir`, oldest first and
+/// round again: Switch Between Opened Documents. None when `me` is alone.
+pub fn next_process(dir: &Path, me: u32, alive: impl Fn(u32) -> bool) -> Option<u32> {
+    let pids: Vec<u32> = entries(dir).into_iter().map(|(pid, _)| pid).filter(|&pid| pid == me || alive(pid)).collect();
+    let i = pids.iter().position(|&pid| pid == me)?;
+    Some(pids[(i + 1) % pids.len()]).filter(|&pid| pid != me)
+}
+
 /// The windows of the last session, oldest first, forgetting them: the
 /// files of processes no longer running. A document that is gone is left
 /// out, and a folder that is gone too; a window left with neither is
@@ -142,6 +150,19 @@ mod tests {
         // An earlier run's later window comes back.
         fs::write(d.join("1.2"), format!("\n{}\n", d.display())).unwrap();
         assert_eq!(take(&d, |_| false).len(), 1);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn switches_to_the_next_live_window() {
+        let d = scratch("next");
+        for pid in [7, 8, 9] {
+            fs::write(d.join(pid.to_string()), "\n\n").unwrap();
+        }
+        assert_eq!(next_process(&d, 8, |_| true), Some(9));
+        assert_eq!(next_process(&d, 9, |_| true), Some(7));
+        assert_eq!(next_process(&d, 8, |pid| pid != 9), Some(7));
+        assert_eq!(next_process(&d, 8, |_| false), None);
         let _ = fs::remove_dir_all(&d);
     }
 

@@ -49,6 +49,9 @@ pub fn alive(pid: u32) -> bool {
     i32::try_from(pid).is_ok_and(|p| p > 0 && path(p).is_some_and(|p| Some(p) == path(std::process::id() as i32)))
 }
 
+/// The Mac's windows share this process, so QML cycles them itself.
+pub fn focus_next_window() {}
+
 /// Ask every window in the group, this one included, to close ("Quit", as
 /// SIGUSR1) or save ("Save", SIGUSR2): each process with a file in the
 /// session folder, once however many windows it has.

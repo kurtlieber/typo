@@ -34,21 +34,34 @@ MenuBar {
     // toggled them and the chooser was cancelled.
     property var imageSettings: ({})
     readonly property bool hasImage: image !== null
+    property bool finalNewline: true
     function lookAround() {
         const s = app.view.selection()
         image = app.imageHere()
         link = app.editor.linkAt(s.zRow, s.zPos)
+        finalNewline = app.editor.finalNewline()
     }
 
     // On the Mac this is the system's menu bar, and Qt moves About,
     // Preferences… and Quit to the app menu by their titles, so the
     // separators that set them off go (a native menu ignores `visible`).
+    // Each platform's own items go from the other's, as Typora's differ.
     Component.onCompleted: {
         if (Ui.mac) {
             fileMenu.removeItem(prefsSep)
             helpMenu.removeItem(aboutSep)
+            fileMenu.removeAction(revealSidebar)
         } else {
             removeMenu(windowMenu)
+            for (const a of [revealLibrary, revealTree, deleteFile, revert])
+                fileMenu.removeAction(a)
+            fileMenu.removeItem(deleteSep)
+            editMenu.removeAction(copyUnstyled)
+            editMenu.removeAction(pasteMatch)
+            lineEndingMenu.removeItem(finalSep)
+            lineEndingMenu.removeAction(finalNewlineCmd)
+            findMenu.removeAction(replaceNext)
+            viewMenu.removeAction(wordCountPopover)
         }
     }
 
@@ -114,6 +127,7 @@ MenuBar {
             Cmd { text: "Shift_JIS"; cmd: "encoding"; arg: "Shift_JIS" }
             Cmd { text: "EUC-KR"; cmd: "encoding"; arg: "EUC-KR" }
         }
+        Cmd { id: revert; text: qsTr("Revert to Saved"); cmd: "reload"; enabled: bar.app.editor.modified && bar.app.editor.path !== "" }
         Cmd { text: qsTr("Reload from Disk"); cmd: "reload" }
         TSep {}
         Cmd { text: qsTr("Save"); cmd: "save"; shortcut: "Ctrl+S" }
@@ -122,7 +136,11 @@ MenuBar {
         Cmd { text: qsTr("Move To…"); cmd: "moveTo" }
         TSep {}
         Cmd { text: Ui.mac ? qsTr("Reveal in Finder") : qsTr("Open File Location"); cmd: "openLocation" }
-        Cmd { text: qsTr("Reveal in Sidebar"); cmd: "revealInSidebar" }
+        Cmd { id: revealSidebar; text: qsTr("Reveal in Sidebar"); cmd: "revealInSidebar" }
+        Cmd { id: revealLibrary; text: qsTr("Reveal in Library"); cmd: "revealInSidebar"; arg: 1 }
+        Cmd { id: revealTree; text: qsTr("Reveal in File Tree"); cmd: "revealInSidebar"; arg: 2 }
+        TSep { id: deleteSep }
+        Cmd { id: deleteFile; text: qsTr("Delete…"); cmd: "deleteFile"; enabled: bar.app.editor.path !== "" }
         TSep {}
         Cmd { text: qsTr("Import…"); cmd: "import" }
         TMenu {
@@ -158,6 +176,7 @@ MenuBar {
     }
 
     TMenu {
+        id: editMenu
         title: qsTr("&Edit")
         onAboutToShow: {
             bar.lookAround()
@@ -179,7 +198,9 @@ MenuBar {
         Cmd { text: qsTr("Copy as Plain Text"); cmd: "copyPlain" }
         Cmd { text: qsTr("Copy as Markdown"); cmd: "copyMarkdown"; shortcut: "Ctrl+Shift+C" }
         Cmd { text: qsTr("Copy as HTML Code"); cmd: "copyHtml" }
+        Cmd { id: copyUnstyled; text: qsTr("Copy without Theme Styling"); cmd: "copy" }
         Cmd { text: qsTr("Paste as Plain Text"); cmd: "pastePlain"; shortcut: "Ctrl+Shift+V" }
+        Cmd { id: pasteMatch; text: qsTr("Paste and Match Style"); cmd: "pastePlain" }
         TSep {}
         TMenu {
             title: qsTr("Selection")
@@ -217,9 +238,12 @@ MenuBar {
         }
         TSep {}
         TMenu {
+            id: lineEndingMenu
             title: qsTr("Line Endings")
             Cmd { text: qsTr("Windows Line Endings (CRLF)"); cmd: "lineEnding"; arg: "crlf"; checkable: true; checked: bar.app.editor.crlf }
             Cmd { text: qsTr("Unix Line Endings (LF)"); cmd: "lineEnding"; arg: "lf"; checkable: true; checked: !bar.app.editor.crlf }
+            TSep { id: finalSep }
+            Cmd { id: finalNewlineCmd; text: qsTr("Insert Final New Line On Save"); cmd: "finalNewline"; checkable: true; checked: bar.finalNewline }
         }
         TMenu {
             title: qsTr("Whitespace and Line Breaks")
@@ -247,12 +271,14 @@ MenuBar {
         }
         TSep {}
         TMenu {
+            id: findMenu
             title: qsTr("Find and Replace")
             Cmd { text: qsTr("Find"); cmd: "find"; shortcut: "Ctrl+F" }
             Cmd { text: qsTr("Find Next"); cmd: "findNext"; shortcut: "F3" }
             Cmd { text: qsTr("Find Previous"); cmd: "findPrevious"; shortcut: "Shift+F3" }
             TSep {}
             Cmd { text: qsTr("Replace"); cmd: "replace"; shortcut: "Ctrl+H" }
+            Cmd { id: replaceNext; text: qsTr("Replace Next"); cmd: "replaceNext" }
         }
         TSep {}
         Cmd { text: qsTr("Emoji and Symbols"); cmd: "emoji" }
@@ -432,6 +458,7 @@ MenuBar {
     }
 
     TMenu {
+        id: viewMenu
         title: qsTr("&View")
         Cmd { text: qsTr("Toggle Sidebar"); cmd: "sidebar"; shortcut: "Ctrl+Shift+L"; checkable: true; checked: Ui.sidebar }
         Cmd { text: qsTr("Outline"); cmd: "sidebarView"; arg: 0; shortcut: "Ctrl+Shift+1"; checkable: true; checked: Ui.sidebar && Ui.sidebarView === 0 }
@@ -444,6 +471,7 @@ MenuBar {
         Cmd { text: qsTr("Typewriter Mode"); cmd: "typewriter"; shortcut: "F9"; checkable: true; checked: Ui.typewriter }
         TSep {}
         Cmd { text: qsTr("Status Bar"); cmd: "statusBar"; checkable: true; checked: Ui.statusBar }
+        Cmd { id: wordCountPopover; text: qsTr("Toggle Word Count Popover"); cmd: "wordCount" }
         TSep {}
         Cmd { text: qsTr("Toggle Fullscreen"); cmd: "fullscreen"; shortcut: "F11"; checkable: true; checked: bar.app.visibility === Window.FullScreen }
         Cmd { text: qsTr("Always on Top"); cmd: "alwaysOnTop"; checkable: true; checked: Ui.alwaysOnTop }

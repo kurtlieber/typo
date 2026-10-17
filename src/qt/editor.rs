@@ -201,6 +201,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setLineEnding"]
         fn set_line_ending(self: Pin<&mut Editor>, crlf: bool);
+        /// Edit ▸ Line Endings ▸ Insert Final New Line On Save: whether the
+        /// file ends with a line break, as it did when read.
+        #[qinvokable]
+        #[cxx_name = "finalNewline"]
+        fn final_newline(self: &Editor) -> bool;
+        #[qinvokable]
+        #[cxx_name = "setFinalNewline"]
+        fn set_final_newline(self: Pin<&mut Editor>, on: bool);
         /// Preferences ▸ Editor ▸ Default Line Ending: what new documents
         /// get, the empty untitled one open now included.
         #[qinvokable]
@@ -2209,6 +2217,20 @@ impl qobject::Editor {
         }
     }
 
+    fn final_newline(&self) -> bool {
+        self.doc.final_newline
+    }
+
+    // ponytail: not undoable, unlike Typora's; give it a history entry if
+    // that's missed.
+    fn set_final_newline(mut self: Pin<&mut Self>, on: bool) {
+        if self.doc.final_newline != on {
+            self.as_mut().rust_mut().doc.final_newline = on;
+            self.as_mut().rust_mut().dirty = true;
+            self.as_mut().sync_history();
+        }
+    }
+
     fn set_line_ending(mut self: Pin<&mut Self>, crlf: bool) {
         let ending = if crlf { md::LineEnding::CrLf } else { md::LineEnding::Lf };
         if self.doc.line_ending != ending {
@@ -3053,6 +3075,10 @@ fn apply_command(
         }
         "quote" => {
             edit::toggle_quote(doc, start.block, end.block);
+            Some(Sel { anchor, caret })
+        }
+        "alert" => {
+            let [anchor, caret] = edit::toggle_alert(doc, [anchor, caret], &text.to_lowercase());
             Some(Sel { anchor, caret })
         }
         "orderedList" | "bulletList" | "taskList" => {
