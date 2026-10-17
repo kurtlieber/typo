@@ -265,11 +265,12 @@ their own runs (`highlighter::link_def_looks`) instead of inline markdown;
 an edit that breaks one makes it a paragraph.
 
 Emoji suggestions (`qml/EmojiSuggest.qml`) belong to the view, like the
-footnote tooltip. A text block's edit asks it to look at the word before
-the caret (`:` then word characters, with only word characters or colons
-up to the next space after it); `Editor.emojiSuggestions` lists the
-matches in Typora's order (`md::query::emoji_suggestions`, over the
-`emojis` crate's shortcodes). The view hands it keys first while it is
+footnote tooltip. A text block's edit, or a table cell's, asks it to look
+at the word before the caret (`:` then word characters, with only word
+characters or colons up to the next space after it);
+`Editor.emojiSuggestions` lists the matches in Typora's order
+(`md::query::emoji_suggestions`, over the `emojis` crate's shortcodes).
+The view hands it keys first while it is
 shown, and choosing writes `:shortcode:` into the text field, so the edit
 goes through `edited` and undo like typing.
 

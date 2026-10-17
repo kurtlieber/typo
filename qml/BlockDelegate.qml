@@ -563,19 +563,19 @@ Item {
                     if (text.indexOf("\n") >= 0)
                         hl.refresh()
                     if (block.host && activeFocus)
-                        Qt.callLater(() => block.host.emojiSuggest.typed(block.index, edit))
+                        Qt.callLater(() => block.host.emojiSuggest.typed(edit))
                 }
                 onCursorPositionChanged: {
                     hl.caretMoved(activeFocus || block.found ? cursorPosition : -1)
                     if (block.host) {
-                        block.host.emojiSuggest.caretMoved(block.index, edit)
+                        block.host.emojiSuggest.caretMoved(edit)
                         block.host.caretMoved()
                     }
                 }
                 onActiveFocusChanged: {
                     hl.caretMoved(activeFocus || block.found ? cursorPosition : -1)
                     if (block.host)
-                        block.host.emojiSuggest.caretMoved(block.index, edit)
+                        block.host.emojiSuggest.caretMoved(edit)
                 }
                 Connections {
                     target: block

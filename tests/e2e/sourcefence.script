@@ -1,16 +1,18 @@
 # Source Code Mode colours a fence's code as code blocks are coloured, in
 # its language; a fence in a language it doesn't know keeps the code
-# colour, as the fence lines do. Opening a comment re-colours the lines
-# after it, and closing it brings them back. The line just above a setext
-# underline is a header (not the one above that), also as it is typed.
-# The first and last lines and every tenth are numbered, as in Typora.
+# colour. The fence lines' marks are grey and the language blue, as
+# Typora's. Opening a comment re-colours the lines after it, and closing it
+# brings them back. The line just above a setext underline is a header
+# (not the one above that), also as it is typed. The first and last lines
+# and every tenth are numbered, as in Typora.
 write @DIR@/doc.md Two line\nsetext title\n============\n\n```js\nconst x = "s"; // note\nlet y = 2;\n```\n\n```\nplain if else\n```\n
 cmd openPath @DIR@/doc.md
 wait 500
 cmd sourceMode
 wait 300
-eval (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return ["const", "let", "note", "plain", "```js", "Two", "setext"].map(w => w + " " + h.inkAt(t.indexOf(w))).join(", ") })()
-check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("const") === at("let") && at("const") !== at("plain") && at("note") !== at("const") && at("plain") === at("```js") })()
+eval (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return ["const", "let", "note", "plain", "```js", "js", "Two", "setext"].map(w => w + " " + h.inkAt(t.indexOf(w))).join(", ") })()
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("const") === at("let") && at("const") !== at("plain") && at("note") !== at("const") })()
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("```js") !== at("plain") && at("js") !== at("```js") && at("js") !== at("plain") && h.inkAt(t.lastIndexOf("```")) === at("```js") })()
 check (() => { const t = sourceView.edit.text, h = sourceView.highlighter, at = w => h.inkAt(t.indexOf(w)); return at("setext") !== at("Two") && at("setext") === at("====") })()
 eval sourceView.edit.cursorPosition = sourceView.edit.text.indexOf("const")
 type /* 

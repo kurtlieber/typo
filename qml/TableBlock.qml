@@ -533,6 +533,8 @@ Item {
         const none = edit.selectedText === ""
         const x = edit.mapToItem(null, edit.cursorRectangle.x, 0).x
         const accept = done => { event.accepted = done !== false }
+        if (host && host.emojiSuggest.shown && host.emojiSuggest.keyPressed(event))
+            return accept()
         if (event.matches(StandardKey.Copy))
             return accept(copy() || true)
         if (event.matches(StandardKey.Cut))
@@ -810,11 +812,19 @@ Item {
                         hl.fixLineHeight()
                         if (text !== cell.value)
                             table.editor.cellEdited(table.owner.index, cell.r, cell.c, text)
+                        if (table.host && activeFocus)
+                            Qt.callLater(() => table.host.emojiSuggest.typed(edit))
                     }
                     onHeightChanged: rowsLater.restart()
-                    onCursorPositionChanged: hl.caretMoved(activeFocus || cell.found ? cursorPosition : -1)
+                    onCursorPositionChanged: {
+                        hl.caretMoved(activeFocus || cell.found ? cursorPosition : -1)
+                        if (table.host)
+                            table.host.emojiSuggest.caretMoved(edit)
+                    }
                     onActiveFocusChanged: {
                         hl.caretMoved(activeFocus || cell.found ? cursorPosition : -1)
+                        if (table.host)
+                            table.host.emojiSuggest.caretMoved(edit)
                         if (activeFocus) {
                             const old = table.cellItem(table.curR, table.curC)
                             if (old && old !== cell)

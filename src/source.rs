@@ -27,11 +27,13 @@ pub enum Ink {
     Tag,
     /// Escapes, entities, emoji and front matter keys.
     Atom,
+    /// A fence's language name.
+    Info,
 }
 
 impl Ink {
-    pub const ALL: [Ink; 9] =
-        [Ink::Header, Ink::Quote, Ink::Rule, Ink::Code, Ink::Math, Ink::Link, Ink::Url, Ink::Tag, Ink::Atom];
+    pub const ALL: [Ink; 10] =
+        [Ink::Header, Ink::Quote, Ink::Rule, Ink::Code, Ink::Math, Ink::Link, Ink::Url, Ink::Tag, Ink::Atom, Ink::Info];
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -186,7 +188,12 @@ pub fn line(text: &str, prev: State, first: bool, next: &str, refs: &Refs, opts:
             out.push((all, Look::code()));
             let at = quotes(text, &mut out);
             let fence = if tilde { "~" } else { "`" }.repeat(len as usize);
-            let closed = parse::is_fence_close(text[at..].trim_start(), &fence);
+            let marks = text[at..].trim();
+            let closed = parse::is_fence_close(marks, &fence);
+            if closed {
+                let from = at + text[at..].find(marks).unwrap_or(0);
+                out.push((from..from + marks.len(), Look::ink(Ink::Rule).mono()));
+            }
             return (out, if closed { stay(Block::Blank) } else { prev });
         }
         Block::Math { brackets } => {
@@ -248,8 +255,14 @@ pub fn line(text: &str, prev: State, first: bool, next: &str, refs: &Refs, opts:
         inlines(text, at + hashes, refs, opts, &mut out);
         return (out, stay(Block::Blank));
     }
-    if let Some((fence, _)) = parse::fence_start(rest) {
+    if let Some((fence, info)) = parse::fence_start(rest) {
+        // Typora's fence lines: grey marks, the language in blue.
         out.push((body, Look::code()));
+        out.push((at..at + fence.len(), Look::ink(Ink::Rule).mono()));
+        if !info.is_empty() {
+            let from = at + fence.len() + rest[fence.len()..].find(info.as_str()).unwrap_or(0);
+            out.push((from..from + info.len(), Look::ink(Ink::Info).mono()));
+        }
         let tilde = fence.starts_with('~');
         // Longer fences close with 63 marks or more.
         return (out, stay(Block::Fence { tilde, len: fence.len().min(63) as u8 }));
@@ -787,9 +800,10 @@ mod tests {
     #[test]
     fn fences_and_math_carry_over() {
         let lines = read("```rust\nlet x = *y*;\n```\n*a*\n$$\nx^2\n$$");
-        assert_eq!(lines[0], vec![(0..7, Look::code())]);
+        let marks = ink(Ink::Rule).mono();
+        assert_eq!(lines[0], vec![(0..3, marks), (3..7, ink(Ink::Info).mono())]);
         assert_eq!(lines[1], vec![(0..12, Look::code())]);
-        assert_eq!(lines[2], vec![(0..3, Look::code())]);
+        assert_eq!(lines[2], vec![(0..3, marks)]);
         assert_eq!(lines[3], vec![(0..3, Look { italic: true, ..Look::default() })]);
         assert_eq!(lines[5], vec![(0..3, ink(Ink::Math).mono())]);
         let (_, after) = line("~~~~", State::default(), false, "", &Refs::default(), &Options::default());

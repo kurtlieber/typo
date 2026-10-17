@@ -1,0 +1,13 @@
+# Emoji suggestions work in table cells as in paragraphs: Down picks, Enter
+# writes the shortcode into the cell, which keeps the caret.
+write @DIR@/doc.md | a | b |\n| --- | --- |\n| c | d |\n
+cmd openPath @DIR@/doc.md
+wait 400
+clickCell 0 1 1 1
+type  :smi
+wait 200
+check view.emojiSuggest.shown && view.emojiSuggest.target === view.itemAt(0).table.cellItem(1, 1).edit
+key Down Return
+wait 200
+check !view.emojiSuggest.shown && view.itemAt(0).table.cellItem(1, 1).edit.text === "d :smile:" && view.itemAt(0).table.cellItem(1, 1).edit.activeFocus
+dump @OUT@

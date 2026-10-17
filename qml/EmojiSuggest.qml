@@ -11,9 +11,10 @@ Item {
 
     // The EditorView it belongs to, in whose content it is placed.
     required property Item view
-    // The row being typed in and the UTF-16 range the choice replaces:
-    // from the `:` to the end of the word (and colons) after the caret.
-    property int row: -1
+    // The text field being typed in (a block's or a table cell's) and the
+    // UTF-16 range the choice replaces: from the `:` to the end of the word
+    // (and colons) after the caret.
+    property Item target: null
     property int start: 0
     property int end: 0
     // [[shortcode, emoji]] matching what was typed, and the chosen one.
@@ -22,7 +23,7 @@ Item {
     // The text's length when last looked at.
     property int length: 0
 
-    readonly property bool shown: row >= 0 && matches.length > 0
+    readonly property bool shown: target !== null && matches.length > 0
     readonly property real em: Ui.fontSize * 0.9
     readonly property real rowHeight: Math.round(em * 2 + 2)
     readonly property real pad: 6
@@ -47,9 +48,9 @@ Item {
         }
     }
 
-    // The text of `row` changed: list what the word before the caret
+    // The text of `edit` changed: list what the word before the caret
     // matches, or close.
-    function typed(row, edit) {
+    function typed(edit) {
         if (!Prefs.emojiAutocomplete || !edit.activeFocus || edit.selectedText !== "")
             return close()
         const pos = edit.cursorPosition
@@ -61,9 +62,9 @@ Item {
         length = edit.length
         const token = (word[1] + after[1]).replace(/:+$/, "")
         matches = JSON.parse(view.editor.emojiSuggestions(token))
-        if (row !== suggest.row || start !== suggest.start || !shown) {
+        if (edit !== target || start !== suggest.start || !shown) {
             index = -1
-            suggest.row = row
+            target = edit
             suggest.start = start
             suggest.end = pos + after[1].length
             place(edit, pos)
@@ -75,15 +76,15 @@ Item {
     }
     // The caret moved without typing: the list stays while it is in the
     // word, as Typora's does.
-    function caretMoved(row, edit) {
+    function caretMoved(edit) {
         // Typing moves the caret too, before `typed` catches up.
-        if (row === suggest.row && edit.length !== length)
+        if (edit === target && edit.length !== length)
             return
-        if (shown && (row !== suggest.row || !edit.activeFocus || edit.cursorPosition <= start || edit.cursorPosition > end))
+        if (shown && (edit !== target || !edit.activeFocus || edit.cursorPosition <= start || edit.cursorPosition > end))
             close()
     }
     function close() {
-        row = -1
+        target = null
         matches = []
         index = -1
     }
@@ -143,7 +144,7 @@ Item {
 
     // Write match `i` over the shortcode typed so far.
     function apply(i) {
-        const edit = view.editAt(row)
+        const edit = target
         const text = ":" + matches[i][0] + ":"
         const a = start, z = end
         close()

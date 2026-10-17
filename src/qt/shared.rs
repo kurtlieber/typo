@@ -56,8 +56,8 @@ impl Ink {
             blur: argb(s.blur),
             alerts: crate::palette::ALERT_COLORS.map(|k| argb(s.palette.get(k))),
             tokens: Token::ALL.map(|t| argb(s.palette.get(t.style().0))),
-            // Typora's source view: pink headers, green quotes, red tags,
-            // its link colour for links and greys for the rest.
+            // Typora's source view: pink headers, green quotes, red tags, blue
+            // fence languages, its link colour for links and greys for the rest.
             source: SourceInk::ALL.map(|i| {
                 argb(match i {
                     SourceInk::Header => s.palette.get("magenta"),
@@ -68,6 +68,7 @@ impl Ink {
                     SourceInk::Link => s.link,
                     SourceInk::Url | SourceInk::Atom => s.muted,
                     SourceInk::Tag => s.palette.get("red"),
+                    SourceInk::Info => s.palette.get("blue"),
                 })
             }),
         }
