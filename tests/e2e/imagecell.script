@@ -1,7 +1,7 @@
 # The image commands in a table cell, as in a paragraph: what Typora offers
 # once a cell's picture loads, Zoom Image, Copy Image to…, Copy to assets,
 # Move All Images to… and Delete Image File, each changing the cell's text
-# so that undo puts it back.
+# so that undo puts it back (and Delete Image File's file).
 write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
 write @DIR@/doc.md | a | b |\n| --- | --- |\n| ![cat](cat.svg) | y |\n\nend\n
 cmd openPath @DIR@/doc.md
@@ -44,5 +44,9 @@ eval view.itemAt(0).table.cellItem(1, 0).edit.cursorPosition = 3
 cmd deleteImageFile
 wait 50
 answer 0
+check !Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf("cat") < 0
+cmd undo
+check Desktop.exists("@DIR@/assets/cat.svg") && view.itemAt(0).table.cellItem(1, 0).edit.text.indexOf("cat") >= 0
+cmd redo
 check !Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf("cat") < 0
 dump @OUT@

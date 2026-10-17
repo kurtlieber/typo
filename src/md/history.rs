@@ -4,6 +4,7 @@
 //! short pause coalesces into a single step, as in Typora.
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use super::edit::Pos;
@@ -131,6 +132,9 @@ struct Step {
     merge: Merge,
     time: Instant,
     version: u64,
+    /// Files the step deleted, as (backup, path), for the editor to put
+    /// back when it's undone and delete again when it's redone.
+    files: Vec<(PathBuf, PathBuf)>,
 }
 
 pub struct History {
@@ -200,6 +204,7 @@ impl History {
             merge,
             time: now,
             version,
+            files: Vec::new(),
         });
         if self.undo.len() > self.limit {
             self.undo.remove(0);
@@ -212,6 +217,20 @@ impl History {
         if let Some(top) = self.undo.last_mut() {
             top.merge = Merge::Never;
         }
+    }
+
+    /// Tie a file the last step deleted to it, backed up at `backup`.
+    pub fn keep_file(&mut self, backup: PathBuf, path: PathBuf) {
+        if let Some(top) = self.undo.last_mut() {
+            top.files.push((backup, path));
+            top.merge = Merge::Never;
+        }
+    }
+
+    /// The files tied to the step just undone (or redone).
+    pub fn files_of_last(&self, redone: bool) -> Vec<(PathBuf, PathBuf)> {
+        let step = if redone { self.undo.last() } else { self.redo.last() };
+        step.map_or(Vec::new(), |s| s.files.clone())
     }
 
     pub fn can_undo(&self) -> bool {

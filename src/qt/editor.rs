@@ -600,6 +600,13 @@ pub mod qobject {
         #[cxx_name = "deleteImage"]
         fn delete_image(self: Pin<&mut Editor>, row: i32, pos: i32) -> bool;
 
+        /// Delete Image File, after the image is taken out: the file to the
+        /// trash, with a copy kept so that undoing that step puts it back
+        /// and redoing it deletes it again, as Typora's.
+        #[qinvokable]
+        #[cxx_name = "trashImageFile"]
+        fn trash_image_file(self: Pin<&mut Editor>, path: &QString) -> bool;
+
         /// Copy All Images to… / Move All Images to…: copy the file of every
         /// local image not already in `folder` there, and point the images
         /// at the copies; with `move_file` the originals go. The caret at
@@ -2145,6 +2152,14 @@ impl qobject::Editor {
             if redo { r.history.redo(&mut r.doc) } else { r.history.undo(&mut r.doc) }
         };
         let Some((splice, sel)) = step else { return false };
+        for (backup, path) in self.history.files_of_last(redo) {
+            if redo {
+                let _ = fs::remove_file(&path);
+            } else if !path.exists() {
+                let _ = path.parent().map(fs::create_dir_all);
+                let _ = fs::copy(&backup, &path);
+            }
+        }
         self.as_mut().apply_splice(splice);
         self.request_sel(sel);
         true
@@ -2364,6 +2379,25 @@ impl qobject::Editor {
         self.as_mut().commit(old, Sel::caret(p), after, Merge::Never);
         self.request_sel(after);
         QString::default()
+    }
+
+    fn trash_image_file(mut self: Pin<&mut Self>, path: &QString) -> bool {
+        static BACKUPS: AtomicI32 = AtomicI32::new(0);
+        let file = PathBuf::from(path.to_string());
+        let Some(name) = file.file_name() else { return false };
+        // ponytail: backups stay in the temp folder until the system clears it.
+        let dir = std::env::temp_dir()
+            .join(format!("typo-{}-images", std::process::id()))
+            .join(BACKUPS.fetch_add(1, Ordering::Relaxed).to_string());
+        let backup = dir.join(name);
+        let kept = fs::create_dir_all(&dir).and_then(|_| fs::copy(&file, &backup)).is_ok();
+        if !super::desktop::qobject::move_file_to_trash(path) {
+            return false;
+        }
+        if kept {
+            self.as_mut().rust_mut().history.keep_file(backup, file);
+        }
+        true
     }
 
     fn delete_image(mut self: Pin<&mut Self>, row: i32, pos: i32) -> bool {

@@ -3,7 +3,8 @@
 # Image Syntax goes either way. Copy Image to…, Rename or Move Image to…
 # (asking first), Copy to assets and Move All Images to… copy or move the
 # files and point the images at them; Delete Image File takes the image
-# out, then, once asked, its file. "Do not show this again" stops the
+# out, then, once asked, its file, and undo puts both back (redo takes
+# them again). "Do not show this again" stops the
 # asking about moves. When Insert Local Image keeps the
 # document's own folders in its front matter.
 write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
@@ -53,6 +54,10 @@ cmd deleteImageFile
 wait 50
 answer 0
 check !Desktop.exists("@DIR@/assets/cat.svg")
+cmd undo
+check Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf("cat.svg") >= 0
+cmd redo
+check !Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().indexOf("cat.svg") < 0
 choose @DIR@/assets
 cmd imageFolderSetting
 choose @DIR@

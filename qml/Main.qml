@@ -725,13 +725,14 @@ ApplicationWindow {
                 deleteImage(img)
             return
         }
-        // Typora takes the image out first, then asks about its file.
+        // Typora takes the image out first, then asks about its file; undo
+        // puts both back.
         case "deleteImageFile": {
             const img = imageHere()
             if (!img || !deleteImage(img) || img.path === "" || !Desktop.exists(img.path))
                 return
             shouldContinue(qsTr("Delete Image File"), qsTr("Delete original image file?"), "noWarningForDeleteImage", () => {
-                if (!Desktop.moveToTrash(img.path))
+                if (!model.trashImageFile(img.path))
                     toast.show(qsTr("Failed to delete %1").arg(img.path))
             })
             return

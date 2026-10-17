@@ -331,7 +331,10 @@ The edits are text edits on its block: Zoom Image rewrites the style
 node, and the file commands copy or move the file and repoint the image
 (`relocateImage`, `relocateAllImages`, which also goes through table
 cells), each one undo step. Deleting an
-image's file sends it to the trash (`Desktop.moveToTrash`). When Insert
+image's file sends it to the trash (`Editor.trashImageFile`), keeping a
+copy in the temp folder tied to the step that took the image out
+(`History::keep_file`): undoing that step copies the file back, redoing it
+deletes it again, as Typora's `restoreMedia` / `deleteMedia`. When Insert
 Local Image writes the front matter's `typora-copy-images-to` and
 `typora-root-url` (`edit::set_property`). Reload All Images gives every
 picture's URL a new fragment (`Ui.reloaded`), which misses Qt's cache.
