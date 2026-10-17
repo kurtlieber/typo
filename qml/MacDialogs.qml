@@ -36,6 +36,8 @@ Item {
                 return
             }
             fileDialog.title = title
+            // The portal's labels; empty is the panel's own Open or Save.
+            fileDialog.acceptLabel = { images: qsTr("Select"), import: qsTr("Import") }[kind] || ""
             fileDialog.fileMode = mode === "save" ? FileDialog.SaveFile : mode === "openMany" ? FileDialog.OpenFiles : FileDialog.OpenFile
             fileDialog.nameFilters = filters === "" ? [] : filters.split("\n")
             if (folder !== "")
