@@ -24,7 +24,10 @@ TMenu {
     // only an image that loaded.
     readonly property bool localImage: hasImage && image.path !== ""
     readonly property bool loadedFile: localImage && Desktop.exists(image.path)
-    readonly property string imageFolder: localImage ? image.folder : ""
+    // An online image copies by downloading it.
+    readonly property bool webImage: hasImage && !localImage && /^(https?|ftp):/i.test(image.url)
+    readonly property bool copyable: loadedFile || webImage
+    readonly property string imageFolder: localImage || webImage ? image.folder : ""
     // The formula it opened in (Main.mathHere), or null. In inline math or
     // a math block the copy menu has math's copies only; a ```math fence's
     // formula can be copied as an image too.
@@ -203,12 +206,12 @@ TMenu {
     }
     TMenuItem {
         text: qsTr("Copy to %1").arg(menu.imageFolder)
-        visible: menu.loadedFile && menu.imageFolder !== ""
+        visible: menu.copyable && menu.imageFolder !== ""
         onTriggered: menu.run("copyImageToFolder")
     }
     TMenuItem {
         text: qsTr("Copy Image to…")
-        visible: menu.loadedFile
+        visible: menu.copyable
         onTriggered: menu.run("copyImageTo")
     }
     TMenuItem {
@@ -295,7 +298,7 @@ TMenu {
     }
     TMenuItem {
         text: qsTr("Copy Image Content")
-        visible: menu.loadedFile
+        visible: menu.copyable
         onTriggered: menu.run("copyImage")
     }
     TMenu {

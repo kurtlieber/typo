@@ -1,0 +1,58 @@
+# Online images: Copy to ./assets downloads one there and points at the
+# file; Copy Image to… downloads it to the file chosen; Rename or Move
+# Image to… only copies (the online image stays), without asking; Copy
+# All Images to… downloads each URL once beside the local copies; Copy
+# Image Content puts the picture on the clipboard. Pasted online images
+# are downloaded into ./assets, in the paste's undo step, when Apply
+# above rules to online images is on, and stay online when it is off;
+# pasted local ones are copied there.
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+write @DIR@/dog.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
+write @DIR@/bird.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>
+write @DIR@/fish.svg <svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"/>
+serve @DIR@
+write @DIR@/doc.md ![cat](http://127.0.0.1:@PORT@/cat.svg)\n\n![dog](http://127.0.0.1:@PORT@/dog.svg?v=1) ![dog again](http://127.0.0.1:@PORT@/dog.svg?v=1)\n\n![a](http://127.0.0.1:@PORT@/bird.svg) ![b](http://127.0.0.1:@PORT@/bird.svg)\n\nend\n
+cmd openPath @DIR@/doc.md
+eval Prefs.imageInsertAction = 2
+wait 200
+caret 0 2
+cmd copyImageToFolder
+check Desktop.exists("@DIR@/assets/cat.svg") && model.markdown().startsWith("![cat](assets/cat.svg)")
+caret 1 2
+choose @DIR@/pick.svg
+cmd copyImageTo
+check Desktop.exists("@DIR@/pick.svg") && model.markdown().indexOf("![dog](pick.svg) ") > 0
+caret 1 20
+choose @DIR@/moved.svg
+cmd moveImageTo
+check !dialog.opened && Desktop.exists("@DIR@/moved.svg") && Desktop.exists("@DIR@/dog.svg")
+choose @DIR@/assets
+cmd copyAllImages
+wait 50
+check toast.text === "Images copied to assets." && Desktop.exists("@DIR@/assets/bird.svg") && Desktop.exists("@DIR@/assets/pick.svg")
+check model.markdown().indexOf("![a](assets/bird.svg) ![b](assets/bird.svg)") > 0 && model.markdown().indexOf("http:") < 0
+eval Prefs.imageCopyWeb = true
+caret 3 2
+clipboard ![fish](http://127.0.0.1:@PORT@/fish.svg)
+key Ctrl+V
+type X
+check Desktop.exists("@DIR@/assets/fish.svg") && model.markdown().indexOf("en![fish](assets/fish.svg)Xd") > 0
+key Ctrl+Z
+key Ctrl+Z
+check model.markdown().endsWith("\n\nend\n")
+eval Prefs.imageCopyWeb = false
+key Ctrl+V
+check model.markdown().indexOf("en![fish](http://127.0.0.1:@PORT@/fish.svg)d") > 0
+caret 3 4
+cmd copyImage
+key End
+key Ctrl+V
+wait 100
+check model.markdown().indexOf("](assets/image-") > 0
+key Ctrl+Z
+key Ctrl+Z
+clipboard ![local](cat.svg)
+key Ctrl+V
+check model.markdown().indexOf("![local](assets/cat-") > 0
+key Ctrl+Z
+dump @OUT@

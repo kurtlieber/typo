@@ -374,6 +374,15 @@ GUI thread (`Editor.uploadImages`); `imagesUploaded` answers, and
 one step, by file, so edits made meanwhile don't matter. Main.qml uploads
 inserted images too when When Insert… says Upload image, or the front
 matter's `typora-copy-images-to: upload` once Preferences allow it.
+An online image is downloaded by `curl` (`image::download`, named for its
+URL's last segment) wherever a local one would be copied: Copy to
+`<folder>`, Copy Image to…, Copy/Move All Images, and Copy Image Content
+(through the temp folder); moving one only copies it. Pasted markdown goes
+through `copy_pasted_images` (src/qt/editor.rs) in the paste's undo step: its local
+images are copied to the storage folder as inserted files are, and its
+online ones downloaded there when Apply above rules to online images is
+on (`InsertOptions::copy_web`). The e2e `serve` step serves a folder over
+HTTP on 127.0.0.1 (`Desktop.serveFolder`) for these tests.
 When a picture loads in the block with the caret (`EditorView.imageLoaded`)
 and the caret is in its source, Main offers its commands in
 `qml/ImagePopup.qml`, under the caret, unless it offered for that URL

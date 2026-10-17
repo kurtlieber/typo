@@ -42,6 +42,8 @@ pub struct InsertOptions {
     pub folder: String,
     /// Apply above rules to local images.
     pub copy_local: bool,
+    /// Apply above rules to online images: they are downloaded.
+    pub copy_web: bool,
     /// Use relative path if possible.
     pub relative: bool,
     /// Add ./ for relative path.
@@ -52,7 +54,7 @@ pub struct InsertOptions {
 
 impl Default for InsertOptions {
     fn default() -> Self {
-        InsertOptions { action: 0, folder: String::new(), copy_local: true, relative: true, with_dot: false, escape: false }
+        InsertOptions { action: 0, folder: String::new(), copy_local: true, copy_web: false, relative: true, with_dot: false, escape: false }
     }
 }
 
@@ -109,6 +111,48 @@ pub fn copy_into(path: &Path, folder: &Path) -> std::io::Result<PathBuf> {
     }
     std::fs::copy(path, &target)?;
     Ok(target)
+}
+
+/// Whether `src` is an online image: http, https or ftp, as Typora tells
+/// them.
+pub fn is_web(src: &str) -> bool {
+    has_scheme(src.trim(), &["http://", "https://", "ftp://"])
+}
+
+/// The file name a download of `url` gets: its last path segment, without
+/// a `?query` that names no file.
+fn web_name(url: &str) -> String {
+    let path = url.split('#').next().unwrap_or_default();
+    let path = match path.split_once('?') {
+        Some((p, q)) if !q.contains(['.', '/']) => p,
+        _ => path,
+    };
+    let after_host = path.split_once("://").map_or(path, |(_, r)| r).split_once('/').map_or("", |(_, p)| p);
+    let last = after_host.trim_end_matches('/').rsplit('/').next().unwrap_or_default();
+    let name = clean_name(&percent_decode(last, false).unwrap_or_else(|| last.to_string()));
+    if name.is_empty() { "image".into() } else { name }
+}
+
+/// Download the image at `url` into the folder `to`, under its own name or
+/// a new one when that is taken, or to the file `to` when `exact`.
+// ponytail: curl, run on the GUI thread; a thread and a signal, as
+// uploads have, when slow downloads matter.
+pub fn download(url: &str, to: &Path, exact: bool) -> Result<PathBuf, String> {
+    let mut target = if exact { to.to_path_buf() } else { to.join(web_name(url.trim())) };
+    if !exact && target.exists() {
+        target = unique(&target);
+    }
+    let out = std::process::Command::new("curl")
+        .args(["-fsSL", "--max-time", "30", "-o"])
+        .arg(&target)
+        .arg(url.trim())
+        .output()
+        .map_err(|e| e.to_string())?;
+    if out.status.success() {
+        return Ok(target);
+    }
+    let _ = std::fs::remove_file(&target);
+    Err(String::from_utf8_lossy(&out.stderr).trim().trim_start_matches("curl: ").to_string())
 }
 
 /// A file name with what Typora won't put in one taken out.
@@ -531,6 +575,43 @@ mod tests {
         assert_eq!(root("../static", Some(Path::new("/site/notes/doc.md"))), PathBuf::from("/site/static"));
         assert_eq!(root("/www", Some(Path::new("/site/notes/doc.md"))), PathBuf::from("/www"));
         assert_eq!(root_setting(&crate::md::parse("# a\n")), None);
+    }
+
+    #[test]
+    fn downloads_online_images() {
+        assert!(is_web(" HTTPS://x.io/a.png") && is_web("ftp://x/a.png") && !is_web("file:///a.png") && !is_web("a.png"));
+        assert_eq!(web_name("https://x.io/a/b%20c.png?w=10#top"), "b c.png");
+        assert_eq!(web_name("https://x.io/get?file=a.png"), "getfile=a.png");
+        assert_eq!(web_name("https://x.io/"), "image");
+        assert_eq!(web_name("https://x.io"), "image");
+        let png = b"\x89PNG\r\n\x1a\n".to_vec();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = server.local_addr().unwrap().port();
+        let body = png.clone();
+        std::thread::spawn(move || {
+            for stream in server.incoming().take(3) {
+                use std::io::{Read, Write};
+                let mut stream = stream.unwrap();
+                let mut request = [0; 1024];
+                let n = stream.read(&mut request).unwrap();
+                let found = String::from_utf8_lossy(&request[..n]).contains("GET /a.png");
+                let head = if found { "200 OK" } else { "404 Not Found" };
+                let body: &[u8] = if found { &body } else { b"" };
+                write!(stream, "HTTP/1.1 {head}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+                stream.write_all(body).unwrap();
+            }
+        });
+        let dir = std::env::temp_dir().join(format!("typo-download-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let url = format!("http://127.0.0.1:{port}/a.png");
+        let first = download(&url, &dir, false).unwrap();
+        assert_eq!(first, dir.join("a.png"));
+        assert_eq!(std::fs::read(&first).unwrap(), png);
+        let second = download(&url, &dir, false).unwrap();
+        assert!(second != first && second.to_string_lossy().ends_with(".png"));
+        assert!(download(&format!("http://127.0.0.1:{port}/b.png"), &dir.join("b.png"), true).unwrap_err().contains("404"));
+        assert!(!dir.join("b.png").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -543,6 +543,7 @@ pub mod qobject {
             action: i32,
             folder: &QString,
             copy_local: bool,
+            copy_web: bool,
             relative: bool,
             with_dot: bool,
             escape: bool,
@@ -1588,7 +1589,8 @@ impl qobject::Editor {
             let mut r = self.as_mut().rust_mut();
             apply_command(&mut r.doc, &name, anchor, caret, arg, &text, &refs, &opts)
         };
-        let Some(after) = after else { return false };
+        let Some(mut after) = after else { return false };
+        let error = if name == "paste" { self.as_mut().copy_pasted_images(anchor.min(caret), &mut after) } else { String::new() };
         // A code fence from the menu gets the default language; one typed
         // with a language sets the last used.
         let i = after.caret.block;
@@ -1602,6 +1604,9 @@ impl qobject::Editor {
             }
         }
         self.as_mut().commit(old, before, after, Merge::Never);
+        if !error.is_empty() {
+            self.as_mut().failed(QString::from(&format!("Failed to Copy Image to Target Folder. {error}")));
+        }
         self.request_sel(after);
         true
     }
@@ -2333,12 +2338,13 @@ impl qobject::Editor {
         action: i32,
         folder: &QString,
         copy_local: bool,
+        copy_web: bool,
         relative: bool,
         with_dot: bool,
         escape: bool,
     ) {
         let folder = folder.to_string();
-        self.as_mut().rust_mut().image_opts = image::InsertOptions { action, folder, copy_local, relative, with_dot, escape };
+        self.as_mut().rust_mut().image_opts = image::InsertOptions { action, folder, copy_local, copy_web, relative, with_dot, escape };
     }
 
     /// The folder inserted images are copied to, and whether the front
@@ -2454,28 +2460,88 @@ impl qobject::Editor {
 
     /// Copy the file of the image written `src` to `target`, or into the
     /// folder images are copied to when `target` is empty; with `move_file`
-    /// the original goes. The source that points at the copy, or None when
-    /// there is nothing to copy.
+    /// the original goes. An online image is downloaded, and stays where it
+    /// is. The source that points at the copy, or None when there is
+    /// nothing to copy.
     fn copy_image(&self, src: &str, target: &str, move_file: bool) -> Result<Option<String>, String> {
         let root = self.image_root_path();
-        let Some(from) = image::local_path(src, self.file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
+        let from = image::local_path(src, self.file.as_deref(), root.as_deref()).filter(|f| f.is_file());
+        if from.is_none() && !image::is_web(src) {
             return Err("Image src is not a file".into());
-        };
-        let copied = if target.is_empty() {
+        }
+        let to = if target.is_empty() {
             let Some((folder, _)) = self.image_storage() else { return Ok(None) };
-            fs::create_dir_all(&folder).and_then(|_| image::copy_into(&from, &folder))
+            fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+            match &from {
+                Some(from) => image::copy_into(from, &folder).map_err(|e| e.to_string())?,
+                None => image::download(src, &folder, false)?,
+            }
         } else {
             let to = PathBuf::from(target);
-            if to == from {
-                return Ok(None);
+            match &from {
+                Some(from) if *from == to => return Ok(None),
+                Some(from) => fs::copy(from, &to).map(|_| to).map_err(|e| e.to_string())?,
+                None => image::download(src, &to, true)?,
             }
-            fs::copy(&from, &to).map(|_| to)
         };
-        let to = copied.map_err(|e| e.to_string())?;
-        if move_file {
-            let _ = fs::remove_file(&from);
+        if move_file && let Some(from) = &from {
+            let _ = fs::remove_file(from);
         }
         Ok(Some(image::insert_src(&to.to_string_lossy(), self.file.as_deref(), root.as_deref(), &self.image_opts)))
+    }
+
+    /// The images pasted from `from` to the caret of `after` copied into
+    /// the folder images are copied to, as Typora: local files when the
+    /// rules apply to them, online ones downloaded when they apply to
+    /// those. The caret follows the text. What went wrong, if anything.
+    // ponytail: paragraphs only; a paste into a table cell keeps its sources.
+    fn copy_pasted_images(mut self: Pin<&mut Self>, from: Pos, after: &mut Sel) -> String {
+        let Some((folder, _)) = self.image_storage() else { return String::new() };
+        let (root, file, refs, opts) = (self.image_root_path(), self.file.clone(), self.refs.clone(), self.image_opts.clone());
+        let mut error = String::new();
+        let last = after.caret;
+        for i in from.block..=last.block.min(self.doc.blocks.len().saturating_sub(1)) {
+            let block = &self.doc.blocks[i];
+            if !block.kind.is_inline_text() {
+                continue;
+            }
+            let mut text = block.text.clone();
+            for (range, src) in edit::images(&block.text, &refs).into_iter().rev() {
+                if (i == from.block && range.start < from.offset) || (i == last.block && range.end > last.offset) {
+                    continue;
+                }
+                let local = image::local_path(&src, file.as_deref(), root.as_deref()).filter(|f| f.is_file());
+                let copied = match &local {
+                    Some(path) if image::needs_copy(path, &folder, &opts) => {
+                        fs::create_dir_all(&folder).and_then(|_| image::copy_into(path, &folder)).map_err(|e| e.to_string())
+                    }
+                    None if opts.copy_web && image::is_web(&src) => {
+                        fs::create_dir_all(&folder).map_err(|e| e.to_string()).and_then(|_| image::download(&src, &folder, false))
+                    }
+                    _ => continue,
+                };
+                let new_src = match copied {
+                    Ok(to) => image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), &opts),
+                    Err(e) => {
+                        error = e;
+                        continue;
+                    }
+                };
+                if let Some((out, _)) = edit::set_image_src(&text, range, &refs, &new_src) {
+                    if i == last.block {
+                        after.caret.offset = (after.caret.offset + out.len()).saturating_sub(text.len());
+                    }
+                    text = out;
+                }
+            }
+            if text != self.doc.blocks[i].text {
+                self.as_mut().rust_mut().doc.blocks[i].set_text(text);
+            }
+        }
+        if after.anchor == last {
+            after.anchor = after.caret;
+        }
+        error
     }
 
     fn copy_image_file(&self, src: &QString, target: &QString, move_file: bool) -> QString {
@@ -2547,36 +2613,42 @@ impl qobject::Editor {
         let folder = PathBuf::from(folder.to_string());
         let root = self.image_root_path();
         let (file, opts) = (self.file.clone(), self.image_opts.clone());
-        // A file shown by several images is copied once.
+        // A file shown by several images is copied once, and so is a URL.
         let mut copies: HashMap<PathBuf, PathBuf> = HashMap::new();
+        let mut downloads: HashMap<String, PathBuf> = HashMap::new();
         let mut error = String::new();
-        self.as_mut().repoint(row, pos, |from| {
-            if from.parent() == Some(folder.as_path()) {
-                return None;
-            }
-            let to = match copies.get(from) {
-                Some(to) => to.clone(),
-                None => match image::copy_into(from, &folder) {
-                    Ok(to) => copies.entry(from.to_path_buf()).or_insert(to).clone(),
-                    Err(e) => {
-                        error = e.to_string();
-                        return None;
-                    }
+        self.as_mut().repoint(row, pos, |src, from| {
+            let copied = match from {
+                Some(from) if from.parent() == Some(folder.as_path()) => return None,
+                Some(from) => match copies.get(from) {
+                    Some(to) => Ok(to.clone()),
+                    None => image::copy_into(from, &folder).map(|to| copies.entry(from.to_path_buf()).or_insert(to).clone()).map_err(|e| e.to_string()),
+                },
+                None => match downloads.get(src) {
+                    Some(to) => Ok(to.clone()),
+                    None => image::download(src, &folder, false).map(|to| downloads.entry(src.to_string()).or_insert(to).clone()),
                 },
             };
-            Some(image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), &opts))
+            match copied {
+                Ok(to) => Some(image::insert_src(&to.to_string_lossy(), file.as_deref(), root.as_deref(), &opts)),
+                Err(e) => {
+                    error = e;
+                    None
+                }
+            }
         });
         if move_file {
             for from in copies.keys() {
                 let _ = fs::remove_file(from);
             }
         }
-        QString::from(&format!("{{\"count\":{},\"error\":{}}}", copies.len(), json_str(&error)))
+        QString::from(&format!("{{\"count\":{},\"error\":{}}}", copies.len() + downloads.len(), json_str(&error)))
     }
 
-    /// Give every image with a local file the source `to` has for that
-    /// file, as one undo step; the caret at (`row`, `pos`) stays put.
-    fn repoint(mut self: Pin<&mut Self>, row: i32, pos: i32, mut to: impl FnMut(&Path) -> Option<String>) {
+    /// Give every image with a local file, or online, the source `to` has
+    /// for its source and file, as one undo step; the caret at (`row`,
+    /// `pos`) stays put.
+    fn repoint(mut self: Pin<&mut Self>, row: i32, pos: i32, mut to: impl FnMut(&str, Option<&Path>) -> Option<String>) {
         let root = self.image_root_path();
         let file = self.file.clone();
         let refs = &self.refs;
@@ -2584,10 +2656,11 @@ impl qobject::Editor {
             let mut text = old.to_string();
             // Last to first, so the ranges before stay put.
             for (range, src) in edit::images(old, refs).into_iter().rev() {
-                let Some(from) = image::local_path(&src, file.as_deref(), root.as_deref()).filter(|f| f.is_file()) else {
+                let from = image::local_path(&src, file.as_deref(), root.as_deref()).filter(|f| f.is_file());
+                if from.is_none() && !image::is_web(&src) {
                     continue;
-                };
-                if let Some(new_src) = to(&from)
+                }
+                if let Some(new_src) = to(&src, from.as_deref())
                     && let Some((out, _)) = edit::set_image_src(&text, range, refs, &new_src)
                 {
                     text = out;
@@ -2675,8 +2748,8 @@ impl qobject::Editor {
         let real = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
         let map: HashMap<PathBuf, &str> = paths.lines().map(|p| real(Path::new(p))).zip(urls.lines()).collect();
         let mut shown = HashSet::new();
-        self.as_mut().repoint(row, pos, |from| {
-            let from = real(from);
+        self.as_mut().repoint(row, pos, |_, from| {
+            let from = real(from?);
             let url = map.get(&from)?;
             shown.insert(from);
             Some(url.to_string())

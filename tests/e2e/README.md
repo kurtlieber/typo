@@ -35,6 +35,7 @@ Script steps, one per line:
 | `choose PATH` | answers the next file chooser with PATH (`\n` between several); an empty PATH cancels it |
 | `answer N` | presses button N of the open dialog (0 is the default; the last is Cancel) |
 | `shot PATH` | saves a screenshot |
+| `serve FOLDER` | serves FOLDER's files over HTTP on 127.0.0.1; `@PORT@` in later steps is its port |
 | `# …` | a comment |
 
 `@OUT@` is the test's output file, `@DIR@` the folder it is in and

@@ -201,7 +201,7 @@ MenuBar {
         TMenuItem {
             text: qsTr("Copy Image Content")
             visible: bar.hasImage
-            enabled: bar.hasImage && bar.image.path !== ""
+            enabled: bar.hasImage && (bar.image.path !== "" || /^(https?|ftp):/i.test(bar.image.url))
             onTriggered: bar.app.run("copyImage")
         }
         Cmd { text: qsTr("Copy as Plain Text"); cmd: "copyPlain" }

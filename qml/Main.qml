@@ -148,10 +148,10 @@ ApplicationWindow {
 
     // Preferences ▸ Image: what inserting an image file does.
     readonly property string imageOptions: [Prefs.imageInsertAction, Prefs.imageFolder, Prefs.imageCopyLocal,
-        Prefs.imageRelative, Prefs.imageWithDot, Prefs.imageEscape].join()
+        Prefs.imageCopyWeb, Prefs.imageRelative, Prefs.imageWithDot, Prefs.imageEscape].join()
     onImageOptionsChanged: applyImageOptions()
     function applyImageOptions() {
-        model.setImageOptions(Prefs.imageInsertAction, Prefs.imageFolder, Prefs.imageCopyLocal, Prefs.imageRelative,
+        model.setImageOptions(Prefs.imageInsertAction, Prefs.imageFolder, Prefs.imageCopyLocal, Prefs.imageCopyWeb, Prefs.imageRelative,
             Prefs.imageWithDot, Prefs.imageEscape)
     }
 
@@ -887,8 +887,9 @@ ApplicationWindow {
         }
         case "copyImage": {
             const img = imageHere()
-            if (img && img.path !== "")
-                Desktop.setClipboardImage(img.path)
+            const path = !img ? "" : img.path !== "" ? img.path : isWeb(img) ? Desktop.downloadImage(img.url) : ""
+            if (path !== "")
+                Desktop.setClipboardImage(path)
             return
         }
         case "copyImageToFolder": {
@@ -899,20 +900,26 @@ ApplicationWindow {
         }
         case "moveImageToFolder": {
             const img = imageHere()
-            if (img && img.path !== "")
+            // An online image is downloaded, and stays where it is.
+            if (img && isWeb(img))
+                relocateImage(img, "", false)
+            else if (img && img.path !== "")
                 confirmMove(() => relocateImage(img, "", true))
             return
         }
         case "copyImageTo": {
             const img = imageHere()
-            if (!img || img.path === "")
+            if (!img || (img.path === "" && !isWeb(img)))
                 return
             imageTarget = img
-            Desktop.chooseFile("imageCopy", qsTr("Copy and update image source to…"), startFolder(), fileName(img.path))
+            Desktop.chooseFile("imageCopy", qsTr("Copy and update image source to…"), startFolder(),
+                img.path !== "" ? fileName(img.path) : webName(img.url))
             return
         }
         case "moveImageTo": {
             const img = imageHere()
+            if (img && isWeb(img))
+                return run("copyImageTo")
             if (!img || img.path === "")
                 return
             confirmMove(() => {
@@ -1059,6 +1066,17 @@ ApplicationWindow {
     }
     // The image Copy Image to… or Rename or Move Image to… asked about.
     property var imageTarget: null
+    // Whether an image is online: http, https or ftp.
+    function isWeb(img) {
+        return img.path === "" && /^(https?|ftp):/i.test(img.url)
+    }
+    // The file name an online image is offered under: its last path segment.
+    function webName(url) {
+        const path = url.replace(/[?#].*$/, "").replace(/\/+$/, "")
+        let name = path.indexOf("/", path.indexOf("//") + 2) < 0 ? "" : path.substring(path.lastIndexOf("/") + 1)
+        try { name = decodeURIComponent(name) } catch (e) {}
+        return name === "" ? "image" : name
+    }
     function relocateImage(img, target, move) {
         if (model.readonly)
             return
@@ -1738,6 +1756,7 @@ ApplicationWindow {
         property var lines: []
         property int at: 0
         property int idle: 0
+        property int port: 0
         property var keys: []
         interval: 10
         repeat: true
@@ -1793,6 +1812,7 @@ ApplicationWindow {
     }
 
     function step(line) {
+        line = line.replace(/@PORT@/g, script.port)
         const space = line.indexOf(" ")
         const op = space < 0 ? line : line.substring(0, space)
         const rest = space < 0 ? "" : line.substring(space + 1)
@@ -1947,6 +1967,10 @@ ApplicationWindow {
         }
         case "shot":
             Desktop.screenshot(rest)
+            return
+        // Serve the files in a folder over HTTP; @PORT@ stands for its port.
+        case "serve":
+            script.port = Desktop.serveFolder(rest)
             return
         // A JavaScript expression, logged with its value (for debugging).
         case "eval":

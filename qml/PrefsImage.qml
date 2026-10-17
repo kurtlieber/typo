@@ -103,6 +103,10 @@ Column {
             key: "imageCopyLocal"
         }
         PrefCheck {
+            text: qsTr("Apply above rules to online images")
+            key: "imageCopyWeb"
+        }
+        PrefCheck {
             text: qsTr("Allow upload images automatically based on YAML settings")
             key: "allowImageUpload"
         }

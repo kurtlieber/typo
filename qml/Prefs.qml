@@ -141,6 +141,7 @@ QtObject {
     property string imageFolder: ""
     property bool imageRelative: true
     property bool imageCopyLocal: true    // Apply above rules to local images
+    property bool imageCopyWeb: false     // Apply above rules to online images
     property bool imageWithDot: false     // Add ./ for relative path
     property bool imageEscape: false      // Auto escape image URL when insert
     // Image Uploader: "" none, "custom" (customImageUploader), "picgo-cli",
@@ -275,7 +276,7 @@ QtObject {
         "mathFences", "mathPhysics", "indentFirstLine", "preserveLineBreaks", "visibleBr", "exportLineBreaks",
         "smartOnRendering", "smartQuotes", "smartDashes", "dashesToEm", "quotePairs", "remapPunctuation",
         "useCustomFontSize", "customFontSize", "zoomByWheel", "exportConfig", "pandocPath",
-        "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",
+        "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageCopyWeb", "imageWithDot",
         "imageEscape", "imageUploader", "customImageUploader", "allowImageUpload", "noWarningUploadDisabled",
         "passUploadConfirm", "caretAlwaysCentred", "noFocusModeNotice", "noTypewriterNotice", "lastExport",
         "noExportOverwriteWarning", "noWarningForDeleteFile", "noWarningForMoveFile",

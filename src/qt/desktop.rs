@@ -265,6 +265,18 @@ pub mod qobject {
         #[cxx_name = "uploadTestImage"]
         fn upload_test_image(self: &Desktop) -> QString;
 
+        /// The online image at `url` downloaded to the temp folder, its
+        /// path, or "" when it couldn't be.
+        #[qinvokable]
+        #[cxx_name = "downloadImage"]
+        fn download_image(self: &Desktop, url: &QString) -> QString;
+
+        /// The tests' web server: the files in `folder` served over HTTP
+        /// on 127.0.0.1, at the port this returns.
+        #[qinvokable]
+        #[cxx_name = "serveFolder"]
+        fn serve_folder(self: &Desktop, folder: &QString) -> i32;
+
         /// Copy as Image: formula `tex` typeset in black, `em` pixels to the
         /// em, on the clipboard. False when it doesn't typeset.
         #[qinvokable]
@@ -623,6 +635,45 @@ impl qobject::Desktop {
             Ok(()) => QString::from(&*path.to_string_lossy()),
             Err(_) => QString::default(),
         }
+    }
+
+    fn download_image(&self, url: &QString) -> QString {
+        let dir = std::env::temp_dir().join(format!("typo-{}-downloads", std::process::id()));
+        let path = std::fs::create_dir_all(&dir).map_err(|e| e.to_string()).and_then(|_| crate::image::download(&url.to_string(), &dir, false));
+        path.map(|p| QString::from(&*p.to_string_lossy())).unwrap_or_default()
+    }
+
+    fn serve_folder(&self, folder: &QString) -> i32 {
+        use std::io::{Read, Write};
+        let folder = PathBuf::from(folder.to_string());
+        let Ok(server) = std::net::TcpListener::bind("127.0.0.1:0") else { return 0 };
+        let port = server.local_addr().map_or(0, |a| a.port());
+        std::thread::spawn(move || {
+            // A connection each, as Qt may open one it sends nothing on.
+            for mut stream in server.incoming().flatten() {
+                let folder = folder.clone();
+                std::thread::spawn(move || {
+                    let mut request = [0; 4096];
+                    let n = stream.read(&mut request).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&request[..n]);
+                    let path = request.split(' ').nth(1).unwrap_or("/").split('?').next().unwrap_or_default();
+                    let file = folder.join(path.trim_start_matches('/'));
+                    let body = (!path.contains("..")).then(|| std::fs::read(&file).ok()).flatten();
+                    let kind = match file.extension().and_then(|e| e.to_str()) {
+                        Some("svg") => "image/svg+xml",
+                        Some("png") => "image/png",
+                        _ => "application/octet-stream",
+                    };
+                    let (status, body) = match body {
+                        Some(body) => ("200 OK", body),
+                        None => ("404 Not Found", Vec::new()),
+                    };
+                    let head = format!("HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+                    let _ = stream.write_all(head.as_bytes()).and_then(|_| stream.write_all(&body));
+                });
+            }
+        });
+        port as i32
     }
 
     fn copy_math_image(&self, tex: &QString, display: bool, em: f64) -> bool {

@@ -22,18 +22,19 @@ Item {
 
     readonly property bool shown: image !== null
     readonly property bool loadedFile: shown && image.path !== "" && Desktop.exists(image.path)
+    readonly property bool copyable: loadedFile || (shown && image.path === "" && /^(https?|ftp):/i.test(image.url))
     readonly property string zoomTo: shown && image.ratio !== 1 ? Math.round(100 / image.ratio) + "%" : ""
     // [label, command, argument]: Typora's order.
     readonly property var rows: {
         if (!shown)
             return []
         const r = []
-        const folder = loadedFile ? image.folder : ""
+        const folder = copyable ? image.folder : ""
         if (folder !== "")
             r.push([qsTr("Copy to %1").arg(folder), "copyImageToFolder", ""])
-        if (loadedFile)
+        if (copyable)
             r.push([qsTr("Copy Image to…"), "copyImageTo", ""])
-        if (folder !== "")
+        if (loadedFile && folder !== "")
             r.push([qsTr("Move to %1").arg(folder), "moveImageToFolder", ""])
         if (loadedFile)
             r.push([qsTr("Rename or Move Image to…"), "moveImageTo", ""])
