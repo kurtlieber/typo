@@ -348,6 +348,58 @@ pub fn file_url(path: &Path) -> String {
     url
 }
 
+/// How many of a picture's pixels make a point, from its file's DPI as
+/// Typora reads it (a PNG's pHYs, a JPEG's JFIF density, over 72): 1 when it
+/// says none or the file can't be read.
+pub fn pixel_ratio(path: &Path) -> f64 {
+    use std::io::Read;
+    let mut data = Vec::new();
+    // ponytail: the header is read from the first MB; a pHYs after a bigger
+    // ICC profile is missed.
+    let read = std::fs::File::open(path).and_then(|f| f.take(1 << 20).read_to_end(&mut data));
+    if read.is_err() {
+        return 1.0;
+    }
+    let u16_at = |i: usize| data.get(i..i + 2).map(|b| u16::from_be_bytes([b[0], b[1]]) as usize);
+    let ratio = if data.starts_with(b"\x89PNG") {
+        let mut i = 8;
+        loop {
+            let Some(len) = data.get(i..i + 4).map(|b| u32::from_be_bytes(b.try_into().unwrap()) as usize) else { break 1.0 };
+            match data.get(i + 4..i + 8) {
+                Some(b"pHYs") => {
+                    let ppm = data.get(i + 8..i + 12).map_or(0, |b| u32::from_be_bytes(b.try_into().unwrap()));
+                    break (0.0254 * ppm as f64).round() / 72.0;
+                }
+                Some(b"IDAT") | None => break 1.0,
+                _ => i += 12 + len,
+            }
+        }
+    } else if data.starts_with(&[0xFF, 0xD8]) {
+        let mut i = 2;
+        loop {
+            if data.get(i) != Some(&0xFF) {
+                break 1.0;
+            }
+            match data.get(i + 1) {
+                Some(0xE0) => {
+                    break match data.get(i + 11) {
+                        Some(0 | 1) => u16_at(i + 12).map_or(1.0, |d| (d as f64 / 72.0).round()),
+                        _ => 1.0,
+                    };
+                }
+                Some(0xDA) | None => break 1.0,
+                _ => match u16_at(i + 2) {
+                    Some(len) => i += 2 + len,
+                    None => break 1.0,
+                },
+            }
+        }
+    } else {
+        1.0
+    };
+    if ratio > 0.0 { ratio } else { 1.0 }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,5 +530,35 @@ mod tests {
         assert_eq!(root("../static", Some(Path::new("/site/notes/doc.md"))), PathBuf::from("/site/static"));
         assert_eq!(root("/www", Some(Path::new("/site/notes/doc.md"))), PathBuf::from("/www"));
         assert_eq!(root_setting(&crate::md::parse("# a\n")), None);
+    }
+
+    #[test]
+    fn reads_a_pictures_pixel_ratio() {
+        let dir = std::env::temp_dir().join(format!("typo-ratio-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = |name: &str, bytes: &[u8]| {
+            let path = dir.join(name);
+            std::fs::write(&path, bytes).unwrap();
+            pixel_ratio(&path)
+        };
+        let chunk = |kind: &[u8], body: &[u8]| [&(body.len() as u32).to_be_bytes()[..], kind, body, &[0; 4]].concat();
+        let png = |ppm: u32| {
+            let phys = [&ppm.to_be_bytes()[..], &ppm.to_be_bytes(), &[1]].concat();
+            [&b"\x89PNG\r\n\x1a\n"[..], &chunk(b"IHDR", &[0; 13]), &chunk(b"pHYs", &phys), &chunk(b"IDAT", &[])].concat()
+        };
+        assert_eq!(file("a.png", &png(5669)), 2.0);
+        assert_eq!(file("b.png", &png(3780)), 96.0 / 72.0);
+        assert_eq!(file("c.png", &png(0)), 1.0);
+        let jpeg = |units: u8, density: u16| {
+            let d = density.to_be_bytes();
+            [&[0xFF, 0xD8, 0xFF, 0xE0, 0, 16][..], b"JFIF\0", &[1, 1, units, d[0], d[1], d[0], d[1], 0, 0]].concat()
+        };
+        assert_eq!(file("a.jpg", &jpeg(1, 144)), 2.0);
+        assert_eq!(file("b.jpg", &jpeg(1, 72)), 1.0);
+        assert_eq!(file("c.jpg", &jpeg(2, 57)), 1.0);
+        assert_eq!(file("d.jpg", &[0xFF, 0xD8, 0xFF, 0xE1, 0, 2, 0xFF, 0xE0, 0, 16, b'J', b'F', b'I', b'F', 0, 1, 1, 1, 1, 32, 1, 32]), 4.0);
+        assert_eq!(file("e.svg", b"<svg/>"), 1.0);
+        assert_eq!(pixel_ratio(&dir.join("none.png")), 1.0);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

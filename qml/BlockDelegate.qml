@@ -457,6 +457,10 @@ Item {
             // GIFs and WebPs play, as in a browser.
             readonly property bool animated: /\.(gif|webp)([?#].*)?$/i.test(loadUrl)
             readonly property Image picture: animated ? moving : still
+            function loaded(status) {
+                if (status === Image.Ready && edit.activeFocus && block.host)
+                    block.host.imageLoaded(edit)
+            }
             readonly property bool failed: image !== "" && (missing || picture.status === Image.Error)
             readonly property bool pictured: image !== "" && picture.status === Image.Ready
             readonly property bool expanded: edit.activeFocus || block.found
@@ -655,6 +659,7 @@ Item {
                     scale: block.scale
                     revision: textItem.placeRevision
                     opacity: block.pictureOpacity
+                    onPictureLoaded: if (edit.activeFocus && block.host) block.host.imageLoaded(edit)
                 }
             }
             Glyph {
@@ -692,6 +697,7 @@ Item {
                 opacity: block.pictureOpacity
                 smooth: true
                 mipmap: true
+                onStatusChanged: textItem.loaded(status)
             }
             AnimatedImage {
                 id: moving
@@ -703,6 +709,7 @@ Item {
                 x: (textItem.width - width) / 2
                 opacity: block.pictureOpacity
                 smooth: true
+                onStatusChanged: textItem.loaded(status)
             }
             Rectangle {
                 visible: textItem.ruled

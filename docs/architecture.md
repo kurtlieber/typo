@@ -323,8 +323,10 @@ WebPs play through `AnimatedImage`.
 
 The image commands (Format ▸ Image and the context menu's image group)
 work on the image at the caret: `Editor.imageAt` describes it (source,
-URL, file, syntax, and the storage folder's name when the image isn't in
-it). The edits are text edits on its block: Zoom Image rewrites the style
+URL, file, syntax, the storage folder's name when the image isn't in it,
+and its file's pixels per point, read from a PNG's pHYs or a JPEG's JFIF
+density as Typora does, which offers Zoom Image to N% for its own size).
+The edits are text edits on its block: Zoom Image rewrites the style
 (a markdown image becomes a tag first), Switch Image Syntax rewrites the
 node, and the file commands copy or move the file and repoint the image
 (`relocateImage`, `relocateAllImages`), each one undo step. Deleting an
@@ -332,6 +334,11 @@ image's file sends it to the trash (`Desktop.moveToTrash`). When Insert
 Local Image writes the front matter's `typora-copy-images-to` and
 `typora-root-url` (`edit::set_property`). Reload All Images gives every
 picture's URL a new fragment (`Ui.reloaded`), which misses Qt's cache.
+When a picture loads in the block with the caret (`EditorView.imageLoaded`)
+and the caret is in its source, Main offers its commands in
+`qml/ImagePopup.qml`, under the caret, unless it offered for that URL
+last or the picture is one a copy or move just pointed at; moving the
+caret out of the image closes it.
 
 ## Inline objects
 

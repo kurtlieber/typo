@@ -566,11 +566,11 @@ pub mod qobject {
         fn files_markup(self: &Editor, paths: &QString, after_text: bool, create: bool) -> QString;
 
         /// The image the caret at (`row`, `pos`) is in, as JSON `{src, url,
-        /// path, syntax, folder}`: its source as written, the URL it loads,
-        /// its file when it is a local one, how it is written ("markdown",
-        /// "html" or "ref"), and the name of the folder images are copied
-        /// to when it isn't already there; empty when the caret is in no
-        /// image.
+        /// path, syntax, folder, ratio}`: its source as written, the URL it
+        /// loads, its file when it is a local one, how it is written
+        /// ("markdown", "html" or "ref"), the name of the folder images are
+        /// copied to when it isn't already there, and its file's pixels per
+        /// point (1 when it says none); empty when the caret is in no image.
         #[qinvokable]
         #[cxx_name = "imageAt"]
         fn image_at(self: &Editor, row: i32, pos: i32) -> QString;
@@ -2281,9 +2281,10 @@ impl qobject::Editor {
             .filter(|f| path.as_deref().and_then(Path::parent) != Some(f.as_path()))
             .and_then(|f| f.file_name().map(|n| n.to_string_lossy().into_owned()))
             .unwrap_or_default();
+        let ratio = path.as_deref().map_or(1.0, image::pixel_ratio);
         let path = path.map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
         QString::from(&format!(
-            "{{\"src\":{},\"url\":{},\"path\":{},\"syntax\":\"{syntax}\",\"folder\":{}}}",
+            "{{\"src\":{},\"url\":{},\"path\":{},\"syntax\":\"{syntax}\",\"folder\":{},\"ratio\":{ratio}}}",
             json_str(&src),
             json_str(&url),
             json_str(&path),

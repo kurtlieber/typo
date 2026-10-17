@@ -22,6 +22,8 @@ Flickable {
     property var span: null
     // The caret moved in a block, so the selection may have changed.
     signal caretMoved()
+    // A picture finished loading in `edit`, the block with the caret.
+    signal imageLoaded(Item edit)
     // Find's matches for the highlighters: by row, or "row:r:c" for a
     // table cell, each "[[start, end], …]" in UTF-16.
     property var findHits: ({})

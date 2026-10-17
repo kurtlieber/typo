@@ -19,6 +19,7 @@ fn main() {
         "qml/InlineObject.qml",
         "qml/FootnoteTip.qml",
         "qml/EmojiSuggest.qml",
+        "qml/ImagePopup.qml",
         "qml/TableBlock.qml",
         "qml/Caret.qml",
         "qml/Footer.qml",

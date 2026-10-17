@@ -1,0 +1,47 @@
+# What Typora offers once an image has loaded with the caret in its source:
+# a HiDPI picture's own size (a 144-DPI PNG at 50%, in the context menu
+# too), copying or moving its file, and Zoom Image ▸. The copy's picture
+# isn't offered for again, nor the last one offered for; leaving the image
+# closes the list.
+write @DIR@/b.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
+write @DIR@/c.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
+write @DIR@/doc.md start\n\nend\n
+cmd openPath @DIR@/doc.md
+wait 100
+caret 0 5
+type \n
+dropFiles 1 0 @REPO@/tests/e2e/hidpi.png
+wait 1000
+check imagePopup.shown && imagePopup.rows.map(r => r[0]).join("|") === "Copy Image to…|Rename or Move Image to…|Zoom Image to 50%|Zoom Image"
+shot @DIR@/hidpi.png
+clickItem imagePopup.row(2)
+wait 100
+check !imagePopup.shown && model.markdown().indexOf('style="zoom:50%;"') > 0 && imageHere() !== null
+choose @DIR@/dot.png
+cmd copyImageTo
+wait 1000
+check Desktop.exists("@DIR@/dot.png") && !imagePopup.shown
+eval contextMenu.show(100, 100)
+check (() => { for (let i = 0; i < contextMenu.count; i++) if (contextMenu.itemAt(i).text === "Zoom Image to 50%") return contextMenu.itemAt(i).visible; return false })()
+eval contextMenu.close()
+dropFiles 2 0 @DIR@/b.svg
+wait 1000
+check imagePopup.shown && imagePopup.zoomTo === "" && imagePopup.rows.length === 3
+key End
+check !imagePopup.shown
+caret 2 1
+wait 500
+check !imagePopup.shown
+dropFiles 2 0 @DIR@/c.svg
+wait 1000
+check imagePopup.shown
+clickItem imagePopup.row(2)
+wait 100
+check imagePopup.zoomMenu.opened
+clickItem imagePopup.zoomMenu.itemAt(6)
+wait 100
+check !imagePopup.shown && !imagePopup.zoomMenu.opened
+dropFiles 2 0 @DIR@/c.svg
+wait 1000
+check !imagePopup.shown
+dump @OUT@

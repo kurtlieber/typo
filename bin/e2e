@@ -25,7 +25,7 @@ for name in "${names[@]}"; do
     dir=$work/$name
     mkdir -p "$dir/data"
     out=$dir/$name.md
-    sed "s|@OUT@|$out|g; s|@SHOT@|$dir/$name.png|g; s|@DIR@|$dir|g" "tests/e2e/$name.script" > "$dir/$name.script"
+    sed "s|@OUT@|$out|g; s|@SHOT@|$dir/$name.png|g; s|@DIR@|$dir|g; s|@REPO@|$PWD|g" "tests/e2e/$name.script" > "$dir/$name.script"
     # perl's alarm stands in for timeout(1), which macOS doesn't have.
     XDG_CONFIG_HOME=$dir/config XDG_DATA_HOME=$dir/data QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
         perl -e 'alarm 60; exec @ARGV' target/debug/typo --size=1200x800 --cursor=0:0 --script="$dir/$name.script" \

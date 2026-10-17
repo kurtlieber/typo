@@ -37,7 +37,8 @@ Script steps, one per line:
 | `shot PATH` | saves a screenshot |
 | `# …` | a comment |
 
-`@OUT@` is the test's output file and `@DIR@` the folder it is in. A
+`@OUT@` is the test's output file, `@DIR@` the folder it is in and
+`@REPO@` the checkout (for fixtures such as `hidpi.png`, a 144-DPI PNG). A
 pasted picture's time-stamped name reads `image-STAMP` in the output.
 
 Each test runs in a folder of its own, with throwaway settings and data

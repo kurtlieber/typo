@@ -221,6 +221,12 @@ TMenu {
         visible: menu.loadedFile
         onTriggered: menu.run("moveImageTo")
     }
+    // A HiDPI picture's own size, as Typora offers it.
+    TMenuItem {
+        text: qsTr("Zoom Image to %1").arg(menu.hasImage ? Math.round(100 / menu.image.ratio) + "%" : "")
+        visible: menu.hasImage && menu.image.ratio !== 1
+        onTriggered: menu.run("zoomImage", Math.round(100 / menu.image.ratio) + "%")
+    }
     TMenu {
         id: zoomMenu
         title: qsTr("Zoom Image")

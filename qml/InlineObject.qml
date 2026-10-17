@@ -166,6 +166,8 @@ Item {
         y: obj.originY + obj.anchor.y - baselineOffset
     }
 
+    // An image (not a formula) finished loading.
+    signal pictureLoaded()
     // GIFs and WebPs play, as in a browser; other pictures stand still.
     readonly property bool animated: !math && !emoji && /\.(gif|webp)([?#].*)?$/i.test(loadUrl)
     readonly property Image picture: animated ? moving : still
@@ -182,6 +184,7 @@ Item {
         height: obj.shownHeight
         smooth: true
         mipmap: !obj.math
+        onStatusChanged: if (status === Image.Ready && obj.kind === "image") obj.pictureLoaded()
     }
     AnimatedImage {
         id: moving
@@ -192,6 +195,7 @@ Item {
         width: obj.shownWidth
         height: obj.shownHeight
         smooth: true
+        onStatusChanged: if (status === Image.Ready) obj.pictureLoaded()
     }
 
     // A formula being edited: its preview, or what is wrong with it, in a

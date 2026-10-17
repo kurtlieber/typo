@@ -291,7 +291,18 @@ ApplicationWindow {
                 onMenuRequested: (x, y) => contextMenu.show(x, y)
                 onFilesPasted: paths => win.insertFiles(paths)
                 onFilesDropped: paths => win.dropFiles(paths)
+                onImageLoaded: edit => imagePopup.offer(edit, win.imageHere())
+                onCaretMoved: {
+                    const img = imagePopup.shown ? win.imageHere() : null
+                    if (imagePopup.shown && (!img || img.url !== imagePopup.image.url))
+                        imagePopup.close()
+                }
                 WheelZoom {}
+                ImagePopup {
+                    id: imagePopup
+                    view: view
+                    onChosen: (cmd, arg) => win.run(cmd, arg)
+                }
             }
             SourceView {
                 id: sourceView
@@ -794,10 +805,18 @@ ApplicationWindow {
         const error = model.relocateImage(img.row, img.pos, target, move)
         if (error !== "")
             toast.show(qsTr("Failed to Copy Image to Target Folder.") + " " + error)
+        imageMoved()
+    }
+    // The picture a copy or move points at isn't offered for, as in Typora.
+    function imageMoved() {
+        const img = imageHere()
+        if (img)
+            imagePopup.lastUrl = img.url
     }
     function relocateAllImages(folder, move) {
         const s = view.selection()
         const result = JSON.parse(model.relocateAllImages(folder, move, s.zRow, s.zPos))
+        imageMoved()
         if (result.error !== "")
             toast.show(qsTr("Failed to Copy Image to Target Folder.") + " " + result.error)
         else if (result.count > 0)
