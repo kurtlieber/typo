@@ -11,6 +11,7 @@ mod image;
 mod math;
 mod md;
 mod palette;
+mod physics;
 mod platform;
 mod source;
 mod qt;

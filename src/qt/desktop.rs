@@ -241,6 +241,18 @@ pub mod qobject {
         #[cxx_name = "mathRows"]
         fn math_rows(self: &Desktop, tex: &QString) -> QString;
 
+        /// Enable physics package: formulas everywhere, export included,
+        /// read its commands.
+        #[qinvokable]
+        #[cxx_name = "setMathPhysics"]
+        fn set_math_physics(self: &Desktop, on: bool);
+
+        /// `tex` with the physics package's commands written out, so that
+        /// a formula's image changes with the preference.
+        #[qinvokable]
+        #[cxx_name = "mathPhysics"]
+        fn math_physics(self: &Desktop, tex: &QString) -> QString;
+
         /// Copy as Image: formula `tex` typeset in black, `em` pixels to the
         /// em, on the clipboard. False when it doesn't typeset.
         #[qinvokable]
@@ -574,6 +586,14 @@ impl qobject::Desktop {
 
     fn math_rows(&self, tex: &QString) -> QString {
         QString::from(&serde_json::Value::from(super::math::rows(&tex.to_string())).to_string())
+    }
+
+    fn set_math_physics(&self, on: bool) {
+        crate::math::set_physics(on);
+    }
+
+    fn math_physics(&self, tex: &QString) -> QString {
+        QString::from(&crate::physics::expand(&tex.to_string()))
     }
 
     fn copy_math_image(&self, tex: &QString, display: bool, em: f64) -> bool {

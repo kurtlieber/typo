@@ -230,6 +230,11 @@ Column {
             text: qsTr("Code Block Math (```math code block)")
             key: "mathFences"
         }
+        PrefCheck {
+            text: qsTr("Enable physics package")
+            key: "mathPhysics"
+            hint: qsTr("Physics package will redefine some latex macros, such as \\div, \\Re, etc.")
+        }
         Item { width: 1; height: 8 }
         PrefChoice {
             label: qsTr("Auto Numbering Math Equations")

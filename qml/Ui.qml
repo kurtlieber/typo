@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import QtCore
+import Typo
 
 // App-wide view state and metrics. Everything the user can toggle from the
 // View menu lives here and persists in ~/.config/typo/typo.conf.
@@ -175,8 +176,11 @@ QtObject {
     // `\eqref` and `\ref` (EditorView keeps it current).
     property var mathLabels: ({})
     // TeX to typeset: references written out as what they refer to,
-    // `???` for a label no formula has, as MathJax shows them.
+    // `???` for a label no formula has, as MathJax shows them; with the
+    // physics package, its commands written out too.
     function mathTex(tex) {
+        if (Prefs.mathPhysics)
+            tex = Desktop.mathPhysics(tex)
         if (tex.indexOf("ref") < 0)
             return tex
         const labels = mathLabels

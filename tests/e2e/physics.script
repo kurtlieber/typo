@@ -1,0 +1,19 @@
+# Enable physics package: its commands typeset only with it on, in the
+# editor and in export, and \div becomes the divergence.
+write @DIR@/doc.md $$\n\abs{\frac{a}{b}} = \div\vb{E}\n$$\n
+cmd openPath @DIR@/doc.md
+wait 500
+check view.itemAt(0).body.formula.error !== ""
+eval Prefs.mathPhysics = true
+wait 500
+check view.itemAt(0).body.formula.tex === "\\left| \\frac{a}{b} \\right| = \\nabla\\cdot \\mathbf{E}"
+check view.itemAt(0).body.formula.error === "" && view.itemAt(0).body.formula.good !== ""
+shot @DIR@/physics.png
+choose @DIR@/page
+cmd export html
+wait 1500
+check Desktop.readFile("@DIR@/page.html").indexOf("<svg") > 0
+eval Prefs.mathPhysics = false
+wait 500
+check view.itemAt(0).body.formula.error !== ""
+dump @OUT@

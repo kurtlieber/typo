@@ -189,7 +189,11 @@ Math"; turning the first one over parses the document again as one undo
 step). mitex knows fewer AMS environments than MathJax: `known_environments`
 writes `flalign`, `alignat`, `eqnarray` and the starred `gather` and
 `multline` as the nearest `align` or `gather`. A formula wider than the
-page scrolls sideways rather than shrinking.
+page scrolls sideways rather than shrinking. "Enable physics package"
+(off by default, as it redefines `\div`, `\Re` and `\Im`) has
+`src/physics.rs` write the package's commands out as the plain LaTeX they
+draw: `math::convert` does it for export and copies, and `Ui.mathTex` for
+the editor, so a formula's image URL changes with the preference.
 
 Equation numbers follow MathJax under Typora's "Auto Numbering for Math
 Equations": `src/eqnum.rs` reads every display formula in document order

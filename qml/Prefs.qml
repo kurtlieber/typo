@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import QtCore
+import Typo
 
 // User preferences, with Typora's defaults. The Preferences window edits
 // these; they persist in ~/.config/typo/typo.conf under [prefs].
@@ -87,6 +88,9 @@ QtObject {
     property bool latexDelimiters: true
     // ```math code blocks show as display math
     property bool mathFences: true
+    // Formulas read the physics package's commands (src/physics.rs).
+    property bool mathPhysics: false
+    onMathPhysicsChanged: Desktop.setMathPhysics(mathPhysics)
     property bool indentFirstLine: false
     // When writing, Typora's defaults: soft line breaks show, and so
     // do `<br>` tags.
@@ -257,7 +261,7 @@ QtObject {
         "subscript", "superscript", "highlight", "diagrams", "strictMode", "headingStyle", "bulletMarker",
         "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "shiftTabAutoIndent",
         "codeIndentSize", "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",
-        "mathFences", "indentFirstLine", "preserveLineBreaks", "visibleBr", "exportLineBreaks",
+        "mathFences", "mathPhysics", "indentFirstLine", "preserveLineBreaks", "visibleBr", "exportLineBreaks",
         "smartOnRendering", "smartQuotes", "smartDashes", "dashesToEm", "quotePairs", "remapPunctuation",
         "useCustomFontSize", "customFontSize", "zoomByWheel", "exportConfig", "pandocPath",
         "imageInsertAction", "imageFolder", "imageRelative", "imageCopyLocal", "imageWithDot",

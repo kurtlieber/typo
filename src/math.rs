@@ -5,6 +5,7 @@
 
 use std::borrow::Cow;
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use regex::{Captures, Regex};
 use typst::diag::{FileError, FileResult};
@@ -113,12 +114,20 @@ pub fn svg(tex: &str, display: bool, color: &str) -> Result<String, String> {
     Ok(format!("{tag} width=\"{}\" height=\"{}\"{style}{}", em(size.x), em(size.y), &svg[close..]))
 }
 
+/// Whether formulas use the physics package, as Preferences say.
+static PHYSICS: AtomicBool = AtomicBool::new(false);
+
+pub fn set_physics(on: bool) {
+    PHYSICS.store(on, Ordering::Relaxed);
+}
+
 static SIZE_ATTR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\s(width|height)="[^"]*""#).unwrap());
 
 /// `tex` as the Typst math mitex makes of it, which calls the functions in
 /// `SPECS`.
 pub fn convert(tex: &str) -> Result<String, String> {
     let tex = if tex.trim().is_empty() { EMPTY } else { tex };
+    let tex = &if PHYSICS.load(Ordering::Relaxed) { crate::physics::expand(tex) } else { tex.to_string() };
     // mitex says "error: unknown command: \foo"; the block says what's wrong.
     mitex::convert_math(&known_environments(tex, false), None).map_err(|e| e.trim_start_matches("error: ").to_string())
 }
