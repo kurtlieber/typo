@@ -39,6 +39,8 @@ math-core = "0.8.2"
 # Diagrams: Mermaid without a browser. No ELK (EPL-2.0): every family,
 # SVG with the Cytoscape layouts, and PNG for drawing it.
 merman = { version = "0.8.0", default-features = false, features = ["all-diagrams", "svg", "layout-cytoscape", "png"] }
+# Drawing js-sequence-diagrams' SVG: merman's own rasteriser, as it has it.
+resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "raster-images"] }
 # Mermaid's configuration is JSON.
 serde_json = "1"
 # Front matter, which export settings and ${…} variables read.

@@ -4327,6 +4327,7 @@ dependencies = [
  "pulldown-cmark",
  "pulldown-cmark-escape",
  "regex",
+ "resvg",
  "scraper",
  "serde_json",
  "syntect",

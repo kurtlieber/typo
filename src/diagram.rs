@@ -1,12 +1,16 @@
 //! Diagrams: ```mermaid, ```flow and ```sequence fences, drawn as Typora
 //! draws them but without a browser. merman parses, lays out and draws
-//! Mermaid in process; Typora's other two kinds, flowchart.js (`flow`) and
-//! js-sequence-diagrams (`sequence`), are translated to Mermaid first.
-//! Colours come from the Omarchy palette through Mermaid's `base` theme,
-//! as Typora feeds its own theme's colours to Mermaid.
+//! Mermaid in process, and flowchart.js (`flow`) translated to Mermaid
+//! first; js-sequence-diagrams (`sequence`) is laid out and drawn here, as
+//! its simple theme draws it. Colours come from the Omarchy palette through
+//! Mermaid's `base` theme, as Typora feeds its own theme's colours to
+//! Mermaid.
+
+mod sequence;
 
 use std::collections::HashMap;
 use std::ops::Range;
+use std::sync::{Arc, LazyLock};
 
 use merman::svg::export::RasterOptions;
 use merman::svg::{RootBackgroundPostprocessor, SvgPipeline};
@@ -99,6 +103,9 @@ impl Colors {
 /// `[Flowchart]` or `[Sequence]`, with the bytes of a Mermaid fence's code
 /// it is about.
 pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64, width: f64) -> Result<Vec<u8>, (String, Option<Range<usize>>)> {
+    if let Some(svg) = sequence_svg(lang, src, colors) {
+        return svg.and_then(|svg| png(&svg, scale)).map_err(|e| (e, None));
+    }
     let (mermaid, renderer, error) = prepare(lang, src, colors, width).map_err(|e| (e, None))?;
     let output = renderer
         .render(RenderRequest::png(
@@ -107,8 +114,8 @@ pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64, width: f64) ->
             PngRequest { svg: svg_request(), options: RasterOptions::default().with_scale(scale.clamp(0.25, 8.0) as f32) },
         ))
         .map_err(|e| {
-            // flowchart.js and sequence code is translated first, so only
-            // Mermaid's own code has the spans.
+            // flowchart.js code is translated first, so only Mermaid's own
+            // code has the spans.
             let span = match &e {
                 RenderError::Parse(d) if mermaid == src => d.terminal_diagnostic_details().span.map(|s| widen(src, s.start..s.end)),
                 _ => None,
@@ -140,6 +147,9 @@ fn widen(src: &str, span: Range<usize>) -> Range<usize> {
 
 /// Draw the `lang` diagram `src` as SVG markup, for export.
 pub fn svg(lang: &str, src: &str, colors: &Colors) -> Result<String, String> {
+    if let Some(svg) = sequence_svg(lang, src, colors) {
+        return svg;
+    }
     let (mermaid, renderer, error) = prepare(lang, src, colors, 0.0)?;
     let output =
         renderer.render(RenderRequest::svg(&mermaid, OperationControl::new(), svg_request())).map_err(|e| error(e.to_string()))?;
@@ -147,6 +157,28 @@ pub fn svg(lang: &str, src: &str, colors: &Colors) -> Result<String, String> {
         RenderOutput::Svg(Some(svg)) => Ok(svg.svg().to_string()),
         _ => Err(error("No diagram type detected".into())),
     }
+}
+
+/// A ```sequence fence's SVG, or its error; `None` for any other fence.
+fn sequence_svg(lang: &str, src: &str, colors: &Colors) -> Option<Result<String, String>> {
+    let sequence = lang.trim().eq_ignore_ascii_case("sequence");
+    sequence.then(|| sequence::parse(src).map(|d| sequence::svg(&d, colors)).map_err(|e| format!("ERROR: [Sequence] {e}")))
+}
+
+/// SVG as a PNG, `scale` pixels to the point, in the system's fonts.
+fn png(svg: &str, scale: f64) -> Result<Vec<u8>, String> {
+    use resvg::{tiny_skia, usvg};
+    static FONTS: LazyLock<Arc<usvg::fontdb::Database>> = LazyLock::new(|| {
+        let mut fonts = usvg::fontdb::Database::new();
+        fonts.load_system_fonts();
+        Arc::new(fonts)
+    });
+    let tree = usvg::Tree::from_str(svg, &usvg::Options { fontdb: FONTS.clone(), ..Default::default() }).map_err(|e| e.to_string())?;
+    let scale = scale.clamp(0.25, 8.0) as f32;
+    let size = tree.size().scale_by(scale).ok_or("No diagram to draw")?.to_int_size();
+    let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).ok_or("No diagram to draw")?;
+    resvg::render(&tree, tiny_skia::Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+    pixmap.encode_png().map_err(|e| e.to_string())
 }
 
 type Error = Box<dyn Fn(String) -> String>;
@@ -157,7 +189,6 @@ fn prepare(lang: &str, src: &str, colors: &Colors, width: f64) -> Result<(String
     let lang = lang.trim().to_lowercase();
     let (name, mermaid) = match lang.as_str() {
         "flow" => ("Flowchart", flow_to_mermaid(src)),
-        "sequence" => ("Sequence", sequence_to_mermaid(src)),
         _ => ("Mermaid", Ok(src.to_string())),
     };
     let error: Error = Box::new(move |message: String| format!("ERROR: [{name}] {message}"));
@@ -188,8 +219,8 @@ fn svg_request() -> SvgRequest {
 }
 
 /// Mermaid text: `#` starts an entity and `;` ends a statement, so both
-/// are written as entities; flowchart.js and js-sequence-diagrams take a
-/// literal `\n` for a line break.
+/// are written as entities; flowchart.js takes a literal `\n` for a line
+/// break.
 fn text(s: &str) -> String {
     let mut out = String::new();
     for c in s.trim().replace("\\n", "\n").chars() {
@@ -289,84 +320,6 @@ pub fn flow_to_mermaid(src: &str) -> Result<String, String> {
     Ok(format!("flowchart TD\n{}\n{}\n", nodes.join("\n"), edges.join("\n")))
 }
 
-/// js-sequence-diagrams to Mermaid. Lines are `Title: …`, `participant A`
-/// or `participant "Long name" as A`, `Note left of|right of|over A[,B]: …`
-/// and messages `A->B: …`, where `-` is a solid line, `--` a dashed one, `>`
-/// a filled arrow and `>>` an open one. Participants may have spaces in
-/// their names, so each gets an id.
-pub fn sequence_to_mermaid(src: &str) -> Result<String, String> {
-    let src = if src.trim().is_empty() { "title: Empty Diagram" } else { src };
-    let mut out = vec!["sequenceDiagram".to_string()];
-    let mut actors: HashMap<String, String> = HashMap::new();
-    let mut order: Vec<(String, String)> = Vec::new();
-    let mut body = Vec::new();
-    let mut actor = |name: &str, label: Option<&str>| -> String {
-        let name = name.trim().to_string();
-        if let Some(id) = actors.get(&name) {
-            return id.clone();
-        }
-        let id = format!("a{}", actors.len());
-        actors.insert(name.clone(), id.clone());
-        order.push((id.clone(), label.unwrap_or(&name).to_string()));
-        id
-    };
-    for (i, line) in src.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let parse_error = |what: &str| format!("Parse error on line {}:\n{line}\n{what}", i + 1);
-        let lower = line.to_lowercase();
-        if lower.starts_with("title") && line[5..].trim_start().starts_with(':') {
-            let title = line[5..].trim_start()[1..].trim();
-            out.push(format!("    title {}", text(title)));
-        } else if lower.starts_with("participant ") {
-            let rest = line["participant ".len()..].trim();
-            match rest.strip_prefix('"').and_then(|r| r.split_once('"')) {
-                Some((label, alias)) => {
-                    let alias = alias.trim().strip_prefix("as").map(str::trim).filter(|a| !a.is_empty());
-                    actor(alias.unwrap_or(label), Some(label));
-                }
-                None => {
-                    actor(rest, None);
-                }
-            }
-        } else if lower.starts_with("note ") {
-            let (head, message) = line.split_once(':').ok_or_else(|| parse_error("Expecting ':'"))?;
-            let head = head[5..].trim();
-            let lower = head.to_lowercase();
-            let (place, who) = ["left of", "right of", "over"]
-                .iter()
-                .find_map(|p| lower.starts_with(p).then(|| (*p, &head[p.len()..])))
-                .ok_or_else(|| parse_error("Expecting 'left of', 'right of' or 'over'"))?;
-            let who: Vec<String> = who.split(',').map(|a| actor(a, None)).collect();
-            body.push(format!("    Note {place} {}: {}", who.join(","), text(message)));
-        } else if let Some(arrow) = line.find('-').filter(|&a| line[a..].trim_start_matches('-').starts_with('>')) {
-            let (from, rest) = line.split_at(arrow);
-            let dashes = rest.len() - rest.trim_start_matches('-').len();
-            let rest = &rest[dashes..];
-            let heads = rest.len() - rest.trim_start_matches('>').len();
-            let (to, message) = rest[heads..].split_once(':').ok_or_else(|| parse_error("Expecting ':'"))?;
-            if from.trim().is_empty() || to.trim().is_empty() {
-                return Err(parse_error("Expecting a participant on each side of the arrow"));
-            }
-            let mermaid_arrow = match (dashes > 1, heads > 1) {
-                (false, false) => "->>",
-                (true, false) => "-->>",
-                (false, true) => "-)",
-                (true, true) => "--)",
-            };
-            let (a, b) = (actor(from, None), actor(to, None));
-            body.push(format!("    {a}{mermaid_arrow}{b}: {}", text(message)));
-        } else {
-            return Err(parse_error("Expecting a message (A->B: text), a note or a participant"));
-        }
-    }
-    out.extend(order.iter().map(|(id, label)| format!("    participant {id} as {}", text(label))));
-    out.extend(body);
-    Ok(out.join("\n") + "\n")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,26 +346,6 @@ mod tests {
         assert!(flow_to_mermaid("").unwrap().contains("Empty Diagram"));
         // A bare start or end is named, as flowchart.js names them.
         assert!(flow_to_mermaid("e=>end\no=>operation").unwrap().contains("n0([\"End\"])\n    n1[\"#32;\"]"));
-    }
-
-    #[test]
-    fn sequence_translates() {
-        let src = "Title: Hi there\n\
-                   participant \"Long name\" as L\n\
-                   Alice Smith->Bob: Hello\\nworld\n\
-                   Bob-->Alice Smith: dashed\n\
-                   Bob->>L: open\n\
-                   L-->>Bob: dashed open\n\
-                   Note right of Bob: thinks\n\
-                   Note over Alice Smith,Bob: both\n";
-        assert_eq!(
-            sequence_to_mermaid(src).unwrap(),
-            "sequenceDiagram\n    title Hi there\n    participant a0 as Long name\n    participant a1 as Alice Smith\n    participant a2 as Bob\n\
-             \x20   a1->>a2: Hello<br/>world\n    a2-->>a1: dashed\n    a2-)a0: open\n    a0--)a2: dashed open\n\
-             \x20   Note right of a2: thinks\n    Note over a1,a2: both\n"
-        );
-        assert!(sequence_to_mermaid("A->B no colon").unwrap_err().starts_with("Parse error on line 1"));
-        assert!(sequence_to_mermaid("").unwrap().contains("title Empty Diagram"));
     }
 
     #[test]
