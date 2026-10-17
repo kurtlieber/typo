@@ -41,6 +41,8 @@ math-core = "0.8.2"
 merman = { version = "0.8.0", default-features = false, features = ["all-diagrams", "svg", "layout-cytoscape", "png"] }
 # Drawing js-sequence-diagrams' SVG: merman's own rasteriser, as it has it.
 resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "raster-images"] }
+# Measuring flowchart.js text as the browser shapes it.
+rustybuzz = "0.20"
 # Mermaid's configuration is JSON.
 serde_json = "1"
 # Front matter, which export settings and ${…} variables read.

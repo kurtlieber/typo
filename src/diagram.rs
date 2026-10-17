@@ -1,14 +1,14 @@
 //! Diagrams: ```mermaid, ```flow and ```sequence fences, drawn as Typora
 //! draws them but without a browser. merman parses, lays out and draws
-//! Mermaid in process, and flowchart.js (`flow`) translated to Mermaid
-//! first; js-sequence-diagrams (`sequence`) is laid out and drawn here, as
-//! its simple theme draws it. Colours come from the Omarchy palette through
-//! Mermaid's `base` theme, as Typora feeds its own theme's colours to
-//! Mermaid.
+//! Mermaid in process; flowchart.js (`flow`) and js-sequence-diagrams'
+//! simple theme (`sequence`) are laid out and drawn here, as they draw
+//! them. Colours come from the Omarchy palette, through Mermaid's `base`
+//! theme for Mermaid, as Typora feeds its own theme's colours to Mermaid.
 
+mod flow;
 mod sequence;
 
-use std::collections::HashMap;
+use std::fmt;
 use std::ops::Range;
 use std::sync::{Arc, LazyLock};
 
@@ -103,10 +103,10 @@ impl Colors {
 /// `[Flowchart]` or `[Sequence]`, with the bytes of a Mermaid fence's code
 /// it is about.
 pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64, width: f64) -> Result<Vec<u8>, (String, Option<Range<usize>>)> {
-    if let Some(svg) = sequence_svg(lang, src, colors) {
+    if let Some(svg) = own_svg(lang, src, colors) {
         return svg.and_then(|svg| png(&svg, scale)).map_err(|e| (e, None));
     }
-    let (mermaid, renderer, error) = prepare(lang, src, colors, width).map_err(|e| (e, None))?;
+    let (mermaid, renderer) = prepare(src, colors, width);
     let output = renderer
         .render(RenderRequest::png(
             &mermaid,
@@ -114,17 +114,15 @@ pub fn render(lang: &str, src: &str, colors: &Colors, scale: f64, width: f64) ->
             PngRequest { svg: svg_request(), options: RasterOptions::default().with_scale(scale.clamp(0.25, 8.0) as f32) },
         ))
         .map_err(|e| {
-            // flowchart.js code is translated first, so only Mermaid's own
-            // code has the spans.
             let span = match &e {
-                RenderError::Parse(d) if mermaid == src => d.terminal_diagnostic_details().span.map(|s| widen(src, s.start..s.end)),
+                RenderError::Parse(d) => d.terminal_diagnostic_details().span.map(|s| widen(src, s.start..s.end)),
                 _ => None,
             };
-            (error(e.to_string()), span)
+            (error(e), span)
         })?;
     match output {
         RenderOutput::Png(Some(png)) => Ok(png.bytes),
-        _ => Err((error("No diagram type detected".into()), None)),
+        _ => Err((error("No diagram type detected"), None)),
     }
 }
 
@@ -147,33 +145,51 @@ fn widen(src: &str, span: Range<usize>) -> Range<usize> {
 
 /// Draw the `lang` diagram `src` as SVG markup, for export.
 pub fn svg(lang: &str, src: &str, colors: &Colors) -> Result<String, String> {
-    if let Some(svg) = sequence_svg(lang, src, colors) {
+    if let Some(svg) = own_svg(lang, src, colors) {
         return svg;
     }
-    let (mermaid, renderer, error) = prepare(lang, src, colors, 0.0)?;
-    let output =
-        renderer.render(RenderRequest::svg(&mermaid, OperationControl::new(), svg_request())).map_err(|e| error(e.to_string()))?;
+    let (mermaid, renderer) = prepare(src, colors, 0.0);
+    let output = renderer.render(RenderRequest::svg(&mermaid, OperationControl::new(), svg_request())).map_err(error)?;
     match output {
         RenderOutput::Svg(Some(svg)) => Ok(svg.svg().to_string()),
-        _ => Err(error("No diagram type detected".into())),
+        _ => Err(error("No diagram type detected")),
     }
 }
 
-/// A ```sequence fence's SVG, or its error; `None` for any other fence.
-fn sequence_svg(lang: &str, src: &str, colors: &Colors) -> Option<Result<String, String>> {
-    let sequence = lang.trim().eq_ignore_ascii_case("sequence");
-    sequence.then(|| sequence::parse(src).map(|d| sequence::svg(&d, colors)).map_err(|e| format!("ERROR: [Sequence] {e}")))
+/// A ```flow or ```sequence fence's SVG, or its error; `None` for Mermaid.
+fn own_svg(lang: &str, src: &str, colors: &Colors) -> Option<Result<String, String>> {
+    match lang.trim().to_lowercase().as_str() {
+        "sequence" => Some(sequence::parse(src).map(|d| sequence::svg(&d, colors)).map_err(|e| format!("ERROR: [Sequence] {e}"))),
+        "flow" => Some(flow::svg(src, colors).map_err(|e| format!("ERROR: [Flowchart] {e}"))),
+        _ => None,
+    }
 }
+
+fn error(e: impl fmt::Display) -> String {
+    format!("ERROR: [Mermaid] {e}")
+}
+
+/// A length, to the hundredth: the layout's sums of tenths would otherwise
+/// print as 175.20000000000002.
+struct N(f64);
+
+impl fmt::Display for N {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", (self.0 * 100.0).round() / 100.0)
+    }
+}
+
+/// The system's fonts, which our own diagrams are measured and drawn in.
+static FONT_DB: LazyLock<Arc<resvg::usvg::fontdb::Database>> = LazyLock::new(|| {
+    let mut fonts = resvg::usvg::fontdb::Database::new();
+    fonts.load_system_fonts();
+    Arc::new(fonts)
+});
 
 /// SVG as a PNG, `scale` pixels to the point, in the system's fonts.
 fn png(svg: &str, scale: f64) -> Result<Vec<u8>, String> {
     use resvg::{tiny_skia, usvg};
-    static FONTS: LazyLock<Arc<usvg::fontdb::Database>> = LazyLock::new(|| {
-        let mut fonts = usvg::fontdb::Database::new();
-        fonts.load_system_fonts();
-        Arc::new(fonts)
-    });
-    let tree = usvg::Tree::from_str(svg, &usvg::Options { fontdb: FONTS.clone(), ..Default::default() }).map_err(|e| e.to_string())?;
+    let tree = usvg::Tree::from_str(svg, &usvg::Options { fontdb: FONT_DB.clone(), ..Default::default() }).map_err(|e| e.to_string())?;
     let scale = scale.clamp(0.25, 8.0) as f32;
     let size = tree.size().scale_by(scale).ok_or("No diagram to draw")?.to_int_size();
     let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).ok_or("No diagram to draw")?;
@@ -181,20 +197,10 @@ fn png(svg: &str, scale: f64) -> Result<Vec<u8>, String> {
     pixmap.encode_png().map_err(|e| e.to_string())
 }
 
-type Error = Box<dyn Fn(String) -> String>;
-
-/// The Mermaid to draw, a renderer coloured like the page, and how to word
-/// an error.
-fn prepare(lang: &str, src: &str, colors: &Colors, width: f64) -> Result<(String, Renderer, Error), String> {
-    let lang = lang.trim().to_lowercase();
-    let (name, mermaid) = match lang.as_str() {
-        "flow" => ("Flowchart", flow_to_mermaid(src)),
-        _ => ("Mermaid", Ok(src.to_string())),
-    };
-    let error: Error = Box::new(move |message: String| format!("ERROR: [{name}] {message}"));
-    let mermaid = mermaid.map_err(&error)?;
+/// The Mermaid to draw, and a renderer coloured like the page.
+fn prepare(src: &str, colors: &Colors, width: f64) -> (String, Renderer) {
     // Typora draws an empty Mermaid fence as the words "Empty Diagram".
-    let mermaid = if mermaid.trim().is_empty() { "flowchart TD\n  empty[\"Empty Diagram\"]".to_string() } else { mermaid };
+    let mermaid = if src.trim().is_empty() { "flowchart TD\n  empty[\"Empty Diagram\"]" } else { src };
     let mut config = serde_json::json!({
         "theme": "base",
         "darkMode": colors.dark(),
@@ -207,7 +213,7 @@ fn prepare(lang: &str, src: &str, colors: &Colors, width: f64) -> Result<(String
         config["gantt"]["useWidth"] = width.into();
     }
     let config = MermaidConfig::from_value(config);
-    Ok((mermaid, Renderer::new().with_engine(Engine::new().with_site_config(config)), error))
+    (mermaid.to_string(), Renderer::new().with_engine(Engine::new().with_site_config(config)))
 }
 
 /// Mermaid's own pages are white; this one is the page's.
@@ -218,140 +224,30 @@ fn svg_request() -> SvgRequest {
     }
 }
 
-/// Mermaid text: `#` starts an entity and `;` ends a statement, so both
-/// are written as entities; flowchart.js takes a literal `\n` for a line
-/// break.
-fn text(s: &str) -> String {
-    let mut out = String::new();
-    for c in s.trim().replace("\\n", "\n").chars() {
-        match c {
-            '#' => out.push_str("#35;"),
-            ';' => out.push_str("#59;"),
-            '"' => out.push_str("#quot;"),
-            '\n' => out.push_str("<br/>"),
-            c => out.push(c),
-        }
-    }
-    out
-}
-
-/// flowchart.js to Mermaid. Symbols are `name=>type: label|state:>url`,
-/// flows are `a->b(yes, right)->c`; conditions branch on `yes`/`no` and
-/// parallels on `path1`…`path3`, which become edge labels. Directions
-/// (`left`, `right`, …), states and links have no Mermaid counterpart.
-pub fn flow_to_mermaid(src: &str) -> Result<String, String> {
-    let src = if src.trim().is_empty() { "st=>start: Empty Diagram\ne=>end\nst->e" } else { src };
-    let mut ids: HashMap<String, String> = HashMap::new();
-    let mut nodes = Vec::new();
-    let mut edges = Vec::new();
-    let id = |name: &str, ids: &mut HashMap<String, String>| {
-        let n = ids.len();
-        ids.entry(name.to_string()).or_insert_with(|| format!("n{n}")).clone()
-    };
-    for (i, line) in src.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if let Some((name, rest)) = line.split_once("=>") {
-            let (kind, label) = match rest.split_once(':') {
-                Some((kind, label)) => (kind.trim(), label),
-                None => (rest.trim(), ""),
-            };
-            // `|state` and `:>link[target]` follow the label.
-            let label = label.split(":>").next().unwrap_or_default();
-            let label = match label.rfind('|') {
-                Some(bar) => &label[..bar],
-                None => label,
-            };
-            // flowchart.js names a bare start and end; other symbols are blank.
-            let label = match (label.trim(), kind) {
-                ("", "start") => "Start",
-                ("", "end") => "End",
-                _ => label,
-            };
-            let (open, close) = match kind {
-                "start" | "end" => ("([", "])"),
-                "operation" | "parallel" => ("[", "]"),
-                "subroutine" => ("[[", "]]"),
-                "condition" => ("{", "}"),
-                "inputoutput" => ("[/", "/]"),
-                _ => return Err(format!("Parse error on line {}: unknown symbol type \"{kind}\"", i + 1)),
-            };
-            let node = id(name.trim(), &mut ids);
-            // An empty label would be Mermaid's error, not a blank symbol.
-            let label = if label.trim().is_empty() { "#32;".to_string() } else { text(label) };
-            nodes.push(format!("    {node}{open}\"{label}\"{close}"));
-        } else if line.contains("->") {
-            let steps: Vec<&str> = line.split("->").collect();
-            for pair in steps.windows(2) {
-                let (from, args) = match pair[0].trim().split_once('(') {
-                    Some((name, args)) => (name.trim(), args.trim_end_matches(')')),
-                    None => (pair[0].trim(), ""),
-                };
-                let to = pair[1].trim().split('(').next().unwrap_or_default().trim();
-                if from.is_empty() || to.is_empty() {
-                    return Err(format!("Parse error on line {}: a flow needs a symbol on each side of ->", i + 1));
-                }
-                // The branch taken, if any; a direction alone is no label.
-                let branch = args
-                    .split(',')
-                    .map(str::trim)
-                    .find(|a| matches!(*a, "yes" | "no" | "true" | "false") || a.starts_with("path"));
-                let (a, b) = (id(from, &mut ids), id(to, &mut ids));
-                edges.push(match branch {
-                    Some(label) => format!("    {a} -->|{}| {b}", text(label)),
-                    None => format!("    {a} --> {b}"),
-                });
-            }
-        } else {
-            return Err(format!("Parse error on line {}: expected a symbol (name=>type: text) or a flow (a->b)", i + 1));
-        }
-    }
-    // A flow may name a symbol that was never defined: it shows its name.
-    let defined: Vec<String> = nodes.iter().map(|n| n.trim().split(['(', '[', '{']).next().unwrap_or_default().to_string()).collect();
-    let mut names: Vec<(&String, &String)> = ids.iter().collect();
-    names.sort_by_key(|(_, id)| id[1..].parse::<usize>().unwrap_or(0));
-    for (name, node) in names {
-        if !defined.contains(node) {
-            nodes.push(format!("    {node}[\"{}\"]", text(name)));
-        }
-    }
-    Ok(format!("flowchart TD\n{}\n{}\n", nodes.join("\n"), edges.join("\n")))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn flow_translates() {
-        let src = "st=>start: Start|past:>http://example.com[blank]\n\
-                   e=>end: End\n\
-                   op=>operation: Do it|current\n\
-                   c=>condition: Yes or No?\n\
-                   io=>inputoutput: read; #1\n\
-                   st->op(right)->c\n\
-                   c(yes, right)->io->e\n\
-                   c(no)->op\n";
-        assert_eq!(
-            flow_to_mermaid(src).unwrap(),
-            "flowchart TD\n    n0([\"Start\"])\n    n1([\"End\"])\n    n2[\"Do it\"]\n    n3{\"Yes or No?\"}\n    n4[/\"read#59; #35;1\"/]\n\
-             \x20   n0 --> n2\n    n2 --> n3\n    n3 -->|yes| n4\n    n4 --> n1\n    n3 -->|no| n2\n"
-        );
-        // Undefined symbols show their names; bad lines are errors.
-        assert!(flow_to_mermaid("a->b").unwrap().contains("n0[\"a\"]"));
-        assert!(flow_to_mermaid("x=>blob: no").unwrap_err().contains("line 1"));
-        assert!(flow_to_mermaid("hello").is_err());
-        assert!(flow_to_mermaid("").unwrap().contains("Empty Diagram"));
-        // A bare start or end is named, as flowchart.js names them.
-        assert!(flow_to_mermaid("e=>end\no=>operation").unwrap().contains("n0([\"End\"])\n    n1[\"#32;\"]"));
-    }
+    /// flowchart.js's own demo, more or less.
+    const FLOW: &str = "st=>start: Start:>http://www.google.com[blank]\n\
+                        e=>end:>http://www.google.com\n\
+                        op1=>operation: My Operation\n\
+                        sub1=>subroutine: My Subroutine\n\
+                        cond=>condition: Yes\n\
+                        or No?:>http://www.google.com\n\
+                        io=>inputoutput: catch something...\n\
+                        para=>parallel: parallel tasks\n\
+                        st->op1->cond\n\
+                        cond(yes)->io->e\n\
+                        cond(no)->para\n\
+                        para(path1, bottom)->sub1(right)->op1\n\
+                        para(path2, top)->op1\n\
+                        op1@>cond({\"stroke\":\"red\",\"stroke-dasharray\":\"- \"})";
 
     #[test]
     fn renders_png() {
         let colors = Colors::parse("1a1b26,c0caf5,7aa2f7,414868");
-        for (lang, src) in [("mermaid", "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]"), ("flow", "a=>start: A\nb=>end: B\na->b"), ("sequence", "A->B: hi")] {
+        for (lang, src) in [("mermaid", "graph TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]"), ("flow", FLOW), ("sequence", "A->B: hi")] {
             let png = render(lang, src, &colors, 1.0, 0.0).unwrap();
             assert_eq!(&png[1..4], b"PNG", "{lang}");
             if let Ok(dir) = std::env::var("TYPO_DIAGRAM_OUT") {

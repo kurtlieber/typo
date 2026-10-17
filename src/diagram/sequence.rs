@@ -7,7 +7,7 @@ use std::fmt::Write;
 
 use unicode_width::UnicodeWidthStr;
 
-use super::Colors;
+use super::{Colors, N};
 
 pub struct Diagram {
     title: Option<String>,
@@ -234,16 +234,6 @@ pub fn svg(d: &Diagram, colors: &Colors) -> String {
     }
     svg.out.push_str("</svg>");
     svg.out
-}
-
-/// A length, to the hundredth: the layout's sums of tenths would
-/// otherwise print as 175.20000000000002.
-struct N(f64);
-
-impl std::fmt::Display for N {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", (self.0 * 100.0).round() / 100.0)
-    }
 }
 
 struct Svg {
