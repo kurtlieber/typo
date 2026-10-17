@@ -59,6 +59,8 @@ QtObject {
 
     // Markdown
     property bool inlineMath: false
+    // Inline math from `$` to the next `$`, as Typora once read it.
+    property bool legacyInlineMath: false
     property bool subscript: false
     property bool superscript: false
     property bool highlight: false
@@ -257,7 +259,7 @@ QtObject {
         "dropFolder", "dropMarkdown", "dropImportable", "showHiddenFiles", "treeFilter", "treePatterns",
         "libraryFilter", "libraryPatterns", "indentSize", "prettyIndent", "autoPairBrackets",
         "autoPairMarkdown", "showSourceOnFocus", "emojiAutocomplete", "copyMarkdownAsPlain", "lineWiseCopy",
-        "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "quitAfterWindowClose", "readingSpeed", "countMode", "inlineMath",
+        "spellCheck", "defaultLineEnding", "alwaysShowWordCount", "quitAfterWindowClose", "readingSpeed", "countMode", "inlineMath", "legacyInlineMath",
         "subscript", "superscript", "highlight", "diagrams", "strictMode", "headingStyle", "bulletMarker",
         "orderedSame", "autoLinks", "alerts", "codeLineNumbers", "codeWrap", "shiftTabAutoIndent",
         "codeIndentSize", "defaultCodeLang", "defaultCodeLangWhen", "mathCopyFormat", "mathNumbering", "latexDelimiters",

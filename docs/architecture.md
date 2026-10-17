@@ -186,7 +186,10 @@ formula the same way, folded when the caret is elsewhere, and `\[ \]`
 blocks and `\( \)` / `\[ \]` inline math keep their delimiters
 (Preferences: "LaTeX Math Delimiter", on by default, and "Code Block
 Math"; turning the first one over parses the document again as one undo
-step). mitex knows fewer AMS environments than MathJax: `known_environments`
+step). Inline `$…$` takes Typora's Pandoc-like rule (no space inside
+either `$`, no digit after the closing one, and a `$` that breaks it ends
+the try); "Use legacy inline math parsing" makes any `$` to the next one
+math, as Typora's compatible mode. mitex knows fewer AMS environments than MathJax: `known_environments`
 writes `flalign`, `alignat`, `eqnarray` and the starred `gather` and
 `multline` as the nearest `align` or `gather`. A formula wider than the
 page scrolls sideways rather than shrinking. "Enable physics package"

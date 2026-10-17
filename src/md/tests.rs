@@ -687,6 +687,10 @@ fn typora_inline_extensions() {
     let all = inline::Options::all();
     assert_eq!(shape("==hi== x^2^ H~2~O ~~no~~", &all), "highlight[text(hi)] text( x) sup[text(2)] text( H) sub[text(2)] text(O ) strike[text(no)]");
     assert_eq!(shape("$x^2$ costs $5 and $6", &all), "math(x^2) text( costs $5 and $6)");
+    // A bad closer ends it: the next `$` starts afresh.
+    assert_eq!(shape("$a $b$ $c$1$", &all), "text($a ) math(b) text( $c) math(1)");
+    let legacy = inline::Options { legacy_math: true, ..inline::Options::all() };
+    assert_eq!(shape(r"$5 and $6 $ x \$ $", &legacy), r"math(5 and ) text(6 ) math( x \$ )");
     assert_eq!(shape(":smile: <u>under</u> [^1]", &all), "emoji(smile) text( ) tag[text(under)] text( ) footnoteref(1)");
     assert_eq!(shape("see https://typora.io/a_b.", &all), "text(see ) autolink(https://typora.io/a_b) text(.)");
     assert_eq!(shape(r"X~long\ text~ ~a b~ x^a b^", &all), r"text(X) sub[text(long\ text)] text( ) strike[text(a b)] text( x^a b^)");

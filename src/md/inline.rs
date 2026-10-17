@@ -89,6 +89,9 @@ pub struct Node {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
     pub math: bool,
+    /// Typora's legacy inline math (compatible mode): `$` to the next `$`
+    /// is math, whatever is around them.
+    pub legacy_math: bool,
     pub latex_delimiters: bool,
     pub highlight: bool,
     pub superscript: bool,
@@ -112,6 +115,7 @@ impl Default for Options {
     fn default() -> Self {
         Options {
             math: false,
+            legacy_math: false,
             latex_delimiters: true,
             highlight: false,
             superscript: false,
@@ -131,6 +135,7 @@ impl Options {
     pub fn all() -> Self {
         Options {
             math: true,
+            legacy_math: false,
             latex_delimiters: true,
             highlight: true,
             superscript: true,
@@ -148,6 +153,7 @@ impl Options {
     pub fn commonmark() -> Self {
         Options {
             math: false,
+            legacy_math: false,
             latex_delimiters: false,
             highlight: false,
             superscript: false,
@@ -494,11 +500,13 @@ impl<'a> Parser<'a> {
         true
     }
 
-    /// `$…$`: the content may not start or end with a space, and the
-    /// closing `$` may not be followed by a digit (so `$5 and $6` is text).
+    /// `$…$` up to the next `$`: the content may not start or end with a
+    /// space, and the closing `$` may not be followed by a digit (so `$5
+    /// and $6` is text), unless parsing as legacy Typora did.
     fn math(&mut self) -> bool {
         let start = self.pos;
-        if self.run_len(start, b'$') != 1 || self.char_at(start + 1).is_whitespace() {
+        let legacy = self.opts.legacy_math;
+        if self.run_len(start, b'$') != 1 || !legacy && self.char_at(start + 1).is_whitespace() {
             return false;
         }
         let bytes = self.src.as_bytes();
@@ -507,14 +515,12 @@ impl<'a> Parser<'a> {
             match bytes[i] {
                 b'\\' => i += 2,
                 b'$' => {
-                    let ok = !self.char_before(i).is_whitespace()
-                        && !self.char_at(i + 1).is_ascii_digit()
-                        && i > start + 1;
-                    if ok {
-                        self.emit(Item::Node(Kind::Math), start..i + 1, start + 1..i);
-                        return true;
+                    let ok = legacy || !self.char_before(i).is_whitespace() && !self.char_at(i + 1).is_ascii_digit();
+                    if !ok || i == start + 1 {
+                        return false;
                     }
-                    i += 1;
+                    self.emit(Item::Node(Kind::Math), start..i + 1, start + 1..i);
+                    return true;
                 }
                 _ => i += 1,
             }

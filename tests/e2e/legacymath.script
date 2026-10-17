@@ -1,0 +1,21 @@
+# Use legacy inline math parsing: $ to the next $ is math, whatever is
+# around them, where by default a digit after the closing $ leaves it text.
+write @DIR@/doc.md costs $5 and $6 today\n
+cmd openPath @DIR@/doc.md
+eval Prefs.inlineMath = true
+eval Prefs.mathCopyFormat = "latex"
+wait 300
+eval view.select(0, 0, 0, 22)
+cmd copyHtml
+check Desktop.clipboardText().indexOf("math-inline") < 0
+eval Prefs.legacyInlineMath = true
+wait 300
+cmd copyHtml
+check Desktop.clipboardText().indexOf('<span class="math math-inline">5 and </span>6 today') >= 0
+caret 0 0
+wait 600
+shot @DIR@/legacy.png
+eval Prefs.legacyInlineMath = false
+eval Prefs.mathCopyFormat = "svg"
+eval Prefs.inlineMath = false
+dump @OUT@

@@ -673,6 +673,7 @@ pub mod qobject {
         fn set_inline_options(
             self: Pin<&mut Editor>,
             math: bool,
+            legacy_math: bool,
             highlight: bool,
             superscript: bool,
             subscript: bool,
@@ -2728,6 +2729,7 @@ impl qobject::Editor {
     fn set_inline_options(
         self: Pin<&mut Self>,
         math: bool,
+        legacy_math: bool,
         highlight: bool,
         superscript: bool,
         subscript: bool,
@@ -2740,6 +2742,7 @@ impl qobject::Editor {
         md::edit::set_remap(remap);
         let opts = Options {
             math,
+            legacy_math,
             highlight,
             superscript,
             subscript,

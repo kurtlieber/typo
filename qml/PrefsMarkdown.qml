@@ -235,6 +235,11 @@ Column {
             key: "mathPhysics"
             hint: qsTr("Physics package will redefine some latex macros, such as \\div, \\Re, etc.")
         }
+        PrefCheck {
+            text: qsTr("Use legacy inline math parsing (compatible mode)")
+            key: "legacyInlineMath"
+            hint: qsTr("Off: no space after the opening $ or before the closing one, and no digit right after it. On: $ to the next $ is math.")
+        }
         Item { width: 1; height: 8 }
         PrefChoice {
             label: qsTr("Auto Numbering Math Equations")

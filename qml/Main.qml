@@ -102,7 +102,7 @@ ApplicationWindow {
     // Preferences ▸ Markdown: the optional inline syntax.
     // Remapping is forced on while smart punctuation converts on input.
     readonly property bool remapPunctuation: Prefs.remapPunctuation || !Prefs.smartOnRendering && (Prefs.smartQuotes || Prefs.smartDashes)
-    readonly property string inlineOptions: [Prefs.inlineMath, Prefs.highlight, Prefs.superscript, Prefs.subscript, Prefs.latexDelimiters,
+    readonly property string inlineOptions: [Prefs.inlineMath, Prefs.legacyInlineMath, Prefs.highlight, Prefs.superscript, Prefs.subscript, Prefs.latexDelimiters,
         Prefs.autoLinks, Prefs.alerts, Prefs.strictMode, remapPunctuation].join()
     onInlineOptionsChanged: applyInlineOptions()
     readonly property string smartOptions: [Prefs.smartQuotes, Prefs.smartDashes, Prefs.dashesToEm, Prefs.quotePairs,
@@ -120,7 +120,7 @@ ApplicationWindow {
         model.setWriting(!Prefs.visibleBr, Prefs.mathCopyFormat === "svg", Prefs.defaultCodeLang, Prefs.defaultCodeLangWhen)
     }
     function applyInlineOptions() {
-        model.setInlineOptions(Prefs.inlineMath, Prefs.highlight, Prefs.superscript, Prefs.subscript, Prefs.latexDelimiters,
+        model.setInlineOptions(Prefs.inlineMath, Prefs.legacyInlineMath, Prefs.highlight, Prefs.superscript, Prefs.subscript, Prefs.latexDelimiters,
                                Prefs.autoLinks, Prefs.alerts, Prefs.strictMode, remapPunctuation)
     }
 
