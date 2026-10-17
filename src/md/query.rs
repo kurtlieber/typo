@@ -419,7 +419,7 @@ pub fn selected_text(part: &Document, refs: &Refs, opts: &Options) -> String {
         .iter()
         .map(|b| match &b.kind {
             BlockKind::Paragraph | BlockKind::Heading { .. } => page_text(&b.text, refs, opts),
-            BlockKind::Table { rows, .. } => rows.iter().flatten().map(|c| page_text(c, refs, opts) + "\n").collect(),
+            BlockKind::Table { rows, .. } => cells_text(rows.iter().flatten(), refs, opts),
             BlockKind::Toc => "[toc]".into(),
             BlockKind::ThematicBreak { .. } => String::new(),
             _ => b.text.clone(),
@@ -429,6 +429,11 @@ pub fn selected_text(part: &Document, refs: &Refs, opts: &Options) -> String {
         [one] => one.clone(),
         _ => texts.iter().map(|t| format!("{t}\n")).collect(),
     }
+}
+
+/// Table cells' text, a line each, as a selection over them reads.
+pub fn cells_text<'a>(cells: impl IntoIterator<Item = &'a String>, refs: &Refs, opts: &Options) -> String {
+    cells.into_iter().map(|c| page_text(c, refs, opts) + "\n").collect()
 }
 
 /// The status bar's counts, as Typora's: words as `words` counts them,

@@ -20,12 +20,15 @@ Rectangle {
     function updateSelection() {
         const v = app.view
         const s = v.selection()
-        if (Ui.sourceMode || v.collapsed(s)) {
+        const t = v.tableAt()
+        const ends = t ? t.selectionEnds() : null
+        if (Ui.sourceMode || (t ? !ends : v.collapsed(s))) {
             selWords = 0
             selChars = 0
             return
         }
-        const c = editor.selectionCounts(s.aRow, s.aPos, s.zRow, s.zPos).split(",")
+        const c = (t ? editor.cellSpanCounts(s.zRow, ends.a.r, ends.a.c, ends.a.pos, ends.z.r, ends.z.c, ends.z.pos)
+                     : editor.selectionCounts(s.aRow, s.aPos, s.zRow, s.zPos)).split(",")
         selWords = Number(c[0])
         selChars = Number(c[1])
     }

@@ -432,7 +432,10 @@ across blocks. Its cells are edited on their own.
   Backspace, Delete, Cut and Paste go through `table::replace_span`, which
   empties what it takes from each cell and keeps every row and column.
   The caret going to another block, a change to the table, or any other
-  key ends it.
+  key ends it; an arrow puts the caret at the end it points to (Up and
+  Down then move on from there). The footer counts a table's selection,
+  in one cell or several, through `Editor.cellSpanCounts`
+  (`table::span_cells`).
 - **Toolbar.** While a cell has the caret, Resize Table (a 6×10 board and
   size fields), the column's alignment, More Actions (the Table menu) and
   Delete Table sit above the table. Clicks reach them through

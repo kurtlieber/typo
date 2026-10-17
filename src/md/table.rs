@@ -251,6 +251,12 @@ fn span(rows: &[Vec<String>], a: At, z: At) -> Vec<(Cell, std::ops::Range<usize>
     out
 }
 
+/// The text such a selection takes from each cell, in reading order.
+pub fn span_cells(doc: &Document, i: usize, a: At, z: At) -> Option<Vec<String>> {
+    let (_, rows) = parts(doc, i)?;
+    Some(span(&rows, a, z).into_iter().map(|((r, c), range)| rows[r][c][range].to_string()).collect())
+}
+
 /// Typing `text` over such a selection, as Typora does: the selected text
 /// goes from every cell, each row and column stays, and `text` goes in
 /// where the selection started; where it ends is where the caret goes.

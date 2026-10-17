@@ -369,6 +369,12 @@ pub mod qobject {
         #[cxx_name = "cellSpanCopy"]
         fn cell_span_copy(self: &Editor, row: i32, r1: i32, c1: i32, p1: i32, r2: i32, c2: i32, p2: i32) -> QString;
 
+        /// The words and characters a selection in a table takes, in one
+        /// cell or several, as "words,characters" (see `selectionCounts`).
+        #[qinvokable]
+        #[cxx_name = "cellSpanCounts"]
+        fn cell_span_counts(self: &Editor, row: i32, r1: i32, c1: i32, p1: i32, r2: i32, c2: i32, p2: i32) -> QString;
+
         /// The selection from (`a_row`, `a_pos`) to (`z_row`, `z_pos`) as
         /// markdown, for the clipboard.
         #[qinvokable]
@@ -1802,6 +1808,16 @@ impl qobject::Editor {
         };
         let html = self.html_of(md::parse_with(&md, self.opts.latex_delimiters, self.opts.remap));
         QString::from(&format!("[{},{}]", json_str(&md), json_str(&html)))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn cell_span_counts(&self, row: i32, r1: i32, c1: i32, p1: i32, r2: i32, c2: i32, p2: i32) -> QString {
+        let Some(cells) = self.cell_span(row, r1, c1, p1, r2, c2, p2).and_then(|(i, a, z)| table::span_cells(&self.doc, i, a, z)) else {
+            return QString::from("0,0");
+        };
+        let text = query::cells_text(&cells, &self.refs, &self.opts);
+        let text = text.trim_end_matches('\n');
+        QString::from(&format!("{},{}", query::words(text), text.encode_utf16().count()))
     }
 
     fn selection_markdown(&self, a_row: i32, a_pos: i32, z_row: i32, z_pos: i32) -> QString {

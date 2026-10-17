@@ -2,7 +2,7 @@
 # browser's) selection: in reading order, the cells between whole. Copy
 # takes it as a table; typing or Backspace replaces what it takes from each
 # cell, keeping every row and column, as one undo step. Shift+click
-# extends from the caret's cell into another.
+# extends from the caret's cell into another; an arrow ends it.
 write @DIR@/doc.md | a1 | b1 | c1 |\n| --- | --- | --- |\n| a2 | b2 | c2 |\n| a3 | b3 | c3 |\n\nafter\n
 cmd openPath @DIR@/doc.md
 wait 500
@@ -13,6 +13,8 @@ mouse release pointIn(view.itemAt(0).table.cellItem(2, 1).edit, 1)
 wait 100
 check view.itemAt(0).table.cellSpan !== null && view.itemAt(0).table.cellItem(0, 0).edit.selectedText === "" && view.itemAt(0).table.cellItem(0, 1).edit.selectedText === "1" && view.itemAt(0).table.cellItem(1, 0).edit.selectedText === "a2" && view.itemAt(0).table.cellItem(2, 1).edit.selectedText === "b" && view.itemAt(0).table.cellItem(2, 2).edit.selectedText === ""
 shot @DIR@/span.png
+# The footer counts what it takes.
+check footer.selWords === 7 && footer.selChars === 18
 key Ctrl+C
 wait 100
 check Desktop.clipboardMarkdown() === "| 1 | c1 |\n| --- | --- |\n| a2 | b2 | c2 |\n| a3 | b |\n"
@@ -25,6 +27,32 @@ check view.itemAt(0).table.cellItem(1, 1).edit.text === "b2" && view.itemAt(0).t
 key Ctrl+Y
 wait 200
 check view.itemAt(0).table.cellItem(0, 1).edit.text === "bX"
+# An arrow ends the span at the end it points to: Left and Right stop
+# there, Down goes on from its end.
+clickCell 0 0 1 1
+wait 100
+clickCell 0 1 2 1 Shift
+wait 100
+key Left
+wait 100
+check view.itemAt(0).table.cellSpan === null && view.itemAt(0).table.cellItem(0, 1).edit.activeFocus && view.itemAt(0).table.cellItem(0, 1).edit.cursorPosition === 1
+# A selection in one cell is counted too.
+key Shift+Right
+wait 100
+check footer.selWords === 1 && footer.selChars === 1
+key Right
+clickCell 0 2 2 1 Shift
+wait 100
+key Right
+wait 100
+check view.itemAt(0).table.cellSpan === null && view.itemAt(0).table.cellItem(2, 2).edit.activeFocus && view.itemAt(0).table.cellItem(2, 2).edit.cursorPosition === 1
+clickCell 0 0 1 1
+wait 100
+clickCell 0 1 2 0 Shift
+wait 100
+key Down
+wait 100
+check view.itemAt(0).table.cellSpan === null && view.itemAt(0).table.cellItem(2, 2).edit.activeFocus
 # Backwards, by Shift+click: from c3 after "c" back to a1 after "a".
 clickCell 0 2 2 1
 wait 100

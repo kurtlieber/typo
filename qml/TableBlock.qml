@@ -218,6 +218,16 @@ Item {
     function spanEnds() {
         return before(cellSpan.a, cellSpan.z) ? [cellSpan.a, cellSpan.z] : [cellSpan.z, cellSpan.a]
     }
+    // The selection's ends ({r, c, pos}): the span's, or the caret cell's.
+    function selectionEnds() {
+        if (cellSpan)
+            return cellSpan
+        const e = editItem
+        if (!e)
+            return null
+        const anchor = e.cursorPosition === e.selectionStart ? e.selectionEnd : e.selectionStart
+        return { a: { r: curR, c: curC, pos: anchor }, z: { r: curR, c: curC, pos: e.cursorPosition } }
+    }
     function inSpan(r, c, pos) {
         if (!cellSpan)
             return false
@@ -556,7 +566,8 @@ Item {
             return accept(paste(false))
         // Over several cells, typing and deleting take what is selected
         // from each; other keys (but modifiers alone) end the span and act
-        // at the caret.
+        // at the caret. An arrow goes from the end it points to, Left and
+        // Right no further, as the browser's do.
         if (cellSpan) {
             if ([Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_Meta].indexOf(event.key) >= 0)
                 return
@@ -568,10 +579,12 @@ Item {
                 replaceSpan(event.text)
                 return accept()
             }
-            const z = cellSpan.z
-            dropSpan()
-            edit.select(z.pos, z.pos)
-            return keyPressed(cell, event)
+            const arrow = plain ? [Qt.Key_Left, Qt.Key_Up, Qt.Key_Right, Qt.Key_Down].indexOf(event.key) : -1
+            const at = arrow < 0 ? cellSpan.z : spanEnds()[arrow < 2 ? 0 : 1]
+            focusCell(at.r, at.c, at.pos, at.pos)
+            if (arrow === 0 || arrow === 2)
+                return accept()
+            return keyPressed(cellItem(at.r, at.c), event)
         }
         // Select All takes the cell, then the document.
         if (event.matches(StandardKey.SelectAll)) {
