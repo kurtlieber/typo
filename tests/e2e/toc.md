@@ -4,4 +4,4 @@ Text
 
 ## Two **bold**
 
-### Three
+### Three ![cat](cat.svg)

@@ -1,10 +1,12 @@
 # [TOC] lists the headings, indented by level as Typora's; a click on one
 # goes to the end of that heading. A click beside them selects the TOC,
 # which shows its frame and header; its delete button or Backspace
-# removes it.
-write @DIR@/doc.md [TOC]\n\n# One\n\nText\n\n## Two **bold**\n\n### Three\n
+# removes it. A picture in a heading shows in its entry.
+write @DIR@/cat.svg <svg xmlns="http://www.w3.org/2000/svg" width="40" height="60"><rect width="40" height="60" fill="#3a7"/></svg>
+write @DIR@/doc.md [TOC]\n\n# One\n\nText\n\n## Two **bold**\n\n### Three ![cat](cat.svg)\n
 cmd openPath @DIR@/doc.md
 wait 400
+check view.itemAt(0).body.entry(2).text.indexOf("<img src=\"file://") > 0 && view.itemAt(0).body.entry(2).height > 60
 check view.itemAt(0).body.entry(1).modelData.html === "Two <strong>bold</strong>" && view.itemAt(0).body.entry(0).leftPadding === 0 && view.itemAt(0).body.entry(2).leftPadding > view.itemAt(0).body.entry(1).leftPadding
 eval (() => { const e = view.itemAt(0).body.entry(1); const p = e.mapToItem(null, e.leftPadding + 5, e.height / 2); Desktop.click(p.x, p.y, "") })()
 wait 200

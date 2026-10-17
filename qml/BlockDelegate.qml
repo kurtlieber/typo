@@ -1527,8 +1527,10 @@ Item {
                         bottomPadding: toc.em * 0.15
                         textFormat: Text.RichText
                         wrapMode: Text.Wrap
-                        // Links and pictures inside a heading are its text here.
-                        text: modelData.html.replace(/<\/?a\b[^>]*>/g, "").replace(/<img\b[^>]*>/g, "")
+                        // Links inside a heading are its text here; pictures
+                        // show, at most as wide as the entry, as Typora's.
+                        text: modelData.html.replace(/<\/?a\b[^>]*>/g, "")
+                            .replace(/<img\b[^>]*>/g, img => block.editor.htmlView(img, "", width - leftPadding, ""))
                         color: Theme.link
                         font.family: Ui.textFont
                         font.pixelSize: toc.em

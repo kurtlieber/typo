@@ -14,6 +14,7 @@ pub mod ffi {
 
         /// Keep settings in an INI file under `$XDG_CONFIG_HOME` (as on
         /// Linux) rather than the Mac's preferences, which ignore it.
+        #[cfg(target_os = "macos")]
         #[cxx_name = "typoUseIniSettings"]
         fn use_ini_settings();
 
