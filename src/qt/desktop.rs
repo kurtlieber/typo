@@ -398,7 +398,8 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "watchAlt"]
         fn watch_alt(self: &Desktop);
-        /// The folder Omarchy keeps the user's themes in.
+        /// The folder Omarchy keeps the user's themes in, made if it isn't
+        /// there (as on a Mac), so Open Theme Folder can take one.
         #[qinvokable]
         #[cxx_name = "themesFolder"]
         fn themes_folder(self: &Desktop) -> QString;
@@ -816,7 +817,9 @@ impl qobject::Desktop {
     }
 
     fn themes_folder(&self) -> QString {
-        QString::from(&*crate::palette::user_themes_dir().to_string_lossy())
+        let dir = crate::palette::user_themes_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        QString::from(&*dir.to_string_lossy())
     }
 
     fn drafts_folder(&self) -> QString {
