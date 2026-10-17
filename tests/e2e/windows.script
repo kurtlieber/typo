@@ -21,6 +21,12 @@ check Desktop.windowTitles().split("\n").length === (Ui.mac ? 2 : 1) && Desktop.
 eval if (Ui.mac) Desktop.sendKey("Ctrl+`")
 wait 300
 check Desktop.frontWindow() === 0
+# ⇧⌘` goes back round (sent as ⌘ and ~, the character Shift makes).
+eval if (Ui.mac) Desktop.sendKey("Ctrl+~")
+wait 300
+check Desktop.frontWindow() === (Ui.mac ? 1 : 0)
+eval if (Ui.mac) Desktop.sendKey("Ctrl+`")
+wait 300
 key Ctrl+Shift+F
 wait 300
 check sidebar.searching

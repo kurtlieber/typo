@@ -545,15 +545,23 @@ ApplicationWindow {
         sequence: "Ctrl+Shift+F"
         onActivated: sidebar.openSearch()
     }
-    // The Mac's ⌘`: the next window, in the order they opened. macOS's own
-    // key, so Typora's menus don't list it.
+    // The Mac's ⌘`: the next window, in the order they opened, and ⇧⌘`
+    // the one before. macOS's own keys, so Typora's menus don't list them.
     Shortcut {
         enabled: Ui.mac
         sequence: "Ctrl+`"
-        onActivated: nextWindow()
+        onActivated: nextWindow(1)
     }
-    function nextWindow() {
-        Desktop.raiseWindow((Desktop.frontWindow() + 1) % Desktop.windowTitles().split("\n").length)
+    // Shift+` is ~ on most layouts, so both.
+    Shortcut {
+        enabled: Ui.mac
+        sequences: ["Ctrl+Shift+`", "Ctrl+~"]
+        onActivated: nextWindow(-1)
+        onActivatedAmbiguously: nextWindow(-1)
+    }
+    function nextWindow(step) {
+        const n = Desktop.windowTitles().split("\n").length
+        Desktop.raiseWindow((Desktop.frontWindow() + step + n) % n)
     }
 
     // Commands that work the same in Source Code Mode; the rest act on its
@@ -1017,7 +1025,7 @@ ApplicationWindow {
             return
         case "switchDocument":
             if (Ui.mac)
-                nextWindow()
+                nextWindow(1)
             else
                 Desktop.focusNextWindow()
             return
