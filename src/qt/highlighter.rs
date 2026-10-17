@@ -60,6 +60,8 @@ pub mod qobject {
         /// Find's matches in the block, as JSON `[[start, end], …]` in
         /// UTF-16; they show over the text but not over hidden markers.
         #[qproperty(QString, hits)]
+        /// The document's `Editor.docId`, for its links and options.
+        #[qproperty(i32, doc)]
         type InlineHighlighter = super::InlineHighlighterRust;
 
         /// Formats changed: objects may have moved.
@@ -260,6 +262,8 @@ pub mod qobject {
         /// Find's matches, as the inline highlighter's `hits`, in the whole
         /// text.
         #[qproperty(QString, hits)]
+        /// As the inline highlighter's `doc`.
+        #[qproperty(i32, doc)]
         type SourceHighlighter = super::SourceHighlighterRust;
 
         #[cxx_override]
@@ -920,6 +924,8 @@ struct Cache {
     alert_open: bool,
     /// A link reference definition, not inline markdown.
     link_def: bool,
+    /// The document, as the highlighter's `doc`.
+    doc: i32,
     objects: Vec<Object>,
     /// Each code span's text in UTF-16, and the characters after which its
     /// box's padding and border go: the opening marker's last and the
@@ -938,7 +944,7 @@ impl Cache {
             .then(|| query::alert_of(&text))
             .flatten()
             .map(|(k, len)| (query::ALERTS.iter().position(|a| *a == k).unwrap_or(0) as u8, len));
-        self.nodes = if self.link_def { Vec::new() } else { shared::with_inline(|refs, opts| inline::parse(&text, refs, opts)) };
+        self.nodes = if self.link_def { Vec::new() } else { shared::with_inline(self.doc, |refs, opts| inline::parse(&text, refs, opts)) };
         self.objects = objects(&text, &self.nodes);
         self.text = text;
         self.valid = true;
@@ -1003,7 +1009,7 @@ impl Cache {
         let mut runs = if self.pictured { vec![(0..text.len(), HIDE)] } else { looks(&self.nodes, text.len(), caret, &room) };
         if self.link_def {
             runs = link_def_looks(text);
-        } else if shared::hide_br() && !self.pictured {
+        } else if shared::hide_br(self.doc) && !self.pictured {
             // ponytail: Typora still breaks the line at a hidden `<br>`; a
             // TextEdit line can't break inside the text, so its last
             // character stays, unseen, as a gap that keeps the words on
@@ -1071,6 +1077,7 @@ pub struct InlineHighlighterRust {
     alert_title: bool,
     link_def: bool,
     hits: QString,
+    doc: i32,
     sizes: Sizes,
     /// Caret in UTF-16, -1 when the block doesn't have it.
     caret: i32,
@@ -1091,6 +1098,7 @@ impl Default for InlineHighlighterRust {
             alert_title: false,
             link_def: false,
             hits: QString::from("[]"),
+            doc: -1,
             sizes: Sizes::new(),
             caret: -1,
             cache: Cache::default(),
@@ -1205,6 +1213,7 @@ impl qobject::InlineHighlighter {
             let r = &mut *this;
             let caret = (r.caret >= 0).then(|| byte_of(&full, r.caret));
             r.cache.link_def = r.link_def;
+            r.cache.doc = r.doc;
             r.cache.parse(full, caret, r.image_shown, r.alert_title, &r.sizes);
         }
         let Some(ink) = shared::ink() else { return };

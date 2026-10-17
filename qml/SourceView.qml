@@ -439,6 +439,7 @@ Flickable {
     SourceHighlighter {
         id: hl
         fontSize: Ui.fontSize
+        doc: editor.docId
         Component.onCompleted: {
             dim(Ui.focusMode, keep)
             attach(edit.textDocument)

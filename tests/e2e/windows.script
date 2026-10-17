@@ -1,0 +1,21 @@
+# The Mac's windows share one process (one Dock icon), each on an engine of
+# its own with its own file in the session. Linux's windows are processes of
+# their own, which a script can't close, so only the Mac opens one here. Keys
+# go to the new window, so this one's text comes first. A link resolves by
+# its own window's definitions only.
+write @DIR@/b.md See [b][r].\n\n[r]: https://typora.io\n
+type See [a][r].
+dump @OUT@
+cmd sourceMode
+wait 300
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return h.inkAt(t.indexOf("a]")) === h.inkAt(0) })()
+check !Desktop.otherWindowsOpen()
+eval if (Ui.mac) Desktop.spawn("@DIR@/b.md")
+wait 800
+check Desktop.otherWindowsOpen() === Ui.mac
+eval sourceView.highlighter.rehighlight()
+check (() => { const t = sourceView.edit.text, h = sourceView.highlighter; return h.inkAt(t.indexOf("a]")) === h.inkAt(0) })()
+# Closing it (keys go to it) leaves only this one, and its engine goes.
+eval if (Ui.mac) Desktop.sendKey("Ctrl+W")
+wait 500
+check !Desktop.otherWindowsOpen()

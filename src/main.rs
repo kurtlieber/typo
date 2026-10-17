@@ -17,7 +17,7 @@ mod qt;
 mod session;
 mod strut;
 
-use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
+use cxx_qt_lib::{QGuiApplication, QQuickStyle, QString};
 
 fn main() {
     cxx_qt::init_crate!(typo);
@@ -40,19 +40,11 @@ fn main() {
     // from the Omarchy theme.
     QQuickStyle::set_style(&QString::from("Fusion"));
 
-    let mut engine = QQmlApplicationEngine::new();
-    if let Some(mut engine) = engine.as_mut() {
-        qt::glue::ffi::add_math_provider(engine.as_mut());
-        qt::glue::ffi::add_diagram_provider(engine.as_mut());
-        engine.load(&QUrl::from("qrc:/qt/qml/Typo/qml/Main.qml"));
-    }
     // A broken QML file leaves no window; Qt has already printed why.
-    if !engine.as_ref().is_some_and(qt::glue::ffi::has_roots) {
+    if !qt::glue::ffi::open_first_window() {
         std::process::exit(1);
     }
-    if let Some(engine) = engine.as_mut() {
-        qt::glue::ffi::open_file_events(engine);
-    }
+    qt::glue::ffi::open_file_events();
     if let Some(app) = app.as_mut() {
         app.exec();
     }

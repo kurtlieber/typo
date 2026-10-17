@@ -48,6 +48,9 @@ pub mod qobject {
         /// Bumped when link references or inline syntax options change, so
         /// every block repaints.
         #[qproperty(i32, inline_revision, cxx_name = "inlineRevision")]
+        /// Which document the highlighters read (`qt::shared`); the Mac's
+        /// windows share a process.
+        #[qproperty(i32, doc_id, cxx_name = "docId")]
         type Editor = super::EditorRust;
     }
 
@@ -680,6 +683,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{eqnum, export, file, htmlview, image, platform};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicI32, Ordering};
 
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QByteArray, QHash, QHashPair_i32_QByteArray, QList, QModelIndex, QString, QVariant};
@@ -753,6 +757,7 @@ pub struct EditorRust {
     outline: QString,
     footnotes: QString,
     inline_revision: i32,
+    doc_id: i32,
     doc: Document,
     history: History,
     /// Layout facts per row that depend on its neighbours.
@@ -797,6 +802,14 @@ pub struct EditorRust {
     syncing: bool,
 }
 
+static DOCS: AtomicI32 = AtomicI32::new(0);
+
+impl Drop for EditorRust {
+    fn drop(&mut self) {
+        super::shared::forget(self.doc_id);
+    }
+}
+
 impl Default for EditorRust {
     fn default() -> Self {
         let doc = Document::default();
@@ -814,6 +827,7 @@ impl Default for EditorRust {
             outline: QString::from("[]"),
             footnotes: QString::from("{}"),
             inline_revision: 0,
+            doc_id: DOCS.fetch_add(1, Ordering::Relaxed),
             doc,
             history: History::default(),
             derived,
@@ -1899,7 +1913,7 @@ impl qobject::Editor {
             r.code_lang_when = when;
         }
         if changed {
-            super::shared::set_hide_br(hide_br);
+            super::shared::set_hide_br(*self.doc_id(), hide_br);
             let rev = *self.inline_revision() + 1;
             self.as_mut().set_inline_revision(rev);
         }
@@ -2143,7 +2157,7 @@ impl qobject::Editor {
         let refs = inline::refs_of(&self.doc);
         let root = image::root_setting(&self.doc);
         if refs != self.refs || root != self.image_root {
-            super::shared::set_refs(refs.clone());
+            super::shared::set_refs(*self.doc_id(), refs.clone());
             self.as_mut().rust_mut().refs = refs;
             self.as_mut().rust_mut().image_root = root;
             let rev = *self.inline_revision() + 1;
@@ -2534,7 +2548,7 @@ impl qobject::Editor {
         if opts == self.opts {
             return;
         }
-        super::shared::set_options(opts.clone());
+        super::shared::set_options(*self.doc_id(), opts.clone());
         let reparse = opts.latex_delimiters != self.opts.latex_delimiters || opts.remap != self.opts.remap;
         self.as_mut().rust_mut().opts = opts;
         if reparse {

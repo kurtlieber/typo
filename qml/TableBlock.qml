@@ -838,6 +838,7 @@ Item {
                     onDimmedChanged: dim(dimmed, -1)
                     lineHeight: table.lineHeight
                     fontSize: table.em
+                    doc: table.editor.docId
                     onLineHeightChanged: fixLineHeight()
                     onFontSizeChanged: refresh()
                     onPlacingChanged: Qt.callLater(() => hl.fixLineHeight())

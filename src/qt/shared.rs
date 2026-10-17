@@ -1,11 +1,12 @@
 //! What every block's highlighter reads while painting: the theme's inline
-//! colours, the document's link reference definitions and the inline syntax
-//! preferences. typo runs one window per process, and all of this is only
-//! touched on the GUI thread, so thread-local state is enough. The `Theme`
-//! and `Editor` objects keep it current and bump a revision that tells the
-//! delegates to repaint.
+//! colours, and per document (an `Editor`, by its `docId`) its link
+//! reference definitions and inline syntax preferences. The Mac's windows
+//! share one process, but all of this is only touched on the GUI thread, so
+//! thread-local state is enough. The `Theme` and `Editor` objects keep it
+//! current and bump a revision that tells the delegates to repaint.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use crate::code::Token;
 use crate::md::inline::{Options, Refs};
@@ -81,6 +82,11 @@ fn argb(c: Rgb) -> u32 {
 struct Shared {
     ink: Option<Ink>,
     scheme: Option<Scheme>,
+    docs: HashMap<i32, Doc>,
+}
+
+#[derive(Default)]
+struct Doc {
     refs: Refs,
     opts: Options,
     /// `<br>` tags hide away from the caret (Visible <br/> off).
@@ -109,26 +115,36 @@ pub fn scheme() -> Scheme {
     SHARED.with(|s| s.borrow().scheme.clone()).unwrap_or_else(Scheme::paper)
 }
 
-/// Run `f` with the link references and inline options.
-pub fn with_inline<R>(f: impl FnOnce(&Refs, &Options) -> R) -> R {
-    SHARED.with(|s| {
-        let s = s.borrow();
-        f(&s.refs, &s.opts)
+/// Run `f` with document `doc`'s link references and inline options.
+pub fn with_inline<R>(doc: i32, f: impl FnOnce(&Refs, &Options) -> R) -> R {
+    SHARED.with(|s| match s.borrow().docs.get(&doc) {
+        Some(d) => f(&d.refs, &d.opts),
+        None => f(&Refs::new(), &Options::default()),
     })
 }
 
-pub fn set_refs(refs: Refs) {
-    SHARED.with(|s| s.borrow_mut().refs = refs);
+fn edit(doc: i32, f: impl FnOnce(&mut Doc)) {
+    SHARED.with(|s| f(s.borrow_mut().docs.entry(doc).or_default()));
 }
 
-pub fn set_options(opts: Options) {
-    SHARED.with(|s| s.borrow_mut().opts = opts);
+pub fn set_refs(doc: i32, refs: Refs) {
+    edit(doc, |d| d.refs = refs);
 }
 
-pub fn hide_br() -> bool {
-    SHARED.with(|s| s.borrow().hide_br)
+pub fn set_options(doc: i32, opts: Options) {
+    edit(doc, |d| d.opts = opts);
 }
 
-pub fn set_hide_br(on: bool) {
-    SHARED.with(|s| s.borrow_mut().hide_br = on);
+pub fn hide_br(doc: i32) -> bool {
+    SHARED.with(|s| s.borrow().docs.get(&doc).is_some_and(|d| d.hide_br))
+}
+
+pub fn set_hide_br(doc: i32, on: bool) {
+    edit(doc, |d| d.hide_br = on);
+}
+
+/// Document `doc` is gone (its window closed).
+pub fn forget(doc: i32) {
+    // At thread exit the state may already be gone, which is as good.
+    let _ = SHARED.try_with(|s| s.borrow_mut().docs.remove(&doc));
 }

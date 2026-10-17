@@ -21,6 +21,10 @@ pub mod qobject {
         fn hover_at(x: f64, y: f64) -> bool;
         #[cxx_name = "typoWatchAlt"]
         fn watch_alt_taps();
+        #[cxx_name = "typoOpenWindowLater"]
+        fn open_window_later(args: &QString);
+        #[cxx_name = "typoRaiseAll"]
+        fn raise_all_windows();
         #[cxx_name = "typoWheel"]
         fn wheel_at(x: f64, y: f64, dy: f64, mods: &QString) -> bool;
         #[cxx_name = "typoDrag"]
@@ -248,6 +252,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "spawnWindow"]
         fn spawn_window(self: &Desktop, path: &QString, folder: &QString) -> bool;
+        /// Window ▸ Bring All to Front: every typo window, this one on top.
+        #[qinvokable]
+        #[cxx_name = "raiseAll"]
+        fn raise_all(self: &Desktop);
 
         /// The session (src/session.rs): note this window's document and
         /// folder.
@@ -317,6 +325,7 @@ pub mod qobject {
 
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use cxx_qt::{CxxQtType, Threading};
 
@@ -324,11 +333,40 @@ use crate::{export, platform, session};
 
 use cxx_qt_lib::QString;
 
-#[derive(Default)]
 pub struct DesktopRust {
     /// Answers for the next choosers, from `fakeChoice`.
     fake: Vec<String>,
     listening: bool,
+    /// Which of the process's windows this is (each has a Desktop), 0
+    /// but on the Mac.
+    window: u32,
+}
+
+/// The windows this process has opened.
+static WINDOWS: AtomicU32 = AtomicU32::new(0);
+
+impl Default for DesktopRust {
+    fn default() -> Self {
+        Self { fake: Vec::new(), listening: false, window: WINDOWS.fetch_add(1, Ordering::Relaxed) }
+    }
+}
+
+/// Another window, with `args` after the program's name: a process of its
+/// own on Linux, a window of this one on the Mac (one Dock icon).
+fn open_window(args: Vec<String>) -> bool {
+    if cfg!(target_os = "macos") {
+        qobject::open_window_later(&QString::from(&args.join("\0")));
+        return true;
+    }
+    let Ok(exe) = std::env::current_exe() else { return false };
+    match std::process::Command::new(exe).args(args).spawn() {
+        Ok(mut child) => {
+            // Reap it when it exits.
+            std::thread::spawn(move || child.wait());
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 impl qobject::Desktop {
@@ -398,51 +436,36 @@ impl qobject::Desktop {
     }
 
     fn spawn(&self, path: &QString) -> bool {
-        let Ok(exe) = std::env::current_exe() else { return false };
-        let mut cmd = std::process::Command::new(exe);
         let path = path.to_string();
-        if !path.is_empty() {
-            cmd.arg(path);
-        }
-        match cmd.spawn() {
-            Ok(mut child) => {
-                // Reap it when it exits.
-                std::thread::spawn(move || child.wait());
-                true
-            }
-            Err(_) => false,
-        }
+        open_window(if path.is_empty() { Vec::new() } else { vec![path] })
     }
 
     fn spawn_window(&self, path: &QString, folder: &QString) -> bool {
-        let Ok(exe) = std::env::current_exe() else { return false };
-        let mut cmd = std::process::Command::new(exe);
         let (path, folder) = (path.to_string(), folder.to_string());
+        let mut args = Vec::new();
         if !folder.is_empty() {
-            cmd.arg(format!("--folder={folder}"));
+            args.push(format!("--folder={folder}"));
         }
         if !path.is_empty() {
-            cmd.arg(path);
+            args.push(path);
         }
-        match cmd.spawn() {
-            Ok(mut child) => {
-                std::thread::spawn(move || child.wait());
-                true
-            }
-            Err(_) => false,
-        }
+        open_window(args)
+    }
+
+    fn raise_all(&self) {
+        qobject::raise_all_windows();
     }
 
     fn record_window(&self, path: &QString, folder: &QString) {
-        let _ = session::record(&session::dir(), &path.to_string(), &folder.to_string());
+        let _ = session::record(&session::dir(), &session::key(self.window), &path.to_string(), &folder.to_string());
     }
 
     fn forget_window(&self) {
-        session::forget(&session::dir());
+        session::forget(&session::dir(), &session::key(self.window));
     }
 
     fn other_windows_open(&self) -> bool {
-        session::others_open(&session::dir(), platform::alive)
+        session::others_open(&session::dir(), &session::key(self.window), platform::alive)
     }
 
     fn take_session(&self) -> QString {

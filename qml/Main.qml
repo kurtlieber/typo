@@ -587,11 +587,10 @@ ApplicationWindow {
             win.visibility = win.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
             return
         case "alwaysOnTop": Ui.alwaysOnTop = !Ui.alwaysOnTop; return
-        // The Mac's Window menu. Each window is its own app there, so
-        // Bring All to Front is this one.
+        // The Mac's Window menu.
         case "minimize": win.showMinimized(); return
         case "maximize": win.visibility === Window.Maximized ? win.showNormal() : win.showMaximized(); return
-        case "front": win.raise(); win.requestActivate(); return
+        case "front": Desktop.raiseAll(); return
         // Typora's zoom steps are Chromium's zoom levels: each one 1.2
         // times the last. The panel shows the size it came to.
         case "zoom": {
@@ -1323,9 +1322,12 @@ ApplicationWindow {
     // Command line: `typo [file]`, plus developer flags used by bin/shot:
     // --size=WxH, --screenshot=PATH (render, save, quit), --sidebar[=VIEW],
     // --cursor=ROW:POS, --menu=N (open the Nth menu), --theme=ID, --folder=DIR,
-    // --script=FILE (run a test script, see tests/e2e/README.md).
+    // --script=FILE (run a test script, see tests/e2e/README.md). The
+    // process's, or what the Mac's later windows open with (desktop.rs,
+    // open_window).
+    property var args: Qt.application.arguments
     function flag(name) {
-        for (const a of Qt.application.arguments.slice(1))
+        for (const a of args.slice(1))
             if (a === "--" + name)
                 return "1"
             else if (a.startsWith("--" + name + "="))
@@ -1365,7 +1367,7 @@ ApplicationWindow {
         // window has it.
         if (flag("folder") !== "" && Desktop.isFolder(flag("folder")))
             openFolder(flag("folder"))
-        const files = Qt.application.arguments.slice(1).filter(a => !a.startsWith("--"))
+        const files = args.slice(1).filter(a => !a.startsWith("--"))
         if (files.length > 0)
             openFile(files[0])
         else if (flag("import") !== "")

@@ -14,6 +14,7 @@
 #include <QGuiApplication>
 #include <QFileOpenEvent>
 #include <QStyleHints>
+#include <QTimer>
 #include <QSettings>
 #include <QKeySequence>
 #include <QMimeData>
@@ -274,26 +275,83 @@ inline void typoUseIniSettings() { QSettings::setDefaultFormat(QSettings::IniFor
 
 inline bool typoPrefersLight() { return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Light; }
 
-inline void typoOpenFileEvents(QQmlApplicationEngine &engine)
+void typoAddMathProvider(QQmlApplicationEngine &engine);
+void typoAddDiagramProvider(QQmlApplicationEngine &engine);
+
+// A window on an engine of its own, so its singletons (Ui, Prefs, Desktop,
+// Folder…) are its own: each process's first, and the Mac's later windows,
+// which share the one process (one Dock icon). `args` are its command line,
+// as `Qt.application.arguments` would be. The engine goes with the window.
+// False when Main.qml doesn't load; Qt has already printed why.
+inline bool typoOpenWindow(const QStringList &args)
 {
-    struct Filter : QObject {
-        QQmlApplicationEngine *engine;
-        bool eventFilter(QObject *o, QEvent *e) override
-        {
-            if (e->type() != QEvent::FileOpen || engine->rootObjects().isEmpty())
-                return QObject::eventFilter(o, e);
-            const QVariant path = static_cast<QFileOpenEvent *>(e)->file();
-            QMetaObject::invokeMethod(engine->rootObjects().first(), "openFile", Q_ARG(QVariant, path));
-            return true;
-        }
-    };
-    auto *filter = new Filter;
-    filter->engine = &engine;
-    filter->setParent(&engine);
-    QGuiApplication::instance()->installEventFilter(filter);
+    auto *engine = new QQmlApplicationEngine;
+    typoAddMathProvider(*engine);
+    typoAddDiagramProvider(*engine);
+    engine->setInitialProperties({{QStringLiteral("args"), args}});
+    engine->load(QUrl(QStringLiteral("qrc:/qt/qml/Typo/qml/Main.qml")));
+    QWindow *window = engine->rootObjects().isEmpty() ? nullptr : qobject_cast<QWindow *>(engine->rootObjects().first());
+    if (!window) {
+        delete engine;
+        return false;
+    }
+    QObject::connect(window, &QWindow::visibleChanged, engine, [engine](bool visible) {
+        if (!visible)
+            engine->deleteLater();
+    });
+    return true;
 }
 
-inline bool typoHasRoots(const QQmlApplicationEngine &engine) { return !engine.rootObjects().isEmpty(); }
+inline bool typoOpenFirstWindow() { return typoOpenWindow(QCoreApplication::arguments()); }
+
+// The Mac's next window, with `args` (NUL-separated) after the program's
+// name; once the caller, another window's QML, has returned.
+inline void typoOpenWindowLater(const QString &args)
+{
+    QStringList list{QCoreApplication::applicationFilePath()};
+    if (!args.isEmpty())
+        list += args.split(QChar(0));
+    QTimer::singleShot(0, [list] { typoOpenWindow(list); });
+}
+
+// The Mac's Window ▸ Bring All to Front: every window, the active one on top.
+inline void typoRaiseAll()
+{
+    QWindow *front = QGuiApplication::focusWindow();
+    for (QWindow *w : QGuiApplication::topLevelWindows())
+        if (w->isVisible() && w != front)
+            w->raise();
+    if (front)
+        front->raise();
+}
+
+// The Mac hands over files as events (a double-click in Finder, Open With,
+// a drop on the Dock icon): each goes to the front window's `openFile`, as
+// one named on the command line. And a quit from outside (the Dock, logging
+// out) quits each window, so they all stay in the session, as File ▸ Quit's.
+inline void typoOpenFileEvents()
+{
+    struct Filter : QObject {
+        bool eventFilter(QObject *o, QEvent *e) override
+        {
+            if (e->type() == QEvent::Quit && o == QCoreApplication::instance())
+                for (QWindow *w : QGuiApplication::topLevelWindows())
+                    if (w->property("quitting").isValid())
+                        w->setProperty("quitting", true);
+            if (e->type() != QEvent::FileOpen)
+                return QObject::eventFilter(o, e);
+            QList<QWindow *> windows = QGuiApplication::topLevelWindows();
+            windows.prepend(QGuiApplication::focusWindow());
+            for (QWindow *w : windows)
+                if (w && w->isVisible() && w->metaObject()->indexOfMethod("openFile(QVariant)") >= 0) {
+                    QMetaObject::invokeMethod(w, "openFile", Q_ARG(QVariant, static_cast<QFileOpenEvent *>(e)->file()));
+                    return true;
+                }
+            return QObject::eventFilter(o, e);
+        }
+    };
+    QCoreApplication::instance()->installEventFilter(new Filter);
+}
 
 // File → Export → Image: premultiplied RGBA pixels as a PNG or JPEG file's
 // bytes, by `format` ("png", "jpg"); nothing when Qt can't write them.
@@ -324,8 +382,6 @@ inline rust::Vec<std::uint8_t> typoEncodeImage(std::uint32_t width, std::uint32_
 }
 
 // Defined in typo_math.cpp, which needs the bridge's Rust declarations.
-void typoAddMathProvider(QQmlApplicationEngine &engine);
-void typoAddDiagramProvider(QQmlApplicationEngine &engine);
 void typoAddStrutFonts();
 // Copy as Image: the formula `id` names (see src/qt/math.rs) on the clipboard.
 bool typoCopyMathImage(const QString &id);

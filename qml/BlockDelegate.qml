@@ -598,6 +598,7 @@ Item {
                 firstIndent: block.labelWidth + block.paraIndent
                 onFirstIndentChanged: fixLineHeight()
                 alertTitle: block.alertTitle
+                doc: block.editor.docId
                 onAlertTitleChanged: refresh()
                 linkDef: block.kind === "linkref"
                 onLinkDefChanged: refresh()

@@ -110,8 +110,9 @@ cmark-gfm disagree.
 applies character formats: weight, italics, monospace, colours, sizes. It
 parses the whole `TextEdit` text, not one `QTextBlock`, because a span can
 cross a soft line break, and caches the runs until the text changes. Colours,
-link definitions and inline options live in a thread-local (`qt::shared`;
-one window per process) that `Theme` and `Editor` publish to; a change bumps
+and each document's link definitions and inline options (by `Editor.docId`,
+since the Mac's windows share a process), live in a thread-local
+(`qt::shared`) that `Theme` and `Editor` publish to; a change bumps
 `Theme.revision` or `Editor.inlineRevision`, and each highlighter refreshes.
 Line height is a fixed pixel height per block (`QTextBlockFormat`), since
 Qt's proportional height scales the font's height, not the em. Syntax
@@ -486,8 +487,12 @@ fontconfig resolves to the Omarchy font.
   (`src/portal.rs`, zbus on a worker thread). The answer comes back to the
   GUI thread through cxx-qt's `Threading` as `Desktop.fileChosen`. Scripts
   queue answers with `Desktop.fakeChoice`, so tests never open a chooser.
-- Every window is its own `typo` process (`Desktop.spawn`), as Typora's
-  windows are independent. New and Open reuse the window only when it holds
+- On Linux every window is its own `typo` process (`Desktop.spawn`), as
+  Typora's windows are independent. On the Mac they share one process (one
+  Dock icon), each on a `QQmlApplicationEngine` of its own
+  (`typoOpenWindow`), so the QML singletons are still per window; the
+  engine goes when its window closes. Each window has its own session file
+  (`<pid>` or `<pid>.<n>`), and Quit tells every window. New and Open reuse the window only when it holds
   an untitled, unedited document. Recent and closed files live in the shared
   settings file, so `Prefs` re-reads them before each change.
 - Closing an edited document asks Save / Discard / Cancel (`TDialog.qml`),

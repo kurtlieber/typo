@@ -5,8 +5,6 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
-        include!("cxx-qt-lib/qqmlapplicationengine.h");
-        type QQmlApplicationEngine = cxx_qt_lib::QQmlApplicationEngine;
         include!("typo_glue.h");
 
         /// Ties windows to `<name>.desktop`, so the compositor's app id and
@@ -19,23 +17,18 @@ pub mod ffi {
         #[cxx_name = "typoUseIniSettings"]
         fn use_ini_settings();
 
-        /// Whether the engine created any root object, i.e. Main.qml loaded.
-        #[cxx_name = "typoHasRoots"]
-        fn has_roots(engine: &QQmlApplicationEngine) -> bool;
-
-        /// Serves typeset math to QML as `image://math/…`.
-        #[cxx_name = "typoAddMathProvider"]
-        fn add_math_provider(engine: Pin<&mut QQmlApplicationEngine>);
+        /// The first window, on this command line; false when Main.qml
+        /// doesn't load. Its engine serves typeset math (`image://math/…`)
+        /// and drawn diagrams (`image://diagram/…`).
+        #[cxx_name = "typoOpenFirstWindow"]
+        fn open_first_window() -> bool;
 
         /// Open each file the Mac hands over as an event (a double-click in
-        /// Finder, Open With, a drop on the Dock icon) with the window's
-        /// `openFile`, as one named on the command line.
+        /// Finder, Open With, a drop on the Dock icon) with the front
+        /// window's `openFile`, as one named on the command line; and keep
+        /// every window in the session when something outside quits typo.
         #[cxx_name = "typoOpenFileEvents"]
-        fn open_file_events(engine: Pin<&mut QQmlApplicationEngine>);
-
-        /// Serves drawn diagrams to QML as `image://diagram/…`.
-        #[cxx_name = "typoAddDiagramProvider"]
-        fn add_diagram_provider(engine: Pin<&mut QQmlApplicationEngine>);
+        fn open_file_events();
 
         /// File → Export → Image: premultiplied RGBA `width` × `height`
         /// pixels as a "png" or "jpg" file's bytes; empty when Qt can't.

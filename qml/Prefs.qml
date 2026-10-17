@@ -322,8 +322,8 @@ QtObject {
         prefs[name] = !prefs[name]
     }
 
-    // Every window is its own process, so lists are read back from disk
-    // before they change. A one-item list comes back as a plain string.
+    // Every window has a Prefs of its own (its process's, or on the Mac its
+    // engine's), so lists are read back from disk before they change. A one-item list comes back as a plain string.
     function fresh(key) {
         store.sync()
         const v = store.value(key, [])

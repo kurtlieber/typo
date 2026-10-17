@@ -18,6 +18,7 @@ use crate::source::{self, Block, Pair, State, Typing};
 pub struct SourceHighlighterRust {
     pub(crate) font_size: f64,
     pub(crate) hits: QString,
+    pub(crate) doc: i32,
     dim: Dim,
     /// Fences' parser states, which lines' states name.
     codes: States,
@@ -25,7 +26,7 @@ pub struct SourceHighlighterRust {
 
 impl Default for SourceHighlighterRust {
     fn default() -> Self {
-        SourceHighlighterRust { font_size: 16.0, hits: QString::from("[]"), dim: Dim::default(), codes: States::default() }
+        SourceHighlighterRust { font_size: 16.0, hits: QString::from("[]"), doc: -1, dim: Dim::default(), codes: States::default() }
     }
 }
 
@@ -171,7 +172,7 @@ impl qobject::SourceHighlighter {
         let prev = State::decode(self.previous_state());
         let first = self.block_number() == 0;
         let next = self.next_line_text().to_string();
-        let (layers, mut state) = shared::with_inline(|refs, opts| source::line(&line, prev, first, &next, refs, opts));
+        let (layers, mut state) = shared::with_inline(self.doc, |refs, opts| source::line(&line, prev, first, &next, refs, opts));
         let px = self.font_size;
         for (r, look) in source::runs(line.len(), &layers) {
             let (s, e) = (utf16_of(&line, r.start), utf16_of(&line, r.end));

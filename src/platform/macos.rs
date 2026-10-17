@@ -1,5 +1,5 @@
 //! macOS: the system's open and save panels from QML, Finder and Preview
-//! through `open`, and Quit as a signal to each window's process.
+//! through `open`, and Quit as a signal to each typo process.
 
 use std::fs;
 use std::io::Read;
@@ -7,6 +7,7 @@ use std::os::fd::IntoRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::Command;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::{IMAGES, IMPORT, MARKDOWN};
@@ -48,14 +49,14 @@ pub fn alive(pid: u32) -> bool {
     i32::try_from(pid).is_ok_and(|p| p > 0 && path(p).is_some_and(|p| Some(p) == path(std::process::id() as i32)))
 }
 
-/// Ask every window in the group, this one included, to close: each is a
-/// process with a file in the session folder.
+/// Ask every window in the group, this one included, to close: each
+/// process with a file in the session folder, once however many windows it
+/// has.
 pub fn broadcast_quit() -> Result<(), String> {
-    let me = std::process::id();
     let mut pids: Vec<u32> = crate::session::entries(&crate::session::dir()).into_iter().map(|(pid, _)| pid).collect();
-    if !pids.contains(&me) {
-        pids.push(me);
-    }
+    pids.push(std::process::id());
+    pids.sort_unstable();
+    pids.dedup();
     for pid in pids.into_iter().filter(|p| alive(*p)) {
         unsafe { libc::kill(pid as i32, libc::SIGUSR1) };
     }
@@ -73,8 +74,18 @@ extern "C" fn quit_signalled(_: libc::c_int) {
     }
 }
 
-/// Call `quit` on a background thread whenever the group is asked to quit.
+/// Each window's `on_quit`. ponytail: a closed window's stays, and only
+/// fails to reach it; prune them if windows ever number in the thousands.
+static LISTENERS: Mutex<Vec<Box<dyn Fn() + Send>>> = Mutex::new(Vec::new());
+
+/// Call `quit` on a background thread whenever the group is asked to quit;
+/// each window of the process calls it.
 pub fn on_quit(quit: impl Fn() + Send + 'static) {
+    let mut listeners = LISTENERS.lock().unwrap_or_else(|e| e.into_inner());
+    listeners.push(Box::new(quit));
+    if listeners.len() > 1 {
+        return;
+    }
     let Ok((mut rx, tx)) = UnixStream::pair() else { return };
     QUIT.store(tx.into_raw_fd(), Ordering::Relaxed);
     let handler: extern "C" fn(libc::c_int) = quit_signalled;
@@ -82,7 +93,9 @@ pub fn on_quit(quit: impl Fn() + Send + 'static) {
     std::thread::spawn(move || {
         let mut byte = [0u8];
         while rx.read_exact(&mut byte).is_ok() {
-            quit();
+            for quit in LISTENERS.lock().unwrap_or_else(|e| e.into_inner()).iter() {
+                quit();
+            }
         }
     });
 }

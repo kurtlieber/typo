@@ -1,9 +1,11 @@
 //! The windows open when typo last closed, which Preferences ▸ Files ▸ On
-//! Launch can bring back. Each window is a process of its own, so each
-//! keeps a file of its own, named for its process id, holding its document
-//! and its folder; no two processes ever write the same file. A window
-//! that closes while others stay open removes its file, so what is left
-//! when the last one goes (or when Quit closes them all) is the session.
+//! Launch can bring back. Each window keeps a file of its own, holding its
+//! document and its folder, named for its process: `<pid>` for the
+//! process's first window, `<pid>.<n>` for the Mac's later ones (one
+//! process has them all there). No two windows write the same file. A
+//! window that closes while others stay open removes its file, so what is
+//! left when the last one goes (or when Quit closes them all) is the
+//! session.
 //! No Qt.
 
 use std::fs;
@@ -24,24 +26,31 @@ pub fn dir() -> PathBuf {
     file::config_dir().join("session")
 }
 
-/// Note this window's document and folder.
-pub fn record(dir: &Path, path: &str, folder: &str) -> io::Result<()> {
+/// The file name of this process's window `n`.
+pub fn key(n: u32) -> String {
+    let pid = std::process::id();
+    if n == 0 { pid.to_string() } else { format!("{pid}.{n}") }
+}
+
+/// Note window `key`'s document and folder.
+pub fn record(dir: &Path, key: &str, path: &str, folder: &str) -> io::Result<()> {
     fs::create_dir_all(dir)?;
-    file::write_atomic(&dir.join(std::process::id().to_string()), format!("{path}\n{folder}\n").as_bytes())
+    file::write_atomic(&dir.join(key), format!("{path}\n{folder}\n").as_bytes())
 }
 
-/// Forget this window, as it closes while others stay.
-pub fn forget(dir: &Path) {
-    let _ = fs::remove_file(dir.join(std::process::id().to_string()));
+/// Forget window `key`, as it closes while others stay.
+pub fn forget(dir: &Path, key: &str) {
+    let _ = fs::remove_file(dir.join(key));
 }
 
-/// The ids of the processes with a file in `dir`, oldest file first.
+/// The ids of the processes with a file in `dir` and the files, oldest
+/// first; a process with several windows comes up once for each.
 pub fn entries(dir: &Path) -> Vec<(u32, PathBuf)> {
     let Ok(read) = fs::read_dir(dir) else { return Vec::new() };
     let mut out: Vec<(std::time::SystemTime, u32, PathBuf)> = read
         .flatten()
         .filter_map(|e| {
-            let pid = e.file_name().to_str()?.parse().ok()?;
+            let pid = e.file_name().to_str()?.split('.').next()?.parse().ok()?;
             let time = e.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
             Some((time, pid, e.path()))
         })
@@ -50,10 +59,10 @@ pub fn entries(dir: &Path) -> Vec<(u32, PathBuf)> {
     out.into_iter().map(|(_, pid, path)| (pid, path)).collect()
 }
 
-/// Whether any window but this one is open.
-pub fn others_open(dir: &Path, alive: impl Fn(u32) -> bool) -> bool {
+/// Whether any window but `key` is open.
+pub fn others_open(dir: &Path, key: &str, alive: impl Fn(u32) -> bool) -> bool {
     let me = std::process::id();
-    entries(dir).iter().any(|(pid, _)| *pid != me && alive(*pid))
+    entries(dir).iter().any(|(pid, path)| path.file_name().is_some_and(|f| f != key) && (*pid == me || alive(*pid)))
 }
 
 /// The windows of the last session, oldest first, forgetting them: the
@@ -106,16 +115,33 @@ mod tests {
         fs::create_dir_all(&sess).unwrap();
         fs::write(sess.join("1"), format!("{}\n{}\n", doc.display(), d.display())).unwrap();
         fs::write(sess.join("2"), format!("{}\n\n", d.join("gone.md").display())).unwrap();
-        record(&sess, "", "").unwrap();
-        assert!(!others_open(&sess, |_| false));
-        assert!(others_open(&sess, |pid| pid == 1));
+        record(&sess, &key(0), "", "").unwrap();
+        assert!(!others_open(&sess, &key(0), |_| false));
+        assert!(others_open(&sess, &key(0), |pid| pid == 1));
         let got = take(&sess, |_| false);
         assert_eq!(got, vec![Window { path: doc.display().to_string(), folder: d.display().to_string() }]);
         // Taken once; this window's own file stays.
         assert!(take(&sess, |_| false).is_empty());
         assert!(sess.join(std::process::id().to_string()).exists());
-        forget(&sess);
+        forget(&sess, &key(0));
         assert!(!sess.join(std::process::id().to_string()).exists());
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_process_keeps_a_file_per_window() {
+        let d = scratch("windows");
+        record(&d, &key(0), "", &d.display().to_string()).unwrap();
+        record(&d, &key(3), "", "").unwrap();
+        assert!(d.join(format!("{}.3", std::process::id())).exists());
+        assert!(others_open(&d, &key(0), |_| false) && others_open(&d, &key(3), |_| false));
+        // Its own windows are never the last session.
+        assert!(take(&d, |_| false).is_empty());
+        forget(&d, &key(3));
+        assert!(!others_open(&d, &key(0), |_| false));
+        // An earlier run's later window comes back.
+        fs::write(d.join("1.2"), format!("\n{}\n", d.display())).unwrap();
+        assert_eq!(take(&d, |_| false).len(), 1);
         let _ = fs::remove_dir_all(&d);
     }
 
