@@ -448,7 +448,7 @@ ApplicationWindow {
         "saveAs", "saveAll", "moveTo", "revealInSidebar", "deleteFile", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
         "quickOpen", "newFileInFolder", "refreshFolder", "searchFolder", "sidebarView", "sourceMode", "focusMode",
         "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "replaceNext", "findNext",
-        "findPrevious", "wordCount", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
+        "findPrevious", "wordCount", "emoji", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
 
     // Every menu item, shortcut and button runs a command here.
     function run(cmd, arg) {
@@ -701,6 +701,7 @@ ApplicationWindow {
         case "paragraphAfter":
         case "clearFormat":
         case "footnote":
+        case "linkReference":
             view.command(cmd)
             return
         // Typora asks for the size first; the table goes where the
@@ -832,6 +833,11 @@ ApplicationWindow {
             return
         }
         case "website": Qt.openUrlExternally("https://github.com/kurtlieber/typo"); return
+        case "refreshMath": view.refreshMath(); return
+        case "emoji":
+            if (!Desktop.showEmojiPicker())
+                toast.show(qsTr("No emoji picker found."))
+            return
         case "switchDocument":
             if (Ui.mac)
                 nextWindow()

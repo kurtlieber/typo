@@ -51,6 +51,9 @@ MenuBar {
             fileMenu.removeItem(prefsSep)
             helpMenu.removeItem(aboutSep)
             fileMenu.removeAction(revealSidebar)
+            // AppKit appends its own Emoji & Symbols.
+            editMenu.removeItem(emojiSep)
+            editMenu.removeAction(emojiCmd)
         } else {
             removeMenu(windowMenu)
             for (const a of [revealLibrary, revealTree, deleteFile, revert])
@@ -280,8 +283,8 @@ MenuBar {
             Cmd { text: qsTr("Replace"); cmd: "replace"; shortcut: "Ctrl+H" }
             Cmd { id: replaceNext; text: qsTr("Replace Next"); cmd: "replaceNext" }
         }
-        TSep {}
-        Cmd { text: qsTr("Emoji and Symbols"); cmd: "emoji" }
+        TSep { id: emojiSep }
+        Cmd { id: emojiCmd; text: qsTr("Emoji and Symbols"); cmd: "emoji" }
     }
 
     TMenu {

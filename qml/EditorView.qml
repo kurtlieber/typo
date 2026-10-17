@@ -82,6 +82,12 @@ Flickable {
         mathRows = m.rows
         Ui.mathLabels = m.labels
     }
+    // Refresh All Math Expressions: typesetting follows the source, so only
+    // the numbers can be stale.
+    function refreshMath() {
+        mathJson = ""
+        updateMath()
+    }
     readonly property string mathNumbering: Prefs.mathNumbering + Prefs.mathFences
     onMathNumberingChanged: updateMath()
     Component.onCompleted: updateMath()

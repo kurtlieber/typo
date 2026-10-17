@@ -52,6 +52,11 @@ pub fn alive(pid: u32) -> bool {
 /// The Mac's windows share this process, so QML cycles them itself.
 pub fn focus_next_window() {}
 
+/// AppKit adds its own Edit ▸ Emoji & Symbols, so typo has none to show.
+pub fn show_emoji_picker() -> bool {
+    false
+}
+
 /// Ask every window in the group, this one included, to close ("Quit", as
 /// SIGUSR1) or save ("Save", SIGUSR2): each process with a file in the
 /// session folder, once however many windows it has.

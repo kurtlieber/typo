@@ -1,0 +1,16 @@
+# Paragraph ▸ Link Reference splits the paragraph at the caret with an
+# empty definition, the caret in its label. It stays a definition while
+# it is filled in, and the links that use it follow.
+write @DIR@/doc.md See [the site][s] here.\n
+cmd openPath @DIR@/doc.md
+wait 400
+caret 0 23
+cmd linkReference
+wait 300
+check view.itemAt(1).kind === "linkref"
+type s
+key End
+type https://typora.io
+wait 300
+check view.itemAt(1).kind === "linkref" && model.linkAt(0, 6) === "https://typora.io"
+dump @OUT@

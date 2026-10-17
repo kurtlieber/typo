@@ -1016,6 +1016,48 @@ pub fn insert_paragraph(doc: &mut Document, i: usize, after: bool) -> Pos {
     Pos::new(at, 0)
 }
 
+/// Paragraph ▸ Link Reference, as Typora: a definition at the caret, its
+/// paragraph or heading split there (empty halves go, but a paragraph
+/// after it stays unless another follows), or after a block of another
+/// kind. Selected text seeds it, as the URL when it has a slash and as the
+/// label otherwise. The caret goes into the label.
+pub fn insert_link_ref(doc: &mut Document, start: Pos, end: Pos) -> Pos {
+    let text = &doc.blocks[start.block].text;
+    let upto = if end.block == start.block { end.offset } else { text.len() };
+    let seed = text.get(start.offset..upto).unwrap_or_default().trim().lines().next().unwrap_or_default().to_string();
+    let at = if start == end { start } else { delete_range(doc, start, end) };
+    let (label, dest): (String, String) = if seed.contains(['/', '\\']) {
+        (String::new(), seed.chars().take(160).collect())
+    } else {
+        (seed.split_whitespace().next().unwrap_or_default().chars().take(20).collect(), String::new())
+    };
+    let i = at.block;
+    let b = &doc.blocks[i];
+    let def = Block::new(BlockKind::LinkRefDef, format!("[{label}]: {dest}"), b.containers.clone());
+    if !b.kind.is_inline_text() {
+        doc.blocks.insert(i + 1, def);
+        moved(doc, i + 1..i + 2);
+        return Pos::new(i + 1, 1);
+    }
+    let offset = floor_char(&b.text, at.offset);
+    let right = Block::new(b.kind.clone(), b.text[offset..].trim_start(), b.containers.clone());
+    let left = b.text[..offset].trim_end().to_string();
+    doc.blocks[i].set_text(left);
+    doc.blocks.insert(i + 1, def);
+    let keep_right = !right.text.is_empty() || !doc.blocks.get(i + 2).is_some_and(|b| matches!(b.kind, BlockKind::Paragraph));
+    if keep_right {
+        doc.blocks.insert(i + 2, right);
+    }
+    let at = if doc.blocks[i].text.is_empty() {
+        doc.blocks.remove(i);
+        i
+    } else {
+        i + 1
+    };
+    moved(doc, at..at + 1 + usize::from(keep_right));
+    Pos::new(at, 1)
+}
+
 /// An empty definition for footnote `label` at the end of the document, as
 /// Typora adds one from a reference's tooltip. The caret goes into it.
 pub fn add_footnote_def(doc: &mut Document, label: &str) -> Pos {

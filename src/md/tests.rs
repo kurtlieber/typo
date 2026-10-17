@@ -1174,6 +1174,14 @@ fn alerts() {
     assert_eq!(query::alert_of("[!NOTE] text"), None);
     assert_eq!(query::alert_of("[!FOO]\nx"), None);
     assert_eq!(query::alert_of("Plain"), None);
+    // Paragraph ▸ Link Reference splits the paragraph at the caret, or
+    // takes the selection as its URL or label.
+    let def = |src: &str, a: Pos, z: Pos| edited(src, |d| edit::insert_link_ref(d, a, z));
+    assert_eq!(def("ab\n", Pos::new(0, 1), Pos::new(0, 1)), ("a\n\n[]: \n\nb\n".to_string(), Pos::new(1, 1)));
+    assert_eq!(def("ab\n", Pos::new(0, 2), Pos::new(0, 2)), ("ab\n\n[]: \n".to_string(), Pos::new(1, 1)));
+    assert_eq!(def("ab\n\nc\n", Pos::new(0, 2), Pos::new(0, 2)).0, "ab\n\n[]: \n\nc\n");
+    assert_eq!(def("see docs/a.md now\n", Pos::new(0, 4), Pos::new(0, 13)), ("see\n\n[]: docs/a.md\n\nnow\n".to_string(), Pos::new(1, 1)));
+    assert_eq!(def("word\n", Pos::new(0, 0), Pos::new(0, 4)), ("[word]: \n".to_string(), Pos::new(0, 1)));
     // Paragraph ▸ Alert, with the caret at offset 1 of block `b`.
     let alert = |src: &str, b: usize, kind: &str| {
         edited(src, |d| edit::toggle_alert(d, [Pos::new(b, 1); 2], kind)[0])

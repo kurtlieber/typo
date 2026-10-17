@@ -299,6 +299,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "focusNextWindow"]
         fn focus_next_window(self: &Desktop);
+        /// Edit ▸ Emoji and Symbols: the system's emoji picker; false when
+        /// there is none.
+        #[qinvokable]
+        #[cxx_name = "showEmojiPicker"]
+        fn show_emoji_picker(self: &Desktop) -> bool;
         /// The windows open when typo last closed, as JSON `[{path,
         /// folder}]`, oldest first; they are forgotten.
         #[qinvokable]
@@ -514,6 +519,10 @@ impl qobject::Desktop {
 
     fn focus_next_window(&self) {
         platform::focus_next_window();
+    }
+
+    fn show_emoji_picker(&self) -> bool {
+        platform::show_emoji_picker()
     }
 
     fn other_windows_open(&self) -> bool {

@@ -1483,7 +1483,9 @@ impl qobject::Editor {
             let mut r = self.as_mut().rust_mut();
             r.doc.blocks[i].set_text(text);
             let b = &mut r.doc.blocks[i];
-            if b.kind == BlockKind::LinkRefDef && inline::parse_link_ref_def(&b.text).is_none() {
+            // One still being filled in (`[label]: `) stays a definition.
+            let started = b.text.starts_with('[') && b.text.contains("]:");
+            if b.kind == BlockKind::LinkRefDef && !started && inline::parse_link_ref_def(&b.text).is_none() {
                 b.set_kind(BlockKind::Paragraph);
             }
             if let Some(p) = md::edit::input_rule(&mut r.doc, pos) {
@@ -3077,6 +3079,7 @@ fn apply_command(
             edit::toggle_quote(doc, start.block, end.block);
             Some(Sel { anchor, caret })
         }
+        "linkReference" => one(edit::insert_link_ref(doc, start, end)),
         "alert" => {
             let [anchor, caret] = edit::toggle_alert(doc, [anchor, caret], &text.to_lowercase());
             Some(Sel { anchor, caret })

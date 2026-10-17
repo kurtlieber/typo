@@ -9,6 +9,10 @@ wait 300
 eval Prefs.mathNumbering = "all"
 wait 300
 check view.mathRows[0][0] === "(1)" && view.mathRows[2][0] === "(2)"
+# Refresh All Math Expressions numbers them afresh.
+eval view.mathRows = ({})
+cmd refreshMath
+check view.mathRows[0][0] === "(1)" && view.mathRows[2][0] === "(2)"
 check Ui.mathTex("see \\eqref{sq} \\ref{no}") === "see \\text{(1)} \\text{???}"
 clickText 0 0 Right
 wait 300

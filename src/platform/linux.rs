@@ -54,6 +54,12 @@ pub fn focus_next_window() {
     }
 }
 
+/// Edit ▸ Emoji and Symbols: Omarchy's emoji picker, which pastes the
+/// pick into the focused window. False when there is none.
+pub fn show_emoji_picker() -> bool {
+    std::process::Command::new("omarchy-shell").args(["shell", "toggle", "omarchy.emojis"]).spawn().is_ok()
+}
+
 /// Print what `render` typesets on the page the print dialog sets up,
 /// starting from `page` (its size and margins in millimetres). `path` is
 /// where the PDF waits while the dialog takes it.
