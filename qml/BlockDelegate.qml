@@ -1117,7 +1117,8 @@ Item {
         Item {
             id: mathItem
             readonly property Item editItem: source
-            readonly property bool editing: source.activeFocus || block.found
+            readonly property alias tagFields: tagFields
+            readonly property bool editing: source.activeFocus || tagFields.focused || block.found
             readonly property real pad: 10 * block.scale
             width: parent ? parent.width : 0
             height: editing ? panel.height : rendered.height + 2 * pad
@@ -1212,6 +1213,56 @@ Item {
                     color: Theme.faint
                     font.family: Ui.monoFont
                     font.pixelSize: block.em * 0.8
+                }
+                // The {tag} each $$ line can carry, in Typora's fields
+                // beside them; braced once there is one.
+                Repeater {
+                    id: tagFields
+                    readonly property bool focused: count === 2 && (itemAt(0).activeFocus || itemAt(1).activeFocus)
+                    readonly property var tags: block.info === "$$" && block.rows ? JSON.parse(block.rows) : ["", ""]
+                    function commit() {
+                        block.editor.setMathTags(block.index, itemAt(0).text, itemAt(1).text)
+                    }
+                    model: block.info === "$$" ? [before, after] : []
+                    TextInput {
+                        required property Item modelData
+                        required property int index
+                        readonly property bool braced: text !== "" || activeFocus
+                        x: modelData.x + modelData.width
+                        y: modelData.y
+                        leftPadding: tagMetrics.advanceWidth(braced ? " {" : " ")
+                        rightPadding: tagMetrics.advanceWidth(braced ? "}" : " ")
+                        text: tagFields.tags[index]
+                        color: Theme.foreground
+                        selectByMouse: true
+                        selectionColor: Theme.selection
+                        selectedTextColor: Theme.foreground
+                        font: before.font
+                        onEditingFinished: {
+                            tagFields.commit()
+                            text = Qt.binding(() => tagFields.tags[index])
+                        }
+                        Keys.onReturnPressed: source.forceActiveFocus()
+                        Keys.onEnterPressed: source.forceActiveFocus()
+                        FontMetrics {
+                            id: tagMetrics
+                            font: before.font
+                        }
+                        Text {
+                            visible: parent.braced
+                            x: tagMetrics.advanceWidth(" ")
+                            text: "{"
+                            color: Theme.faint
+                            font: parent.font
+                        }
+                        Text {
+                            visible: parent.braced
+                            x: parent.width - parent.rightPadding
+                            text: "}"
+                            color: Theme.faint
+                            font: parent.font
+                        }
+                    }
                 }
                 Rectangle {
                     y: after.y + after.height + 6 * block.scale

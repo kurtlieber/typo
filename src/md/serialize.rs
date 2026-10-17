@@ -331,13 +331,14 @@ fn block_lines(block: &Block) -> Vec<String> {
             .into_iter()
             .map(|l| if l.is_empty() { l } else { format!("    {l}") })
             .collect(),
-        BlockKind::Math { brackets } => {
-            let (open, close) = if *brackets { ("\\[", "\\]") } else { ("$$", "$$") };
-            let mut lines = vec![open.to_string()];
+        BlockKind::Math { brackets, before, after } => {
+            let line = |tag: &str| if tag.is_empty() { "$$".to_string() } else { format!("$$ {{{tag}}}") };
+            let (open, close) = if *brackets { ("\\[".into(), "\\]".into()) } else { (line(before), line(after)) };
+            let mut lines = vec![open];
             if !block.text.is_empty() {
                 lines.extend(text_lines());
             }
-            lines.push(close.into());
+            lines.push(close);
             lines
         }
         BlockKind::Table { align, rows } => table_lines(align, rows),

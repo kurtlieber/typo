@@ -332,7 +332,7 @@ fn latex_delimited_math_blocks() {
     let src = "a\n\n\\[\nx^2\n\\]\n\n$$\ny\n$$\n";
     let mut doc = parse(src);
     assert_eq!(kinds(&doc), ["paragraph", "math", "math"]);
-    assert_eq!(doc.blocks[1].kind, BlockKind::Math { brackets: true });
+    assert!(matches!(doc.blocks[1].kind, BlockKind::Math { brackets: true, .. }));
     assert_eq!(texts(&doc)[1], "x^2");
     // Edited, it keeps its delimiters.
     doc.blocks[1].set_text("z");
@@ -343,6 +343,19 @@ fn latex_delimited_math_blocks() {
     let off = super::parse_with(src, false, false);
     assert_eq!(kinds(&off), ["paragraph", "paragraph", "math"]);
     assert_eq!(serialize(&off), src);
+}
+
+#[test]
+fn math_blocks_need_a_closing_line_and_keep_tags() {
+    // As Typora: without a closing line further on, `$$` is text.
+    assert_eq!(kinds(&parse("$$\nx\n\ny\n")), ["paragraph", "paragraph"]);
+    assert_eq!(kinds(&parse("a\n\n$$\nx\n\ny\n$$\n")), ["paragraph", "math"]);
+    assert_eq!(kinds(&parse("$$ {}\nx\n$$\n$$$\n")), ["paragraph"]);
+    let src = "$$ {#eq:one}\nx\n$$ {(1)}\n";
+    let mut doc = parse(src);
+    assert!(matches!(&doc.blocks[0].kind, BlockKind::Math { before, after, .. } if before == "#eq:one" && after == "(1)"));
+    doc.blocks[0].set_text("y");
+    assert_eq!(serialize(&doc), "$$ {#eq:one}\ny\n$$ {(1)}\n");
 }
 
 #[test]
@@ -1348,7 +1361,7 @@ fn backspace_removes_empty_pairs() {
     assert!(pair::paired(&para, "**", 1, true, &opts));
     assert!(!pair::paired(&para, "==", 1, true, &opts));
     assert!(!pair::paired(&para, ")", 0, false, &opts));
-    assert!(pair::paired(&BlockKind::Math { brackets: false }, "{}", 1, false, &opts));
+    assert!(pair::paired(&BlockKind::Math { brackets: false, before: String::new(), after: String::new() }, "{}", 1, false, &opts));
 }
 
 // ---------------------------------------------------------------------------

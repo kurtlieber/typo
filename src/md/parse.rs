@@ -41,7 +41,15 @@ pub fn parse_with(src: &str, latex: bool, remap: bool) -> Document {
         parser.blocks.push(block);
         start = end + 1;
     }
-    for line in &lines[start..] {
+    // ponytail: a closing line in another container counts too; Typora
+    // looks within the opening's own.
+    let mut ahead = vec![[false; 2]; lines.len() + 1];
+    for (i, line) in lines.iter().enumerate().rev() {
+        let l = line.trim_start_matches(['>', ' ', '\t']);
+        ahead[i] = [ahead[i + 1][0] || math_end(l, false).is_some(), ahead[i + 1][1] || math_end(l, true).is_some()];
+    }
+    for (i, line) in lines.iter().enumerate().skip(start) {
+        parser.closer_ahead = ahead[i + 1];
         parser.line(line);
     }
     parser.close_containers_from(0);
@@ -235,18 +243,28 @@ pub(crate) fn fence_start(s: &str) -> Option<(String, String)> {
     Some((fence, info))
 }
 
-/// Whether the line opens a math block: `Some(true)` for LaTeX's `\[`,
-/// when `latex` delimiters are on, `Some(false)` for `$$`.
-pub(crate) fn math_start(s: &str, latex: bool) -> Option<bool> {
+/// Whether the line opens a math block: `Some((true, ""))` for LaTeX's
+/// `\[`, when `latex` delimiters are on, `Some((false, tag))` for `$$` or
+/// `$$ {tag}`.
+pub(crate) fn math_start(s: &str, latex: bool) -> Option<(bool, String)> {
     match s.trim() {
-        "$$" => Some(false),
-        "\\[" if latex => Some(true),
-        _ => None,
+        "\\[" if latex => Some((true, String::new())),
+        t => math_tag(t).map(|tag| (false, tag)),
     }
 }
 
-pub(crate) fn math_end(s: &str, brackets: bool) -> bool {
-    s.trim() == if brackets { "\\]" } else { "$$" }
+/// The tag of a line that closes a math block.
+pub(crate) fn math_end(s: &str, brackets: bool) -> Option<String> {
+    if brackets { (s.trim() == "\\]").then(String::new) } else { math_tag(s) }
+}
+
+/// The `{tag}` of a `$$` line, empty for a bare one; None for other lines.
+fn math_tag(s: &str) -> Option<String> {
+    let rest = s.trim().strip_prefix("$$")?.trim_start();
+    if rest.is_empty() {
+        return Some(String::new());
+    }
+    rest.strip_prefix('{')?.strip_suffix('}').filter(|t| !t.is_empty()).map(str::to_string)
 }
 
 pub(crate) fn is_fence_close(s: &str, fence: &str) -> bool {
@@ -412,7 +430,7 @@ struct Open {
 enum LeafKind {
     Paragraph,
     Fence { fence: String, info: String, indent: usize },
-    Math { brackets: bool },
+    Math { brackets: bool, before: String },
     Html(HtmlEnd),
     IndentedCode,
     Table { align: Vec<Align>, rows: Vec<Vec<String>> },
@@ -442,6 +460,8 @@ struct Parser {
     last_item: Vec<Option<(Id, ListMarker)>>,
     /// Whether `\[` opens a math block.
     latex: bool,
+    /// Whether a later line closes a `$$` block, and a `\[` one.
+    closer_ahead: [bool; 2],
 }
 
 impl Parser {
@@ -625,11 +645,14 @@ impl Parser {
                 }
                 true
             }
-            LeafKind::Math { brackets } => {
+            LeafKind::Math { brackets, .. } => {
                 let brackets = *brackets;
                 leaf.raw.push(cur.rest());
-                if math_end(cur.content(), brackets) {
-                    self.close_leaf_with(|_| BlockKind::Math { brackets });
+                if let Some(after) = math_end(cur.content(), brackets) {
+                    self.close_leaf_with(|kind| match kind {
+                        LeafKind::Math { before, .. } => BlockKind::Math { brackets, before, after },
+                        _ => unreachable!(),
+                    });
                 } else {
                     leaf.lines.push(cur.rest());
                 }
@@ -780,9 +803,10 @@ impl Parser {
             self.start_leaf(LeafKind::Fence { fence, info, indent }, Vec::new(), vec![cur.rest()]);
             return;
         }
-        if let Some(brackets) = math_start(content, self.latex) {
+        // Only with a closing line further on, as Typora looks ahead.
+        if let Some((brackets, before)) = math_start(content, self.latex).filter(|(b, _)| self.closer_ahead[*b as usize]) {
             self.close_leaf();
-            self.start_leaf(LeafKind::Math { brackets }, Vec::new(), vec![cur.rest()]);
+            self.start_leaf(LeafKind::Math { brackets, before }, Vec::new(), vec![cur.rest()]);
             return;
         }
         if let Some(end) = html_start(content, in_paragraph) {
@@ -895,7 +919,10 @@ impl Parser {
                     _ => unreachable!(),
                 });
             }
-            LeafKind::Math { brackets } => BlockKind::Math { brackets: *brackets },
+            LeafKind::Math { brackets, before } => {
+                let (brackets, before) = (*brackets, before.clone());
+                return self.close_leaf_with(|_| BlockKind::Math { brackets, before, after: String::new() });
+            }
             LeafKind::Html(_) => BlockKind::Html,
             LeafKind::IndentedCode => BlockKind::IndentedCode,
             LeafKind::Table { .. } => {

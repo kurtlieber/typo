@@ -1,0 +1,18 @@
+# A $$ line's {tag}: read with the block, shown in the field beside it
+# while editing, and set by typing there. A $$ with no closing line
+# further on is text, as Typora's look-ahead.
+write @DIR@/doc.md $$ {#eq:one}\nx^2\n$$\n\n$$\nnot math\n
+cmd openPath @DIR@/doc.md
+wait 300
+check view.itemAt(1).kind === "paragraph"
+caret 0 0
+wait 200
+check view.itemAt(0).body.tagFields.itemAt(0).text === "#eq:one" && view.itemAt(0).body.tagFields.itemAt(1).text === ""
+eval view.itemAt(0).body.tagFields.itemAt(1).forceActiveFocus()
+type (1)
+wait 100
+check view.itemAt(0).body.editing
+key Return
+wait 200
+shot @DIR@/tags.png
+dump @OUT@

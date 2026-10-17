@@ -874,6 +874,18 @@ pub fn set_info(doc: &mut Document, i: usize, info: &str) -> bool {
     true
 }
 
+/// Set the `{tag}`s on a `$$` math block's lines, from the fields beside
+/// them. False when nothing changes.
+pub fn set_math_tags(doc: &mut Document, i: usize, before: &str, after: &str) -> bool {
+    let (before, after) = (before.replace('\n', " "), after.replace('\n', " "));
+    match &doc.blocks[i].kind {
+        BlockKind::Math { brackets: false, before: b, after: a } if (b, a) != (&before, &after) => {}
+        _ => return false,
+    }
+    doc.blocks[i].set_kind(BlockKind::Math { brackets: false, before, after });
+    true
+}
+
 /// Insert a new block after block `i` (Paragraph ▸ Code Fences, Math Block,
 /// Horizontal Line, Table…), replacing `i` when it is an empty paragraph.
 /// Returns the caret in the new block, or after it for a horizontal line.
@@ -1068,9 +1080,9 @@ pub fn enter_rule(doc: &mut Document, i: usize, latex: bool) -> Option<Pos> {
         b.set_text("");
         return Some(Pos::new(i, 0));
     }
-    if let Some(brackets) = math_start(&text, latex) {
+    if let Some((brackets, before)) = math_start(&text, latex) {
         let b = &mut doc.blocks[i];
-        b.set_kind(BlockKind::Math { brackets });
+        b.set_kind(BlockKind::Math { brackets, before, after: String::new() });
         b.set_text("");
         return Some(Pos::new(i, 0));
     }

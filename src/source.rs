@@ -199,7 +199,7 @@ pub fn line(text: &str, prev: State, first: bool, next: &str, refs: &Refs, opts:
         Block::Math { brackets } => {
             out.push((all, Look::ink(Ink::Math).mono()));
             let at = quotes(text, &mut out);
-            let closed = parse::math_end(&text[at..], brackets);
+            let closed = parse::math_end(&text[at..], brackets).is_some();
             return (out, if closed { stay(Block::Blank) } else { prev });
         }
         Block::Html(end) => {
@@ -267,7 +267,7 @@ pub fn line(text: &str, prev: State, first: bool, next: &str, refs: &Refs, opts:
         // Longer fences close with 63 marks or more.
         return (out, stay(Block::Fence { tilde, len: fence.len().min(63) as u8 }));
     }
-    if let Some(brackets) = parse::math_start(rest, opts.latex_delimiters) {
+    if let Some((brackets, _)) = parse::math_start(rest, opts.latex_delimiters) {
         out.push((body, Look::ink(Ink::Math).mono()));
         return (out, stay(Block::Math { brackets }));
     }

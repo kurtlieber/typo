@@ -160,7 +160,9 @@ returns one clear pixel and leaves its message for `Desktop.mathError`.
 so typing doesn't flicker, and keeps the last good formula above the error
 in the editing preview, as Typora does. A math block shows only the
 formula; focusing it unfolds the source between `$$` lines (highlighted as
-LaTeX) with the preview under it. A ```` ```math ```` code block shows its
+LaTeX) with the preview under it, and a field beside each `$$` for the
+`{tag}` it can carry (`$$ {#eq:one}`, a pandoc-crossref label). As in
+Typora, a `$$` line opens a block only when a closing one follows. A ```` ```math ```` code block shows its
 formula the same way, folded when the caret is elsewhere, and `\[ \]`
 blocks and `\( \)` / `\[ \]` inline math keep their delimiters
 (Preferences: "LaTeX Math Delimiter", on by default, and "Code Block

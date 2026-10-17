@@ -125,8 +125,9 @@ pub enum BlockKind {
     IndentedCode,
     /// A display-math block between `$$` lines, or with `brackets`
     /// between `\[` and `\]` lines, LaTeX's own delimiters, which Typora
-    /// also reads.
-    Math { brackets: bool },
+    /// also reads. `before` and `after` are the `{tag}`s a `$$` line may
+    /// carry (`$$ {#eq:one}`, pandoc-crossref's label).
+    Math { brackets: bool, before: String, after: String },
     Html,
     /// Cells are inline markdown; `rows[0]` is the header row.
     Table { align: Vec<Align>, rows: Vec<Vec<String>> },

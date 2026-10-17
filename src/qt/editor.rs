@@ -243,6 +243,11 @@ pub mod qobject {
         #[cxx_name = "setInfo"]
         fn set_info(self: Pin<&mut Editor>, row: i32, info: &QString) -> bool;
 
+        /// Set the `{tag}`s of the math block in `row`, likewise.
+        #[qinvokable]
+        #[cxx_name = "setMathTags"]
+        fn set_math_tags(self: Pin<&mut Editor>, row: i32, before: &QString, after: &QString) -> bool;
+
         /// Every match of `query`, as JSON `{"error": message, "hits":
         /// [[row, cellRow, cellColumn, start, end], …]}`: UTF-16 positions
         /// in the block's text or the table cell's (cell -1, -1 elsewhere).
@@ -1024,6 +1029,8 @@ fn rows_json(b: &md::Block) -> String {
                 rows.iter().map(|r| format!("[{}]", r.iter().map(|c| json_str(c)).collect::<Vec<_>>().join(","))).collect();
             format!(r#"{{"align":[{}],"rows":[{}]}}"#, al.join(","), rows.join(","))
         }
+        // A math block's tags.
+        BlockKind::Math { before, after, .. } => format!("[{},{}]", json_str(before), json_str(after)),
         _ => String::new(),
     }
 }
@@ -1047,7 +1054,7 @@ impl qobject::Editor {
                     BlockKind::CodeFence { info, .. } => inline::unescape(info.trim()),
                     BlockKind::ThematicBreak { marker } => marker.clone(),
                     // The opening delimiter.
-                    BlockKind::Math { brackets } => (if *brackets { "\\[" } else { "$$" }).into(),
+                    BlockKind::Math { brackets, .. } => (if *brackets { "\\[" } else { "$$" }).into(),
                     _ => String::new(),
                 };
                 QVariant::from(&QString::from(&info))
@@ -1519,6 +1526,16 @@ impl qobject::Editor {
             return false;
         }
         self.as_mut().rust_mut().last_lang = info.to_string().trim().to_string();
+        self.as_mut().commit(old, Sel::caret(at), Sel::caret(at), Merge::Never);
+        true
+    }
+
+    fn set_math_tags(mut self: Pin<&mut Self>, row: i32, before: &QString, after: &QString) -> bool {
+        let Some(at) = pos_of(&self.doc, row, 0) else { return false };
+        let old = self.doc.blocks.clone();
+        if !edit::set_math_tags(&mut self.as_mut().rust_mut().doc, at.block, &before.to_string(), &after.to_string()) {
+            return false;
+        }
         self.as_mut().commit(old, Sel::caret(at), Sel::caret(at), Merge::Never);
         true
     }
@@ -2948,7 +2965,7 @@ fn apply_command(
         "codeFence" | "mathBlock" | "hr" | "toc" | "frontMatter" | "table" => {
             let kind = match name {
                 "codeFence" => BlockKind::CodeFence { info: String::new(), fence: "```".into(), closed: true },
-                "mathBlock" => BlockKind::Math { brackets: false },
+                "mathBlock" => BlockKind::Math { brackets: false, before: String::new(), after: String::new() },
                 "hr" => BlockKind::ThematicBreak { marker: "---".into() },
                 "toc" => BlockKind::Toc,
                 "frontMatter" => BlockKind::FrontMatter,
