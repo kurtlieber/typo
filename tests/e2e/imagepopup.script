@@ -2,9 +2,12 @@
 # a HiDPI picture's own size (a 144-DPI PNG at 50%, in the context menu
 # too), copying or moving its file, and Zoom Image ▸. The copy's picture
 # isn't offered for again, nor the last one offered for; leaving the image
-# closes the list.
+# closes the list. Up and Down pick a row, past either end closing the
+# list, Enter runs one (Zoom Image's at its first size) and Escape closes.
 write @DIR@/b.svg <svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>
 write @DIR@/c.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>
+write @DIR@/d.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="30"/>
+write @DIR@/e.svg <svg xmlns="http://www.w3.org/2000/svg" width="10" height="40"/>
 write @DIR@/doc.md start\n\nend\n
 cmd openPath @DIR@/doc.md
 wait 100
@@ -35,13 +38,28 @@ check !imagePopup.shown
 dropFiles 2 0 @DIR@/c.svg
 wait 1000
 check imagePopup.shown
-clickItem imagePopup.row(2)
+key Down
+key Down
+key Down
+check imagePopup.current === 2
+key Return
 wait 100
-check imagePopup.zoomMenu.opened
+check imagePopup.zoomMenu.opened && imagePopup.zoomMenu.currentIndex === 0
 clickItem imagePopup.zoomMenu.itemAt(6)
 wait 100
 check !imagePopup.shown && !imagePopup.zoomMenu.opened
 dropFiles 2 0 @DIR@/c.svg
 wait 1000
 check !imagePopup.shown
+dropFiles 2 0 @DIR@/d.svg
+wait 1000
+key Up
+check imagePopup.current === 2
+key Down
+check !imagePopup.shown && imageHere() !== null
+dropFiles 2 0 @DIR@/e.svg
+wait 1000
+key Down
+key Escape
+check !imagePopup.shown && imageHere() !== null
 dump @OUT@

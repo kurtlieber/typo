@@ -546,7 +546,7 @@ Item {
         const none = edit.selectedText === ""
         const x = edit.mapToItem(null, edit.cursorRectangle.x, 0).x
         const accept = done => { event.accepted = done !== false }
-        if (host && host.emojiSuggest.shown && host.emojiSuggest.keyPressed(event))
+        if (host && (host.emojiSuggest.shown && host.emojiSuggest.keyPressed(event) || host.popup && host.popup.shown && host.popup.keyPressed(event)))
             return accept()
         if (event.matches(StandardKey.Copy))
             return accept(copy() || true)

@@ -4,7 +4,8 @@ import Typo
 // What Typora offers once an image has loaded with the caret in its
 // source: copying or moving its file, its HiDPI size, and zooming, in a
 // list under the caret that doesn't take the focus. It closes when the
-// caret leaves the image, or a row is clicked.
+// caret leaves the image, or a row is clicked. Up and Down pick a row
+// (past either end closes it), Enter runs it and Escape closes it.
 Item {
     id: popup
 
@@ -14,6 +15,8 @@ Item {
     // reload or the same picture again offers nothing.
     property var image: null
     property string lastUrl: ""
+    // The picked row, by key or pointer; -1 for none.
+    property int current: -1
 
     signal chosen(string cmd, string arg)
 
@@ -69,6 +72,7 @@ Item {
             return
         lastUrl = img.url
         image = img
+        current = -1
         const r = edit.positionToRectangle(edit.cursorPosition)
         const p = edit.mapToItem(popup.parent, r.x, r.y)
         x = Math.max(view.contentX, Math.min(view.contentX + view.width - width - 4, p.x))
@@ -77,7 +81,56 @@ Item {
     }
     function close() {
         image = null
+        current = -1
         zoomMenu.close()
+    }
+    // From the editor's keys while shown: true when taken.
+    function keyPressed(event) {
+        if (event.modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+            return false
+        const last = rows.length - 1
+        switch (event.key) {
+        case Qt.Key_Escape:
+            close()
+            return true
+        case Qt.Key_Up:
+            if (current === 0)
+                close()
+            else
+                current = current < 0 ? last : current - 1
+            return true
+        case Qt.Key_Down:
+            if (current === last)
+                close()
+            else
+                current++
+            return true
+        case Qt.Key_Right:
+            if (current < 0 || rows[current][1] !== "")
+                return false
+            run(current, true)
+            return true
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+            if (current < 0)
+                return false
+            run(current, true)
+            return true
+        }
+        return false
+    }
+    // Zoom Image opens its menu (at its first entry from the keys); the
+    // others close the list and run.
+    function run(i, key) {
+        const r = rows[i]
+        if (r[1] === "") {
+            zoomMenu.popup(row(i), row(i).width, 0)
+            if (key)
+                zoomMenu.currentIndex = 0
+            return
+        }
+        close()
+        chosen(r[1], r[2])
     }
 
     Rectangle {
@@ -97,9 +150,10 @@ Item {
             Rectangle {
                 id: row
                 required property var modelData
+                required property int index
                 width: list.width
                 height: popup.rowHeight
-                color: pointer.containsMouse ? Theme.selection : "transparent"
+                color: index === popup.current ? Theme.selection : "transparent"
                 readonly property bool sub: modelData[1] === ""
                 Text {
                     x: 14 * Ui.zoom
@@ -124,14 +178,9 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (row.sub)
-                            return zoomMenu.popup(row, row.width, 0)
-                        // Closing takes this row away.
-                        const p = popup, r = row.modelData
-                        p.close()
-                        p.chosen(r[1], r[2])
-                    }
+                    onEntered: popup.current = row.index
+                    onExited: if (popup.current === row.index && !row.sub) popup.current = -1
+                    onClicked: popup.run(row.index)
                 }
             }
         }

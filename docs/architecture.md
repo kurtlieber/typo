@@ -339,7 +339,9 @@ When a picture loads in the block with the caret (`EditorView.imageLoaded`)
 and the caret is in its source, Main offers its commands in
 `qml/ImagePopup.qml`, under the caret, unless it offered for that URL
 last or the picture is one a copy or move just pointed at; moving the
-caret out of the image closes it.
+caret out of the image closes it. While it is shown it takes Up, Down,
+Enter and Escape from the editor's keys (`EditorView.popup`, which a
+cell's keys check too), as the emoji list does.
 
 ## Inline objects
 

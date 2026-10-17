@@ -220,6 +220,8 @@ Flickable {
         id: emojiSuggest
         view: view
     }
+    // Main's ImagePopup, which takes some keys while shown.
+    property Item popup: null
     // For scripts.
     readonly property alias pointer: pointer
     readonly property alias footnoteTip: footnoteTip
@@ -1023,7 +1025,7 @@ Flickable {
         const pos = edit ? edit.cursorPosition : s.zPos
         const len = edit ? edit.length : 1
         const run = (name, arg, text) => editor.command(name, s.aRow, s.aPos, s.zRow, s.zPos, arg || 0, text || "")
-        if (emojiSuggest.shown && emojiSuggest.keyPressed(event)) {
+        if (emojiSuggest.shown && emojiSuggest.keyPressed(event) || popup && popup.shown && popup.keyPressed(event)) {
             event.accepted = true
             return
         }

@@ -291,6 +291,7 @@ ApplicationWindow {
                 onMenuRequested: (x, y) => contextMenu.show(x, y)
                 onFilesPasted: paths => win.insertFiles(paths)
                 onFilesDropped: paths => win.dropFiles(paths)
+                popup: imagePopup
                 onImageLoaded: edit => imagePopup.offer(edit, win.imageHere())
                 onCaretMoved: {
                     const img = imagePopup.shown ? win.imageHere() : null
