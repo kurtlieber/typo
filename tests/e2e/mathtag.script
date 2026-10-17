@@ -15,4 +15,30 @@ check view.itemAt(0).body.editing
 key Return
 wait 200
 shot @DIR@/tags.png
+# Up and Down pass through a tag on the way, selected, as Typora's.
+caret 1 0
+wait 100
+key Up
+wait 100
+check view.itemAt(0).body.tagFields.itemAt(1).activeFocus && view.itemAt(0).body.tagFields.itemAt(1).selectedText === "(1)"
+key Up
+wait 100
+check view.itemAt(0).editItem.activeFocus
+key Up
+wait 100
+check view.itemAt(0).body.tagFields.itemAt(0).activeFocus && view.itemAt(0).body.tagFields.itemAt(0).selectedText === "#eq:one"
+key Down
+wait 100
+check view.itemAt(0).editItem.activeFocus
+key Down Down
+wait 200
+check view.itemAt(1).editItem.activeFocus
+caret 0 0
+wait 100
+key Up
+wait 100
+check view.itemAt(0).body.tagFields.itemAt(0).activeFocus
+key Up
+wait 100
+check view.itemAt(0).body.tagFields.itemAt(0).activeFocus
 dump @OUT@

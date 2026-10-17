@@ -1269,6 +1269,15 @@ Item {
                         }
                         Keys.onReturnPressed: source.forceActiveFocus()
                         Keys.onEnterPressed: source.forceActiveFocus()
+                        // Up and Down: into the source's nearer line, at
+                        // the field's end, or out of the block.
+                        Keys.onUpPressed: index === 1 ? into(source.length) : block.host && block.host.moveTo(block.host.editableRow(block.index, -1), "last", mapToItem(null, width, 0).x)
+                        Keys.onDownPressed: index === 0 ? into(0) : block.host && block.host.leaveBlock(block.index)
+                        function into(end) {
+                            const r = source.positionToRectangle(end)
+                            source.cursorPosition = source.positionAt(x + width - source.x, r.y + r.height / 2)
+                            source.forceActiveFocus()
+                        }
                         FontMetrics {
                             id: tagMetrics
                             font: before.font

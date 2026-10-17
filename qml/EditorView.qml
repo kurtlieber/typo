@@ -1324,7 +1324,7 @@ Flickable {
         // its last line to its end, as in Typora.
         case Qt.Key_Up:
             if (plain && atTop) {
-                if (!moveTo(editableRow(row, -1), "last", x))
+                if (!enterTag(row, 0) && !moveTo(editableRow(row, -1), "last", x))
                     edit.cursorPosition = 0
                 event.accepted = true
             }
@@ -1333,7 +1333,7 @@ Flickable {
         // the document opens a paragraph after it, so there is a way out.
         case Qt.Key_Down:
             if (plain && atBottom) {
-                if (moveTo(editableRow(row, 1), "first", x))
+                if (enterTag(row, 1) || moveTo(editableRow(row, 1), "first", x))
                     ;
                 else if (!blocks.itemAt(row).textual)
                     run("paragraphAfter")
@@ -1425,6 +1425,8 @@ Flickable {
         const item = blocks.itemAt(row)
         if (item.table)
             return item.table.enter(where, x)
+        if (where === "first" && enterTag(row, 0) || where === "last" && enterTag(row, 1))
+            return true
         const edit = item.editItem
         let pos = 0
         if (where === "end")
@@ -1436,6 +1438,20 @@ Flickable {
             pos = edit.positionAt(edit.mapFromItem(null, x, 0).x, r.y + r.height / 2)
         }
         return focusRow(row, pos, pos)
+    }
+
+    // A math block's {tag} on the $$ line before (0) or after (1) its
+    // source, when it has one, is on the way into and out of it by line,
+    // selected, as Typora's. True when it took the caret.
+    function enterTag(row, i) {
+        const item = blocks.itemAt(row)
+        const tags = item && item.body ? item.body.tagFields : undefined
+        const field = tags && tags.count === 2 ? tags.itemAt(i) : null
+        if (!field || field.text === "")
+            return false
+        field.forceActiveFocus()
+        field.selectAll()
+        return true
     }
 
     // Page Up and Page Down: scroll by a page and keep the caret where it
