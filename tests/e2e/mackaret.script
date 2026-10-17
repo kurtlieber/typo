@@ -1,0 +1,66 @@
+# Typora Mac's caret keys (Ui.caretKeys), on by default on the Mac outside
+# test scripts: ⌥←/⌥→ go by word, ⌘←/⌘→ to the ends of the line, ⌃A/⌃E of
+# the block (in code, of its line) and ⌘↑/⌘↓ of the document; ⇧ selects.
+# ⌥⌫/⌥⌦ delete by word, ⌘⌫ to the line's start and ⌃K to the block's end.
+# A table cell takes them but ⌘↑/⌘↓; source mode's blocks are its lines.
+eval Prefs.macKeys = true
+write @DIR@/doc.md one two three\n\nfour five\n\n| a1 b1 | c1 |\n| --- | --- |\n| a2 | b2 |\n\n```js\nlet x\nlet y\n```\n
+cmd openPath @DIR@/doc.md
+wait 500
+caret 1 9
+key Alt+Left
+check view.editAt(1).cursorPosition === 5
+key Alt+Left Alt+Right
+check view.editAt(1).cursorPosition === 4
+key Ctrl+Right
+check view.editAt(1).cursorPosition === 9
+key Ctrl+Left
+check view.editAt(1).cursorPosition === 0
+key Meta+E
+check view.editAt(1).cursorPosition === 9
+key Meta+A Meta+Shift+E
+check view.editAt(1).selectedText === "four five"
+key Meta+E Alt+Shift+Left
+check view.editAt(1).selectedText === "five"
+key Alt+Backspace
+type six seven
+key Alt+Backspace
+check view.editAt(1).text === "four six "
+type eight
+key Alt+Left Alt+Left Meta+K
+type nine
+key Alt+Left Ctrl+Backspace
+check view.editAt(1).text === "nine" && view.editAt(1).cursorPosition === 0
+# ⌘↑/⌘↓ jump to the document's top and bottom, and select with ⇧.
+key Ctrl+Down
+check view.currentRow === 3 && view.editAt(3).cursorPosition === 11
+key Meta+A
+check view.editAt(3).cursorPosition === 6
+key Ctrl+Shift+Up
+check view.selection().aRow === 3 && view.selection().aPos === 6 && view.selection().zRow === 0 && view.selection().zPos === 0
+key Ctrl+Up
+check view.currentRow === 0 && view.editAt(0).cursorPosition === 0
+key Alt+Shift+Right
+check view.editAt(0).selectedText === "one"
+key Alt+Delete Alt+Delete
+type 1
+check view.editAt(0).text === "1 three"
+# In a cell ⌥← is a word, ⌃E the cell's end; ⌘↑ leaves the table.
+clickCell 2 0 0 5
+key Alt+Left
+check view.itemAt(2).table.cellItem(0, 0).edit.cursorPosition === 3
+key Meta+A Meta+E
+check view.itemAt(2).table.cellItem(0, 0).edit.cursorPosition === 5
+key Ctrl+Up
+check view.currentRow === 0 && view.editAt(0).cursorPosition === 0
+# Source mode: ⌘↓ to the end, ⌘↑ to the start, ⌃E to the line's end.
+key Ctrl+/
+key Ctrl+Down
+check sourceView.edit.cursorPosition === sourceView.edit.length
+key Ctrl+Up Meta+E
+check sourceView.edit.cursorPosition === sourceView.edit.text.indexOf("\n")
+key Alt+Shift+Left
+type 3
+key Ctrl+/
+wait 300
+dump @OUT@

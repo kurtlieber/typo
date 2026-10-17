@@ -593,6 +593,15 @@ Item {
                 return accept()
             }
         }
+        // Caret keys (Ui.caretKeys) move in the cell, but the document's
+        // top and bottom.
+        const move = Ui.caretMove(event)
+        if (move !== "" && move !== "top" && move !== "bottom") {
+            Ui.moveCaret(edit, move, (mods & Qt.ShiftModifier) !== 0, false)
+            return accept()
+        }
+        if (move !== "")
+            return owner.keyPressed(edit, event)
         switch (event.key) {
         // Tab goes through the cells, selecting each; past the last one
         // it adds a row.
@@ -648,8 +657,6 @@ Item {
             return accept(arrow(event.key, edit, r, c, pos, len, none, x))
         case Qt.Key_Z:
         case Qt.Key_Y:
-        case Qt.Key_Home:
-        case Qt.Key_End:
             if (!(mods & Qt.ControlModifier))
                 return
             break

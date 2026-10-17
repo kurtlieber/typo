@@ -1110,9 +1110,15 @@ Flickable {
                 return
             }
         }
-        if (ctrlShift && (event.key === Qt.Key_Home || event.key === Qt.Key_End)) {
+        // Caret keys (Ui.caretKeys): the document's top and bottom are
+        // the view's, the rest the field's.
+        const move = Ui.caretMove(event)
+        const extending = (event.modifiers & Qt.ShiftModifier) !== 0
+        if (move === "top" || move === "bottom") {
             const last = blocks.count - 1
-            if (event.key === Qt.Key_Home)
+            if (!extending)
+                move === "top" ? jumpTop() : jumpBottom()
+            else if (move === "top")
                 select(s.aRow, s.aPos, 0, 0)
             else
                 select(s.aRow, s.aPos, last, editAt(last) ? editAt(last).length : 1)
@@ -1198,6 +1204,11 @@ Flickable {
                 return
             }
         }
+        if (edit && !multi && move !== "") {
+            Ui.moveCaret(edit, move, extending, codeKinds.indexOf(itemAt(row).kind) >= 0)
+            event.accepted = true
+            return
+        }
         switch (event.key) {
         case Qt.Key_Return:
         case Qt.Key_Enter:
@@ -1240,18 +1251,6 @@ Flickable {
         case Qt.Key_Y:
             if (ctrl) {
                 editor.command("redo", 0, 0, 0, 0, 0, "")
-                event.accepted = true
-            }
-            return
-        case Qt.Key_Home:
-            if (ctrl) {
-                jumpTop()
-                event.accepted = true
-            }
-            return
-        case Qt.Key_End:
-            if (ctrl) {
-                jumpBottom()
                 event.accepted = true
             }
             return

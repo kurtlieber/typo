@@ -22,6 +22,64 @@ QtObject {
     // Modifiers that make a key a command rather than typing. On the Mac,
     // Option types characters (é, ™, –).
     readonly property int notTyping: Qt.ControlModifier | Qt.MetaModifier | (mac ? 0 : Qt.AltModifier)
+    // Caret keys as data: modifiers (Shift aside: it extends the selection
+    // to where the move goes), key, move. Linux's other caret keys are the
+    // text field's own; the Mac's are Typora's (AppKit's), which only the
+    // Mac's Qt partly knows. "delete" and a move deletes up to where the
+    // move goes; a block, in code, is its line.
+    readonly property var caretKeys: Prefs.macKeys ? [
+        [Qt.ControlModifier, Qt.Key_Up, "top"], [Qt.ControlModifier, Qt.Key_Down, "bottom"],
+        [Qt.ControlModifier, Qt.Key_Left, "lineStart"], [Qt.ControlModifier, Qt.Key_Right, "lineEnd"],
+        [Qt.AltModifier, Qt.Key_Left, "wordLeft"], [Qt.AltModifier, Qt.Key_Right, "wordRight"],
+        [Qt.MetaModifier, Qt.Key_A, "blockStart"], [Qt.MetaModifier, Qt.Key_E, "blockEnd"],
+        [Qt.AltModifier, Qt.Key_Backspace, "deleteWordLeft"], [Qt.AltModifier, Qt.Key_Delete, "deleteWordRight"],
+        [Qt.ControlModifier, Qt.Key_Backspace, "deleteLineStart"], [Qt.MetaModifier, Qt.Key_K, "deleteBlockEnd"]
+    ] : [
+        [Qt.ControlModifier, Qt.Key_Home, "top"], [Qt.ControlModifier, Qt.Key_End, "bottom"]
+    ]
+    function caretMove(event) {
+        const mods = event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)
+        const k = caretKeys.find(k => k[0] === mods && k[1] === event.key)
+        return k ? k[2] : ""
+    }
+    // Makes `move` in text field `edit`; "top" and "bottom" are the field's.
+    function moveCaret(edit, move, extend, code) {
+        const t = edit.text
+        const pos = edit.cursorPosition
+        const del = move.startsWith("delete")
+        if (del && edit.selectedText !== "") {
+            edit.remove(edit.selectionStart, edit.selectionEnd)
+            return
+        }
+        // ponytail: ASCII word characters, cased letters and everything
+        // past U+2E7F (CJK and the like, as runs), not Unicode's word rules.
+        const word = c => /\w/.test(c) || c.toLowerCase() !== c.toUpperCase() || c > "⹿"
+        const r = edit.positionToRectangle(pos)
+        const y = r.y + r.height / 2
+        let p = pos
+        switch (del ? move[6].toLowerCase() + move.slice(7) : move) {
+        case "top": p = 0; break
+        case "bottom": p = edit.length; break
+        case "lineStart": p = edit.positionAt(0, y); break
+        case "lineEnd": p = edit.positionAt(edit.width, y); break
+        case "blockStart": p = code ? t.slice(0, pos).lastIndexOf("\n") + 1 : 0; break
+        case "blockEnd": p = code && t.indexOf("\n", pos) >= 0 ? t.indexOf("\n", pos) : edit.length; break
+        case "wordLeft":
+            while (p > 0 && !word(t[p - 1])) p--
+            while (p > 0 && word(t[p - 1])) p--
+            break
+        case "wordRight":
+            while (p < t.length && !word(t[p])) p++
+            while (p < t.length && word(t[p])) p++
+            break
+        }
+        if (del)
+            edit.remove(Math.min(p, pos), Math.max(p, pos))
+        else if (extend)
+            edit.moveCursorSelection(p, TextEdit.SelectCharacters)
+        else
+            edit.cursorPosition = p
+    }
     readonly property string uiFont: textFont
 
     property bool sidebar: false

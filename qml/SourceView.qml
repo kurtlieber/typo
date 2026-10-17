@@ -395,12 +395,17 @@ Flickable {
         // or quote, Tab indents a selection, Shift+Tab gives lines the
         // indent above, and brackets and quotes pair (Preferences ▸
         // Markdown). With nothing selected the field would copy nothing:
-        // the line, as Preferences ▸ Editor asks.
+        // the line, as Preferences ▸ Editor asks. Caret keys are
+        // Ui.caretKeys; a line is a block.
         Keys.onPressed: event => {
             const plain = !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
             const shift = event.modifiers & Qt.ShiftModifier
             const s = selectionStart, e = selectionEnd
-            if (plain && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+            const move = Ui.caretMove(event)
+            if (move !== "") {
+                Ui.moveCaret(edit, move, shift, true)
+                event.accepted = true
+            } else if (plain && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
                 if (shift)
                     source.applyEdit([s, e, "\n", s + 1, s + 1])
                 else
