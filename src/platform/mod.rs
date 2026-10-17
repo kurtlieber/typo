@@ -1,6 +1,6 @@
 //! What differs between the desktops typo runs on: file dialogs, printing,
 //! revealing a file, telling whether a window's process runs, and Quit
-//! reaching every window. Linux (Omarchy) does these through the
+//! and Save All reaching every window. Linux (Omarchy) does these through the
 //! freedesktop portals, the session bus and `/proc`; macOS through its own
 //! tools. Only this folder names either's APIs.
 

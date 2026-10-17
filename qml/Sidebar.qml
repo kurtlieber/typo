@@ -162,9 +162,9 @@ Rectangle {
     function moved(from, to) {
         const doc = app.editor.path
         if (doc === from)
-            app.editor.path = to
+            app.editor.relocate(to)
         else if (doc.startsWith(from + "/"))
-            app.editor.path = to + doc.substring(from.length)
+            app.editor.relocate(to + doc.substring(from.length))
         if (tree.expanded[from]) {
             tree.expanded[to] = true
             delete tree.expanded[from]

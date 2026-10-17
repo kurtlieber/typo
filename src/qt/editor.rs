@@ -131,6 +131,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "saveAs"]
         fn save_as(self: Pin<&mut Editor>, path: &QString) -> bool;
+        /// The file is at `path` now, moved or renamed by the sidebar or
+        /// Move To…: saves go there, and the title follows.
+        #[qinvokable]
+        fn relocate(self: Pin<&mut Editor>, path: &QString);
         /// The whole document as markdown.
         #[qinvokable]
         fn markdown(self: &Editor) -> QString;
@@ -1358,6 +1362,13 @@ impl qobject::Editor {
         self.as_mut().set_title(QString::from(&file_title(Some(&p))));
         self.rust_mut().file = Some(p);
         true
+    }
+
+    fn relocate(mut self: Pin<&mut Self>, path: &QString) {
+        let p = PathBuf::from(path.to_string());
+        self.as_mut().set_path(path.clone());
+        self.as_mut().set_title(QString::from(&file_title(Some(&p))));
+        self.rust_mut().file = Some(p);
     }
 
     /// Write the document in the file's encoding, atomically.

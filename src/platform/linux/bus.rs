@@ -1,6 +1,7 @@
 //! Messages between typo's windows. Each window is its own process, so File ▸
-//! Quit broadcasts a signal on the session bus and every window that shares
-//! this one's settings closes itself, asking about unsaved changes as it goes.
+//! Quit (or Save All) broadcasts a signal on the session bus and every window
+//! that shares this one's settings closes itself, asking about unsaved changes
+//! as it goes (or saves).
 //! Sharing settings is what makes windows one app: a test run with its own
 //! settings directory never closes the user's windows.
 
@@ -38,20 +39,21 @@ pub fn show_item(path: &std::path::Path) -> Result<(), String> {
     .map_err(|e| e.to_string())
 }
 
-/// Ask every window in the group, this one included, to close.
-pub fn broadcast_quit() -> Result<(), String> {
+/// Ask every window in the group, this one included, to close ("Quit") or
+/// save ("Save").
+pub fn broadcast(what: &str) -> Result<(), String> {
     let conn = Connection::session().map_err(|e| e.to_string())?;
-    conn.emit_signal(None::<&str>, PATH, IFACE, "Quit", &group()).map_err(|e| e.to_string())
+    conn.emit_signal(None::<&str>, PATH, IFACE, what, &group()).map_err(|e| e.to_string())
 }
 
-/// Call `quit` on a background thread whenever the group is asked to quit.
-pub fn on_quit(quit: impl Fn() + Send + 'static) {
+/// Call `heard` on a background thread with each request made of the group:
+/// "Quit" or "Save".
+pub fn on_broadcast(heard: impl Fn(&str) + Send + 'static) {
     std::thread::spawn(move || {
         let Ok(conn) = Connection::session() else { return };
         let Ok(rule) = MatchRule::builder()
             .msg_type(message::Type::Signal)
             .interface(IFACE)
-            .and_then(|b| b.member("Quit"))
             .and_then(|b| b.path(PATH))
             .map(|b| b.build())
         else {
@@ -60,8 +62,11 @@ pub fn on_quit(quit: impl Fn() + Send + 'static) {
         let Ok(messages) = MessageIterator::for_match_rule(rule, &conn, None) else { return };
         let mine = group();
         for msg in messages.flatten() {
-            if msg.body().deserialize::<String>().is_ok_and(|g| g == mine) {
-                quit();
+            let header = msg.header();
+            if let Some(what) = header.member()
+                && msg.body().deserialize::<String>().is_ok_and(|g| g == mine)
+            {
+                heard(what.as_str());
             }
         }
     });

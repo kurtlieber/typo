@@ -1,0 +1,43 @@
+# File ▸ Move To… moves the file, the document with it, and saves its edits
+# there; Reveal in Sidebar and Save All.
+eval Folder.create("@DIR@/notes", true)
+eval Folder.create("@DIR@/notes/sub", true)
+write @DIR@/notes/a.md # Alpha\n
+cmd openPath @DIR@/notes
+wait 300
+clickItem sidebar.fileList.itemAtIndex(0)
+wait 200
+check model.path === "@DIR@/notes/a.md"
+key Ctrl+End
+type  moved
+choose @DIR@/notes/sub/b.md
+cmd moveTo
+wait 300
+check model.path === "@DIR@/notes/sub/b.md" && !Desktop.exists("@DIR@/notes/a.md") && !model.modified
+check Desktop.readFile("@DIR@/notes/sub/b.md") === "# Alpha moved\n"
+# Reveal in Sidebar goes from the outline to the files, and out of a search.
+cmd sidebarView 0
+check Ui.sidebar && Ui.sidebarView === 0
+cmd revealInSidebar
+check Ui.sidebar && Ui.sidebarView !== 0
+cmd searchFolder
+check sidebar.searching
+cmd revealInSidebar
+check !sidebar.searching
+# Save All reaches this window as it does every other.
+caret 0 11
+type  again
+check model.modified
+cmd saveAll
+wait 500
+check !model.modified && Desktop.readFile("@DIR@/notes/sub/b.md") === "# Alpha moved again\n"
+# Renaming the open file in the sidebar takes its saves and title along.
+eval sidebar.renaming = "@DIR@/notes/sub/b.md"
+eval sidebar.finishRename("@DIR@/notes/sub/b.md", "c.md")
+check model.path === "@DIR@/notes/sub/c.md" && model.title === "c.md"
+caret 0 17
+type  renamed
+key Ctrl+S
+wait 300
+check Desktop.readFile("@DIR@/notes/sub/c.md") === "# Alpha moved again renamed\n" && !Desktop.exists("@DIR@/notes/sub/b.md")
+dump @OUT@

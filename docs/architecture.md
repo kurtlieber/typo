@@ -531,11 +531,18 @@ fontconfig resolves to the Omarchy font.
   window, and a click on the Dock icon opens one, unless "Quit typo when
   last window is closed" is set; the next launch doesn't bring back a
   window closed while typo stayed open. Each window has its own session file
-  (`<pid>` or `<pid>.<n>`), and Quit tells every window. New and Open reuse the window only when it holds
+  (`<pid>` or `<pid>.<n>`), and Quit and Save All tell every window
+  (`platform::broadcast`: a session-bus signal on Linux, SIGUSR1 or SIGUSR2
+  to each process on the Mac); Save All saves each edited document. New and Open reuse the window only when it holds
   an untitled, unedited document. Preferences live in the shared
   settings file: a window writes only the keys it changed and reads the
   file back every second, so a change reaches every window. Recent and
   closed files are read back before each change too.
+- Move To… asks for the new place in a save dialog and moves the file
+  there (`Folder.moveFile`), saving any edits after it. When the sidebar
+  or Move To moves the open file, `editor.relocate` points its saves and
+  title at the new path. Reveal in Sidebar ends a folder search and shows
+  the files view with the current file in it.
 - Closing an edited document asks Save / Discard / Cancel (`TDialog.qml`),
   unless auto save is on and the file exists. While a document is edited, a
   draft is written to `$XDG_DATA_HOME/typo/drafts` every 30 seconds and

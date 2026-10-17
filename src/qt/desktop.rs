@@ -305,13 +305,21 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "quitAll"]
         fn quit_all(self: &Desktop) -> bool;
-        /// Start passing on quit requests as `quitRequested`.
+        /// Ask every typo window to save (File ▸ Save All), as `quitAll`.
+        #[qinvokable]
+        #[cxx_name = "saveAll"]
+        fn save_all(self: &Desktop) -> bool;
+        /// Start passing on quit and save requests as `quitRequested` and
+        /// `saveRequested`.
         #[qinvokable]
         #[cxx_name = "listenForQuit"]
         fn listen_for_quit(self: Pin<&mut Desktop>);
         #[qsignal]
         #[cxx_name = "quitRequested"]
         fn quit_requested(self: Pin<&mut Desktop>);
+        #[qsignal]
+        #[cxx_name = "saveRequested"]
+        fn save_requested(self: Pin<&mut Desktop>);
         #[qinvokable]
         fn exists(self: &Desktop, path: &QString) -> bool;
         #[qinvokable]
@@ -544,7 +552,11 @@ impl qobject::Desktop {
     }
 
     fn quit_all(&self) -> bool {
-        platform::broadcast_quit().is_ok()
+        platform::broadcast("Quit").is_ok()
+    }
+
+    fn save_all(&self) -> bool {
+        platform::broadcast("Save").is_ok()
     }
 
     fn listen_for_quit(mut self: Pin<&mut Self>) {
@@ -553,8 +565,12 @@ impl qobject::Desktop {
         }
         self.as_mut().rust_mut().listening = true;
         let thread = self.qt_thread();
-        platform::on_quit(move || {
-            let _ = thread.queue(|obj| obj.quit_requested());
+        platform::on_broadcast(move |what| {
+            let _ = match what {
+                "Quit" => thread.queue(|obj| obj.quit_requested()),
+                "Save" => thread.queue(|obj| obj.save_requested()),
+                _ => Ok(()),
+            };
         });
     }
 

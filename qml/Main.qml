@@ -442,7 +442,7 @@ ApplicationWindow {
     // Commands that work the same in Source Code Mode; the rest act on its
     // text there (SourceView.command), or do nothing.
     readonly property var everywhere: ["new", "newWindow", "open", "openFolder", "openPath", "reopenClosed", "save",
-        "saveAs", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
+        "saveAs", "saveAll", "moveTo", "revealInSidebar", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
         "quickOpen", "newFileInFolder", "refreshFolder", "searchFolder", "sidebarView", "sourceMode", "focusMode",
         "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "findNext",
         "findPrevious", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
@@ -473,6 +473,31 @@ ApplicationWindow {
         }
         case "save": save(null); return
         case "saveAs": saveAs(null); return
+        // Every window saves, as Typora's; this one alone without the bus.
+        case "saveAll":
+            if (!Desktop.saveAll())
+                save(null)
+            return
+        // The file goes where the user picks, the document with it; an
+        // untitled one is saved there.
+        case "moveTo":
+            settle()
+            if (model.path === "")
+                saveAs(null)
+            else
+                Desktop.chooseFile("moveTo", qsTr("Move To"), startFolder(), fileName(model.path))
+            return
+        // The sidebar's files, the current one shown, as Typora's: out of a
+        // folder search, and onto the files view from the outline.
+        case "revealInSidebar":
+            sidebar.closeSearch()
+            if (model.path === "")
+                return
+            Ui.sidebar = true
+            if (Ui.sidebarView === 0)
+                Ui.sidebarView = Ui.fileTree ? 2 : 1
+            sidebar.reveal(model.path)
+            return
         case "export": exportAs(arg); return
         case "import":
             if (requirePandoc())
@@ -1178,6 +1203,13 @@ ApplicationWindow {
             win.quitting = true
             win.close()
         }
+        // Save All from any window. ponytail: an untitled document that
+        // wasn't touched isn't asked about, which Typora's would be.
+        function onSaveRequested() {
+            win.settle()
+            if (model.modified)
+                win.save(null)
+        }
         function onFileChosen(kind, path, error) {
             if (error !== "")
                 toast.show(error)
@@ -1187,6 +1219,19 @@ ApplicationWindow {
                 const ok = path !== "" && model.saveAs(path)
                 if (then)
                     then(ok)
+            } else if (kind === "moveTo") {
+                const from = model.path
+                if (path === "" || from === "" || path === from)
+                    return
+                // The panel asked before replacing a file there.
+                const result = Folder.moveFile(from, path, true)
+                if (result.startsWith("!")) {
+                    toast.show(result.substring(1))
+                    return
+                }
+                sidebar.moved(from, path)
+                if (model.modified)
+                    model.save()
             } else if (kind === "import") {
                 if (path !== "")
                     win.importFile(path)

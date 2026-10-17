@@ -8,7 +8,7 @@ mod portal;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub use bus::{broadcast_quit, on_quit};
+pub use bus::{broadcast, on_broadcast};
 use portal::Pick;
 
 /// Ask the user for the file (or folder, or images) a `Desktop.chooseFile`
@@ -17,7 +17,7 @@ use portal::Pick;
 pub fn choose(kind: &str, title: &str, folder: Option<&Path>, name: &str, export: Option<&[(&str, &[&str])]>) -> Result<Vec<PathBuf>, String> {
     let what = match kind {
         _ if export.is_some() => Pick::Export { folder, name, filters: export.unwrap_or_default() },
-        "save" => Pick::Save { folder, name },
+        "save" | "moveTo" => Pick::Save { folder, name },
         "folder" | "imagesCopy" | "imagesMove" | "imageFolder" | "imageRoot" => Pick::Folder { folder },
         // A folder or a file for a preference, named after the colon.
         k if k.starts_with("prefFolder:") => Pick::Folder { folder },

@@ -1,5 +1,5 @@
 //! macOS: the system's open and save panels from QML, Finder and Preview
-//! through `open`, and Quit as a signal to each typo process.
+//! through `open`, and Quit and Save All as signals to each typo process.
 
 use std::fs;
 use std::io::Read;
@@ -20,7 +20,7 @@ pub fn dialog(kind: &str, export: Option<&[(&str, &[&str])]>) -> (&'static str, 
     let any = || "All Files (*)".to_string();
     match kind {
         _ if export.is_some() => ("save", export.unwrap_or_default().iter().map(|(n, e)| filter(n, e)).collect()),
-        "save" => ("save", vec![filter("Markdown", MARKDOWN), any()]),
+        "save" | "moveTo" => ("save", vec![filter("Markdown", MARKDOWN), any()]),
         "folder" | "imagesCopy" | "imagesMove" | "imageFolder" | "imageRoot" => ("folder", Vec::new()),
         // A folder or a file for a preference, named after the colon.
         k if k.starts_with("prefFolder:") => ("folder", Vec::new()),
@@ -49,52 +49,57 @@ pub fn alive(pid: u32) -> bool {
     i32::try_from(pid).is_ok_and(|p| p > 0 && path(p).is_some_and(|p| Some(p) == path(std::process::id() as i32)))
 }
 
-/// Ask every window in the group, this one included, to close: each
-/// process with a file in the session folder, once however many windows it
-/// has.
-pub fn broadcast_quit() -> Result<(), String> {
+/// Ask every window in the group, this one included, to close ("Quit", as
+/// SIGUSR1) or save ("Save", SIGUSR2): each process with a file in the
+/// session folder, once however many windows it has.
+pub fn broadcast(what: &str) -> Result<(), String> {
+    let signal = if what == "Save" { libc::SIGUSR2 } else { libc::SIGUSR1 };
     let mut pids: Vec<u32> = crate::session::entries(&crate::session::dir()).into_iter().map(|(pid, _)| pid).collect();
     pids.push(std::process::id());
     pids.sort_unstable();
     pids.dedup();
     for pid in pids.into_iter().filter(|p| alive(*p)) {
-        unsafe { libc::kill(pid as i32, libc::SIGUSR1) };
+        unsafe { libc::kill(pid as i32, signal) };
     }
     Ok(())
 }
 
-/// Where the SIGUSR1 handler writes: a socket a thread reads.
-static QUIT: AtomicI32 = AtomicI32::new(-1);
+/// Where the signal handler writes the signal: a socket a thread reads.
+static HEARD: AtomicI32 = AtomicI32::new(-1);
 
-extern "C" fn quit_signalled(_: libc::c_int) {
+extern "C" fn signalled(signal: libc::c_int) {
     // Only what is safe in a signal handler: one write.
-    let fd = QUIT.load(Ordering::Relaxed);
+    let fd = HEARD.load(Ordering::Relaxed);
     if fd >= 0 {
-        unsafe { libc::write(fd, [0u8].as_ptr().cast(), 1) };
+        unsafe { libc::write(fd, [signal as u8].as_ptr().cast(), 1) };
     }
 }
 
-/// Each window's `on_quit`. ponytail: a closed window's stays, and only
+/// Each window's `on_broadcast`. ponytail: a closed window's stays, and only
 /// fails to reach it; prune them if windows ever number in the thousands.
-static LISTENERS: Mutex<Vec<Box<dyn Fn() + Send>>> = Mutex::new(Vec::new());
+static LISTENERS: Mutex<Vec<Box<dyn Fn(&str) + Send>>> = Mutex::new(Vec::new());
 
-/// Call `quit` on a background thread whenever the group is asked to quit;
-/// each window of the process calls it.
-pub fn on_quit(quit: impl Fn() + Send + 'static) {
+/// Call `heard` on a background thread with each request made of the group,
+/// "Quit" or "Save"; each window of the process calls it.
+pub fn on_broadcast(heard: impl Fn(&str) + Send + 'static) {
     let mut listeners = LISTENERS.lock().unwrap_or_else(|e| e.into_inner());
-    listeners.push(Box::new(quit));
+    listeners.push(Box::new(heard));
     if listeners.len() > 1 {
         return;
     }
     let Ok((mut rx, tx)) = UnixStream::pair() else { return };
-    QUIT.store(tx.into_raw_fd(), Ordering::Relaxed);
-    let handler: extern "C" fn(libc::c_int) = quit_signalled;
-    unsafe { libc::signal(libc::SIGUSR1, handler as libc::sighandler_t) };
+    HEARD.store(tx.into_raw_fd(), Ordering::Relaxed);
+    let handler: extern "C" fn(libc::c_int) = signalled;
+    unsafe {
+        libc::signal(libc::SIGUSR1, handler as libc::sighandler_t);
+        libc::signal(libc::SIGUSR2, handler as libc::sighandler_t);
+    }
     std::thread::spawn(move || {
         let mut byte = [0u8];
         while rx.read_exact(&mut byte).is_ok() {
-            for quit in LISTENERS.lock().unwrap_or_else(|e| e.into_inner()).iter() {
-                quit();
+            let what = if i32::from(byte[0]) == libc::SIGUSR2 { "Save" } else { "Quit" };
+            for heard in LISTENERS.lock().unwrap_or_else(|e| e.into_inner()).iter() {
+                heard(what);
             }
         }
     });
