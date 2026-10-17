@@ -10,14 +10,15 @@ eval loadAdvanced()
 check Prefs.keysFor("Strong", "Ctrl+B") === "Ctrl+Alt+B" && Prefs.keysFor("Emphasis", "Ctrl+I") === "Ctrl+U"
 check Prefs.keysFor("Underline", "Ctrl+U") === "" && Prefs.keysFor("Open…", "Ctrl+O") === "" && Prefs.keysFor("Save", "Ctrl+S") === "Ctrl+S"
 check Prefs.normalKeys("shift+ctrl+=") === "Ctrl+Shift+=" && Prefs.normalKeys("Ctrl++") === "Ctrl++" && Prefs.normalKeys("Alt+PageUp") === "Alt+PgUp"
-# The menu bar shows while Alt is tapped, and goes when tapped again.
-check !menus.visible
+# The menu bar shows while Alt is tapped, and goes when tapped again. The
+# Mac's is the system's, always there.
+check menus.visible === Ui.mac
 key Alt
 wait 100
 check menus.visible
 key Alt
 wait 100
-check !menus.visible
+check menus.visible === Ui.mac
 type one two three
 drag 0 0 0 7
 clickText 0 2 Right

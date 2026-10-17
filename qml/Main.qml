@@ -234,7 +234,7 @@ ApplicationWindow {
     menuBar: AppMenuBar {
         id: menus
         app: win
-        visible: !Prefs.advanced.autoHideMenuBar || win.menuShown
+        visible: Ui.mac || !Prefs.advanced.autoHideMenuBar || win.menuShown
     }
     // The advanced settings, read again (as a new window would).
     function loadAdvanced() {
@@ -587,6 +587,11 @@ ApplicationWindow {
             win.visibility = win.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen
             return
         case "alwaysOnTop": Ui.alwaysOnTop = !Ui.alwaysOnTop; return
+        // The Mac's Window menu. Each window is its own app there, so
+        // Bring All to Front is this one.
+        case "minimize": win.showMinimized(); return
+        case "maximize": win.visibility === Window.Maximized ? win.showNormal() : win.showMaximized(); return
+        case "front": win.raise(); win.requestActivate(); return
         // Typora's zoom steps are Chromium's zoom levels: each one 1.2
         // times the last. The panel shows the size it came to.
         case "zoom": {

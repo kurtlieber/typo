@@ -40,6 +40,18 @@ MenuBar {
         link = app.editor.linkAt(s.zRow, s.zPos)
     }
 
+    // On the Mac this is the system's menu bar, and Qt moves About,
+    // Preferences… and Quit to the app menu by their titles, so the
+    // separators that set them off go (a native menu ignores `visible`).
+    Component.onCompleted: {
+        if (Ui.mac) {
+            fileMenu.removeItem(prefsSep)
+            helpMenu.removeItem(aboutSep)
+        } else {
+            removeMenu(windowMenu)
+        }
+    }
+
     background: Rectangle {
         implicitHeight: 28
         color: Theme.panel
@@ -60,6 +72,7 @@ MenuBar {
     }
 
     TMenu {
+        id: fileMenu
         title: qsTr("&File")
         Cmd { text: qsTr("New"); cmd: "new"; shortcut: "Ctrl+N" }
         Cmd { text: qsTr("New Window"); cmd: "newWindow"; shortcut: "Ctrl+Shift+N" }
@@ -137,7 +150,7 @@ MenuBar {
             Cmd { text: "OPML"; cmd: "export"; arg: "opml" }
         }
         Cmd { text: qsTr("Print…"); cmd: "print"; shortcut: "Alt+Shift+P" }
-        TSep {}
+        TSep { id: prefsSep }
         Cmd { text: qsTr("Preferences…"); cmd: "preferences"; shortcut: "Ctrl+," }
         TSep {}
         Cmd { text: qsTr("Close"); cmd: "close"; shortcut: "Ctrl+W" }
@@ -456,14 +469,25 @@ MenuBar {
         }
     }
 
+    // The Mac's; Linux's window manager has these.
     TMenu {
+        id: windowMenu
+        title: qsTr("&Window")
+        Cmd { text: qsTr("Minimize"); cmd: "minimize"; shortcut: "Ctrl+M" }
+        Cmd { text: qsTr("Zoom"); cmd: "maximize" }
+        TSep {}
+        Cmd { text: qsTr("Bring All to Front"); cmd: "front" }
+    }
+
+    TMenu {
+        id: helpMenu
         title: qsTr("&Help")
         Cmd { text: qsTr("Quick Start"); cmd: "help"; arg: "quick-start" }
         Cmd { text: qsTr("Markdown Reference"); cmd: "help"; arg: "markdown-reference" }
         Cmd { text: qsTr("Keyboard Shortcuts"); cmd: "help"; arg: "shortcuts" }
         TSep {}
         Cmd { text: qsTr("Website"); cmd: "website" }
-        TSep {}
+        TSep { id: aboutSep }
         Cmd { text: qsTr("About typo"); cmd: "about" }
     }
 }

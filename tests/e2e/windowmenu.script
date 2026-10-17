@@ -1,0 +1,19 @@
+# The Mac's Window menu: Minimize (⌘M), Zoom (maximize, and back) and Bring
+# All to Front. Linux goes without it, ⌘M (Ctrl+M) and all. On the Mac, Qt
+# moves About, Preferences… and Quit to the app menu, so the separators before
+# them go.
+check (win.menuBar.menuAt(win.menuBar.count - 2).title === "&Window") === Ui.mac
+check win.menuBar.menuAt(win.menuBar.count - 1).itemAt(win.menuBar.menuAt(win.menuBar.count - 1).count - 2).text === (Ui.mac ? "Website" : undefined)
+check win.menuBar.menuAt(0).itemAt(win.menuBar.menuAt(0).count - 5).text === (Ui.mac ? "Print…" : undefined)
+key Ctrl+M
+wait 300
+check win.visibility === (Ui.mac ? Window.Minimized : Window.Windowed)
+cmd front
+cmd maximize
+wait 300
+check win.visibility === Window.Maximized
+cmd maximize
+wait 300
+check win.visibility === Window.Windowed
+type ok
+dump @OUT@
