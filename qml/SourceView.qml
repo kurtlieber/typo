@@ -403,7 +403,11 @@ Flickable {
             const shift = event.modifiers & Qt.ShiftModifier
             const s = selectionStart, e = selectionEnd
             const move = Ui.caretMove(event)
-            if (move === "centre" || move === "pageUp" || move === "pageDown" || (move === "home" || move === "end") && !shift) {
+            const emacs = Ui.emacsKey(event)
+            if (emacs !== "") {
+                Desktop.sendKey(emacs)
+                event.accepted = true
+            } else if (move === "centre" || move === "pageUp" || move === "pageDown" || (move === "home" || move === "end") && !shift) {
                 move === "centre" ? source.centre() : Ui.scrollMove(source, move)
                 event.accepted = true
             } else if (move === "caretPageUp" || move === "caretPageDown") {

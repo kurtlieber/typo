@@ -53,6 +53,16 @@ QtObject {
         const k = caretKeys.find(k => k[0] === mods && k[1] === event.key)
         return k ? k[2] : ""
     }
+    // The Mac's Emacs keys that are another key there: ⌃F/⌃B/⌃N/⌃P move
+    // as the arrows, ⌃D and ⌃H delete as Delete and Backspace, so they
+    // cross blocks and go through lists as those do. The chord to send, or
+    // "".
+    function emacsKey(event) {
+        const keys = { [Qt.Key_F]: "Right", [Qt.Key_B]: "Left", [Qt.Key_N]: "Down", [Qt.Key_P]: "Up",
+                       [Qt.Key_D]: "Delete", [Qt.Key_H]: "Backspace" }
+        const mods = event.modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)
+        return Prefs.macKeys && mods === Qt.MetaModifier ? keys[event.key] || "" : ""
+    }
     // The moves a view makes rather than its text field.
     function viewMove(move) {
         return ["top", "bottom", "home", "end", "pageUp", "pageDown", "caretPageUp", "caretPageDown", "centre"].indexOf(move) >= 0

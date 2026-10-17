@@ -1065,6 +1065,12 @@ Flickable {
         const pos = edit ? edit.cursorPosition : s.zPos
         const len = edit ? edit.length : 1
         const run = (name, arg, text) => editor.command(name, s.aRow, s.aPos, s.zRow, s.zPos, arg || 0, text || "")
+        const emacs = Ui.emacsKey(event)
+        if (emacs !== "") {
+            Desktop.sendKey(emacs)
+            event.accepted = true
+            return
+        }
         if (emojiSuggest.shown && emojiSuggest.keyPressed(event) || popup && popup.shown && popup.keyPressed(event)) {
             event.accepted = true
             return

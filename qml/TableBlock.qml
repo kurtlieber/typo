@@ -558,6 +558,11 @@ Item {
         const none = edit.selectedText === ""
         const x = edit.mapToItem(null, edit.cursorRectangle.x, 0).x
         const accept = done => { event.accepted = done !== false }
+        const emacs = Ui.emacsKey(event)
+        if (emacs !== "") {
+            Desktop.sendKey(emacs)
+            return accept()
+        }
         if (host && (host.emojiSuggest.shown && host.emojiSuggest.keyPressed(event) || host.popup && host.popup.shown && host.popup.keyPressed(event)))
             return accept()
         if (event.matches(StandardKey.Copy))

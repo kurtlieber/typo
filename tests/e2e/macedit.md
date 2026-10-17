@@ -1,8 +1,6 @@
 acdbfirstsecondacdbfirstsecond
 
-line 3
-
-line 4
+line 3ine 4
 
 line 5
 

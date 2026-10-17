@@ -3,7 +3,8 @@
 # document's ends, ⌥PgUp/⌥PgDn and ⌃V move the caret a page, ⌃L centres
 # it, ⌃T swaps the characters at it, ⌃O breaks the block after it, ⌃Y
 # puts back what ⌘⌫ or ⌃K took, and ⌥⌫, ⌘⌫, ⌥⌦ and ⌃K at a block's
-# edge join it to the next as Backspace and Delete do.
+# edge join it to the next as Backspace and Delete do. ⌃F/⌃B/⌃N/⌃P are
+# the arrows and ⌃D/⌃H Delete and Backspace, so they cross blocks too.
 eval Prefs.macKeys = true
 write @DIR@/doc.md abcd\n\nfirst second\n\nline 3\n\nline 4\n\nline 5\n\nline 6\n\nline 7\n\nline 8\n\nline 9\n\nline 10\n\nline 11\n\nline 12\n\nline 13\n\nline 14\n\nline 15\n\nline 16\n\nline 17\n\nline 18\n\nline 19\n\nline 20\n\nline 21\n\nline 22\n\nline 23\n\nline 24\n\nline 25\n\nline 26\n\nline 27\n\nline 28\n\nline 29\n\nline 30\n\nline 31\n\nline 32\n\nline 33\n\nline 34\n\nline 35\n\nline 36\n\nline 37\n\nline 38\n\nline 39\n\nline 40\n\nline 41\n\nline 42\n\nlast\n
 cmd openPath @DIR@/doc.md
@@ -58,4 +59,16 @@ wait 100
 check view.editAt(0).text === "acdbfirstsecond"
 key Meta+A Meta+K Meta+Y Meta+Y
 check view.editAt(0).text === "acdbfirstsecondacdbfirstsecond"
+caret 1 6
+key Meta+B Meta+B Meta+F
+check view.currentRow === 1 && view.editAt(1).cursorPosition === 5
+key Meta+N
+check view.currentRow === 2
+key Meta+P Meta+P
+check view.currentRow === 0
+caret 2 0
+key Meta+H
+check view.editAt(1).text === "line 3line 4"
+key Meta+D
+check view.editAt(1).text === "line 3ine 4"
 dump @OUT@
