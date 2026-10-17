@@ -16,6 +16,7 @@ fn main() {
         "qml/BlockDelegate.qml",
         "qml/MathView.qml",
         "qml/DiagramView.qml",
+        "qml/MediaView.qml",
         "qml/InlineObject.qml",
         "qml/FootnoteTip.qml",
         "qml/EmojiSuggest.qml",

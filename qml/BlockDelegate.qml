@@ -406,6 +406,32 @@ Item {
         opacity: 0.6
     }
 
+    // A lone `<video>` or `<audio>`'s player, loaded apart so a Qt without
+    // QtMultimedia loses only the player and shows the source instead.
+    component MediaLoader: Loader {
+        id: loader
+        property var editor
+        property var media: null
+        property real room
+        property real em
+        property real zoom
+        readonly property bool playable: status === Loader.Ready && !item.failed
+        active: media !== null
+        source: Qt.resolvedUrl("MediaView.qml")
+        onLoaded: {
+            item.info = Qt.binding(() => loader.media || {})
+            item.url = Qt.binding(() => loader.media ? loader.editor.resolveImage(loader.media.src) : "")
+            item.room = Qt.binding(() => loader.room)
+            item.scale = Qt.binding(() => loader.zoom)
+            item.em = Qt.binding(() => loader.em)
+        }
+        // A video stands centred, audio at the start of the line.
+        x: item && !item.audio ? (room - item.width) / 2 : 0
+        function controlAt(x, y) {
+            return playable ? item.controlAt(x - loader.x, y - loader.y) : null
+        }
+    }
+
     // Paragraphs and headings: inline markdown with live preview.
     Component {
         id: textBlock
@@ -464,7 +490,9 @@ Item {
                     block.host.imageLoaded(edit)
             }
             readonly property bool failed: image !== "" && (missing || picture.status === Image.Error)
-            readonly property bool pictured: image !== "" && picture.status === Image.Ready
+            // One `<video>` or `<audio>` plays likewise (`MediaLoader`).
+            readonly property var media: heading || !/^\s*<(video|audio)\b/i.test(block.text) ? null : JSON.parse(block.editor.mediaOf(block.text) || "null")
+            readonly property bool pictured: image !== "" && picture.status === Image.Ready || player.playable
             readonly property bool expanded: edit.live || block.found
             readonly property bool sourceShown: !pictured || expanded
             // A Text's own height can't follow its implicit height without
@@ -472,7 +500,7 @@ Item {
             readonly property real hintHeight: hint.shown ? hint.implicitHeight + 4 * block.scale : 0
             readonly property real pictureY: expanded ? edit.height + hintHeight + 4 * block.scale : 0
             width: parent ? parent.width : 0
-            height: pictured ? pictureY + picture.height
+            height: pictured ? pictureY + (player.playable ? player.height : picture.height)
                              : edit.height + hintHeight + (ruled ? 1 : 0)
 
             FontMetrics {
@@ -738,6 +766,20 @@ Item {
                 opacity: block.pictureOpacity
                 smooth: true
                 onStatusChanged: textItem.loaded(status)
+            }
+            MediaLoader {
+                id: player
+                editor: block.editor
+                media: textItem.media
+                room: textItem.width
+                em: textItem.size
+                zoom: block.scale
+                y: textItem.pictureY
+                opacity: block.pictureOpacity
+            }
+            readonly property alias mediaPlayer: player
+            function controlAt(x, y) {
+                return player.controlAt(x, y)
             }
             Rectangle {
                 visible: textItem.ruled
@@ -1398,13 +1440,14 @@ Item {
             readonly property Item editItem: source
             readonly property bool editing: source.activeFocus && !block.locked || block.found
             readonly property string look: block.editor.htmlLook(block.text)
+            readonly property var media: look === "rendered" ? JSON.parse(block.editor.mediaOf(block.text) || "null") : null
             // The <details> the reader opened or closed, by order.
             property var toggled: []
             readonly property Item page: rendered
             readonly property bool hovered: hover.hovered
             readonly property real pad: 4 * block.scale
             width: parent ? parent.width : 0
-            height: editing ? panel.height : Math.max(20 * block.scale, look === "rendered" ? rendered.height : raw.height)
+            height: editing ? panel.height : Math.max(20 * block.scale, player.playable ? player.height : look === "rendered" ? rendered.height : raw.height)
 
             HoverHandler {
                 id: hover
@@ -1421,6 +1464,8 @@ Item {
                     return button
                 if (editing || look !== "rendered")
                     return null
+                if (player.playable)
+                    return player.controlAt(x, y)
                 const p = rendered.mapFromItem(htmlItem, x, y)
                 const link = rendered.linkAt(p.x, p.y)
                 return link === "" ? null : { activate: () => htmlItem.follow(link) }
@@ -1450,9 +1495,20 @@ Item {
                 radius: 3
             }
 
+            readonly property alias mediaPlayer: player
+            MediaLoader {
+                id: player
+                visible: !htmlItem.editing
+                editor: block.editor
+                media: htmlItem.media
+                room: htmlItem.width
+                em: block.em
+                zoom: block.scale
+                opacity: block.pictureOpacity
+            }
             Text {
                 id: rendered
-                visible: !htmlItem.editing && htmlItem.look === "rendered"
+                visible: !htmlItem.editing && htmlItem.look === "rendered" && !player.playable
                 width: parent.width
                 text: htmlItem.look === "rendered"
                       ? block.editor.htmlView(block.text, htmlItem.toggled.join(","), width,

@@ -35,6 +35,38 @@ pub fn look(src: &str) -> Look {
     if HIDDEN.contains(&name.to_ascii_lowercase().as_str()) { Look::Source } else { Look::Rendered }
 }
 
+/// `src` when it is one `<video>` or `<audio>` and nothing else, which
+/// plays in place: its tag name, source (its own or its first
+/// `<source>`'s) and the attributes the player takes, as JSON for QML.
+pub fn lone_media(src: &str) -> Option<String> {
+    // Most text isn't, so look before parsing.
+    let head = src.trim_start().get(..6).unwrap_or("");
+    if !head.eq_ignore_ascii_case("<video") && !head.eq_ignore_ascii_case("<audio") {
+        return None;
+    }
+    let doc = Html::parse_fragment(src);
+    let mut nodes = doc.root_element().children().filter(|n| !matches!(n.value(), Node::Text(t) if t.trim().is_empty()));
+    let e = nodes.next().and_then(ElementRef::wrap)?;
+    let name = e.value().name();
+    if nodes.next().is_some() || name != "video" && name != "audio" {
+        return None;
+    }
+    let source = e.value().attr("src").or_else(|| {
+        e.descendants().filter_map(ElementRef::wrap).find(|d| d.value().name() == "source").and_then(|d| d.value().attr("src"))
+    })?;
+    let attr = |a: &str| serde_json::to_string(e.value().attr(a).unwrap_or("")).unwrap_or_default();
+    let has = |a: &str| e.value().attr(a).is_some();
+    Some(format!(
+        "{{\"kind\":\"{name}\",\"src\":{},\"width\":{},\"height\":{},\"autoplay\":{},\"loop\":{},\"muted\":{}}}",
+        serde_json::to_string(source).unwrap_or_default(),
+        attr("width"),
+        attr("height"),
+        has("autoplay"),
+        has("loop"),
+        has("muted")
+    ))
+}
+
 fn is_comments(mut s: &str) -> bool {
     if !s.starts_with("<!--") {
         return false;
@@ -363,6 +395,19 @@ mod tests {
         assert_eq!(look("<SCRIPT src=x></SCRIPT>"), Look::Source);
         assert_eq!(look("<!-- a -->\n<!-- b -->"), Look::Comment);
         assert_eq!(look("<!-- a --><p>x</p>"), Look::Rendered);
+    }
+
+    #[test]
+    fn lone_media_plays() {
+        let m = |s| lone_media(s).map(|j| serde_json::from_str::<serde_json::Value>(&j).unwrap());
+        let v = m("<video src=\"a b.mp4\" width=\"50%\" controls loop></video>").unwrap();
+        assert_eq!((v["kind"].as_str(), v["src"].as_str(), v["width"].as_str()), (Some("video"), Some("a b.mp4"), Some("50%")));
+        assert_eq!((v["loop"].as_bool(), v["autoplay"].as_bool()), (Some(true), Some(false)));
+        let a = m(" <audio controls>\n  <source src=\"s.ogg\">\n  Not supported.\n</audio>\n").unwrap();
+        assert_eq!((a["kind"].as_str(), a["src"].as_str()), (Some("audio"), Some("s.ogg")));
+        assert_eq!(m("<video src=a.mp4></video> and text"), None);
+        assert_eq!(m("<video></video>"), None);
+        assert_eq!(m("<div><video src=a.mp4></video></div>"), None);
     }
 
     #[test]

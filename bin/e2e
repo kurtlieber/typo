@@ -32,6 +32,8 @@ for name in "${names[@]}"; do
         > "$dir/$name.log" 2>&1 || true
     # A pasted picture is named for the time it was pasted.
     [ -f "$out" ] && perl -pi -e 's/image-[0-9]{17}/image-STAMP/g' "$out"
+    # The repo's own fixtures, wherever it is checked out.
+    [ -f "$out" ] && REPO=$PWD perl -pi -e 's/\Q$ENV{REPO}\E/\@REPO\@/g' "$out"
     if [ ! -f "$out" ]; then
         echo "FAIL $name: no output"
         sed 's/^/    /' "$dir/$name.log"

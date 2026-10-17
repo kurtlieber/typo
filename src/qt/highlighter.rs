@@ -1001,10 +1001,12 @@ impl Cache {
         format!("[{}]", items.join(","))
     }
 
-    /// Whether the image the block consists of hides its source: it has
-    /// loaded and the caret is elsewhere, as in Typora.
+    /// Whether the image, video or audio the block consists of hides its
+    /// source: it has loaded and the caret is elsewhere, as in Typora.
     fn pictured(&self, caret: Option<usize>, image_shown: bool) -> bool {
-        image_shown && caret.is_none() && inline::lone_image(&self.text, &self.nodes).is_some()
+        image_shown
+            && caret.is_none()
+            && (inline::lone_image(&self.text, &self.nodes).is_some() || crate::htmlview::lone_media(&self.text).is_some())
     }
 
     /// Whether the caret shows the alert marker: on it or just after it.

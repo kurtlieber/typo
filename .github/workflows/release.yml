@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - run: pacman -Syu --noconfirm --needed base-devel git rust typst qt6-base qt6-declarative qt6-svg qt6-wayland xdg-desktop-portal github-cli
+      - run: pacman -Syu --noconfirm --needed base-devel git rust typst qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-wayland xdg-desktop-portal github-cli
       - uses: actions/checkout@v5
       # makepkg won't run as root.
       - run: |

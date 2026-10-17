@@ -63,6 +63,8 @@ Item {
         brokenImage: "M7.5 3.5 H2.5 V12.5 H7 L8 10 L6.5 8 L7.5 3.5 M9.8 3.5 H13.5 V12.5 H9.2 L10.2 10 L8.8 8 L9.8 3.5 M2.5 10.5 L5 8"
     })
     readonly property var dots: ({
+        play: "M5 3 L13 8 L5 13 Z",
+        pause: "M4.5 3 H7 V13 H4.5 Z M9 3 H11.5 V13 H9 Z",
         folder: "M1.5 3 H6.2 L7.7 4.5 H14.5 V13.5 H1.5 Z",
         caretRight: "M6 4.5 L10.5 8 L6 11.5 Z",
         ringOn: "M10.6 8 A2.6 2.6 0 1 1 5.4 8 A2.6 2.6 0 1 1 10.6 8 Z",

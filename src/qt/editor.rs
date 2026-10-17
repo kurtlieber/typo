@@ -439,6 +439,12 @@ pub mod qobject {
         #[cxx_name = "imageSize"]
         fn image_size(self: &Editor, text: &QString) -> QString;
 
+        /// What a paragraph or HTML block that is one `<video>` or
+        /// `<audio>` plays, as JSON (`htmlview::lone_media`), or empty.
+        #[qinvokable]
+        #[cxx_name = "mediaOf"]
+        fn media_of(self: &Editor, text: &QString) -> QString;
+
         /// How HTML block `text` shows away from the caret: "rendered",
         /// "source" (tags Typora won't draw) or "comment".
         #[qinvokable]
@@ -2196,6 +2202,10 @@ impl qobject::Editor {
             _ => ["", "", ""],
         };
         QString::from(&format!("[{}]", size.map(json_str).join(",")))
+    }
+
+    fn media_of(&self, text: &QString) -> QString {
+        QString::from(&htmlview::lone_media(&text.to_string()).unwrap_or_default())
     }
 
     fn html_look(&self, text: &QString) -> QString {

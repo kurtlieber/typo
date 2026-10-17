@@ -1,0 +1,34 @@
+# A paragraph that is one <video> or <audio> plays it, as Typora: a video
+# centred at its own size (its first frame until it plays), audio's bar at
+# the start of the line, and the source hidden but while the caret is in
+# it. An HTML block of one plays too. The bar's button plays and pauses.
+# Fails on the Mac: AVFoundation answers on the Cocoa run loop, which the
+# offscreen platform doesn't run, so nothing loads.
+write @DIR@/doc.md <video src="@REPO@/tests/e2e/clip.mp4"></video>\n\n<audio controls>\n<source src="@REPO@/tests/e2e/tone.wav">\n</audio>\n\nend\n
+cmd openPath @DIR@/doc.md
+caret 2 0
+wait 1000
+check view.itemAt(0).body.mediaPlayer.playable && view.itemAt(0).body.mediaPlayer.item.player.duration > 1500
+check Math.abs(view.itemAt(0).body.mediaPlayer.width - 64 * Ui.zoom) < 1 && Math.abs(view.itemAt(0).body.mediaPlayer.x * 2 + view.itemAt(0).body.mediaPlayer.width - view.itemAt(0).body.width) < 1
+check view.itemAt(0).body.pictured && !view.itemAt(0).body.sourceShown && view.itemAt(0).body.mediaPlayer.y === 0
+check view.itemAt(1).body.mediaPlayer.playable && view.itemAt(1).body.mediaPlayer.item.audio && view.itemAt(1).body.mediaPlayer.x === 0
+check view.itemAt(1).body.height === view.itemAt(1).body.mediaPlayer.height
+shot @SHOT@
+# The caret shows the source, the video under it.
+caret 0 3
+wait 100
+check view.itemAt(0).body.sourceShown && view.itemAt(0).body.mediaPlayer.y > view.editAt(0).height
+# Play and pause, silent and muted.
+eval view.itemAt(1).body.mediaPlayer.item.player.audioOutput.muted = true
+eval view.itemAt(1).body.controlAt(20 * Ui.zoom, view.itemAt(1).body.mediaPlayer.height / 2).activate()
+wait 300
+check view.itemAt(1).body.mediaPlayer.item.playing
+eval view.itemAt(1).body.controlAt(20 * Ui.zoom, view.itemAt(1).body.mediaPlayer.height / 2).activate()
+check !view.itemAt(1).body.mediaPlayer.item.playing
+# One that won't load shows its source.
+caret 2 3
+type \n<video src="gone.mp4"></video>
+caret 2 0
+wait 1000
+check !view.itemAt(3).body.mediaPlayer.playable && view.itemAt(3).body.sourceShown
+dump @OUT@
