@@ -623,10 +623,12 @@ Item {
                 return accept()
             }
         }
-        // Caret keys (Ui.caretKeys) move in the cell, but the document's
-        // top and bottom.
+        // Caret keys (Ui.caretKeys) move in the cell, but the view's
+        // (Ui.viewMove); a cell has one line, so ⌃O does nothing.
         const move = Ui.caretMove(event)
-        if (move !== "" && move !== "top" && move !== "bottom") {
+        if (move === "openLine")
+            return accept()
+        if (move !== "" && !Ui.viewMove(move)) {
             Ui.moveCaret(edit, move, (mods & Qt.ShiftModifier) !== 0, false)
             return accept()
         }

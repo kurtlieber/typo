@@ -34,7 +34,17 @@ QtObject {
         [Qt.AltModifier, Qt.Key_Left, "wordLeft"], [Qt.AltModifier, Qt.Key_Right, "wordRight"],
         [Qt.MetaModifier, Qt.Key_A, "blockStart"], [Qt.MetaModifier, Qt.Key_E, "blockEnd"],
         [Qt.AltModifier, Qt.Key_Backspace, "deleteWordLeft"], [Qt.AltModifier, Qt.Key_Delete, "deleteWordRight"],
-        [Qt.ControlModifier, Qt.Key_Backspace, "deleteLineStart"], [Qt.MetaModifier, Qt.Key_K, "deleteBlockEnd"]
+        [Qt.ControlModifier, Qt.Key_Backspace, "deleteLineStart"], [Qt.MetaModifier, Qt.Key_K, "deleteBlockEnd"],
+        // AppKit's: Home/End and the Page keys scroll without moving the
+        // caret (⇧ selects to the ends or by a page), ⌥Page and ⌃V move it
+        // a page, ⌃L centres it, ⌃T swaps the characters at it, ⌃O breaks
+        // the line after it, ⌃Y puts back what ⌘⌫ or ⌃K took.
+        [Qt.NoModifier, Qt.Key_Home, "home"], [Qt.NoModifier, Qt.Key_End, "end"],
+        [Qt.NoModifier, Qt.Key_PageUp, "pageUp"], [Qt.NoModifier, Qt.Key_PageDown, "pageDown"],
+        [Qt.AltModifier, Qt.Key_PageUp, "caretPageUp"], [Qt.AltModifier, Qt.Key_PageDown, "caretPageDown"],
+        [Qt.MetaModifier, Qt.Key_V, "caretPageDown"], [Qt.MetaModifier, Qt.Key_L, "centre"],
+        [Qt.MetaModifier, Qt.Key_T, "transpose"], [Qt.MetaModifier, Qt.Key_O, "openLine"],
+        [Qt.MetaModifier, Qt.Key_Y, "yank"]
     ] : [
         [Qt.ControlModifier, Qt.Key_Home, "top"], [Qt.ControlModifier, Qt.Key_End, "bottom"]
     ]
@@ -43,6 +53,20 @@ QtObject {
         const k = caretKeys.find(k => k[0] === mods && k[1] === event.key)
         return k ? k[2] : ""
     }
+    // The moves a view makes rather than its text field.
+    function viewMove(move) {
+        return ["top", "bottom", "home", "end", "pageUp", "pageDown", "caretPageUp", "caretPageDown", "centre"].indexOf(move) >= 0
+    }
+    // Scrolls `flick` for "home", "end", "pageUp" or "pageDown".
+    function scrollMove(flick, move) {
+        const max = Math.max(0, flick.contentHeight - flick.height)
+        const step = flick.height * 0.9
+        const y = { home: 0, end: max, pageUp: flick.contentY - step, pageDown: flick.contentY + step }[move]
+        flick.contentY = Math.max(0, Math.min(max, y))
+    }
+    // What ⌘⌫ or ⌃K took last, for ⌃Y. ponytail: one kill, not AppKit's
+    // run of them.
+    property string killed: ""
     // Makes `move` in text field `edit`; "top" and "bottom" are the field's.
     function moveCaret(edit, move, extend, code) {
         const t = edit.text
@@ -51,6 +75,28 @@ QtObject {
         if (del && edit.selectedText !== "") {
             edit.remove(edit.selectionStart, edit.selectionEnd)
             return
+        }
+        switch (move) {
+        case "yank":
+            edit.remove(edit.selectionStart, edit.selectionEnd)
+            edit.insert(edit.cursorPosition, killed)
+            return
+        case "openLine":
+            edit.remove(edit.selectionStart, edit.selectionEnd)
+            edit.insert(edit.cursorPosition, "\n")
+            edit.cursorPosition = edit.selectionStart - 1
+            return
+        case "transpose": {
+            // The characters each side of the caret, or the two before it
+            // at a line's end, the caret going past them.
+            const at = pos === t.length || t[pos] === "\n" ? pos - 1 : pos
+            if (at < 1 || t[at - 1] === "\n")
+                return
+            edit.remove(at - 1, at + 1)
+            edit.insert(at - 1, t[at] + t[at - 1])
+            edit.cursorPosition = at + 1
+            return
+        }
         }
         // ponytail: ASCII word characters, cased letters and everything
         // past U+2E7F (CJK and the like, as runs), not Unicode's word rules.
@@ -74,8 +120,11 @@ QtObject {
             while (p < t.length && word(t[p])) p++
             break
         }
-        if (del)
+        if (del) {
+            if (move === "deleteLineStart" || move === "deleteBlockEnd")
+                killed = t.slice(Math.min(p, pos), Math.max(p, pos))
             edit.remove(Math.min(p, pos), Math.max(p, pos))
+        }
         else if (extend)
             edit.moveCursorSelection(p, TextEdit.SelectCharacters)
         else

@@ -1154,18 +1154,12 @@ Flickable {
                 return
             }
         }
-        // Caret keys (Ui.caretKeys): the document's top and bottom are
-        // the view's, the rest the field's.
+        // Caret keys (Ui.caretKeys): the document's top and bottom, pages
+        // and scrolling are the view's, the rest the field's.
         const move = Ui.caretMove(event)
         const extending = (event.modifiers & Qt.ShiftModifier) !== 0
-        if (move === "top" || move === "bottom") {
-            const last = blocks.count - 1
-            if (!extending)
-                move === "top" ? jumpTop() : jumpBottom()
-            else if (move === "top")
-                select(s.aRow, s.aPos, 0, 0)
-            else
-                select(s.aRow, s.aPos, last, editAt(last) ? editAt(last).length : 1)
+        if (Ui.viewMove(move)) {
+            viewMove(move, extending)
             event.accepted = true
             return
         }
@@ -1250,6 +1244,20 @@ Flickable {
                 event.accepted = true
                 return
             }
+        }
+        // At a block's edge, the Mac's word and line deletes join it to
+        // the next one as Backspace and Delete do; ⌃O splits it there.
+        const back = move === "deleteWordLeft" || move === "deleteLineStart"
+        const fore = move === "deleteWordRight" || move === "deleteBlockEnd"
+        if (edit && !multi && edit.selectedText === "" && (back && pos === 0 || fore && pos === len)) {
+            event.accepted = run(back ? "backspace" : "delete")
+            return
+        }
+        if (edit && !multi && move === "openLine" && codeKinds.indexOf(itemAt(row).kind) < 0) {
+            if (run("enter"))
+                Qt.callLater(() => { const e = editAt(row); if (e) goTo({ row: row, pos: e.length }) })
+            event.accepted = true
+            return
         }
         if (edit && !multi && move !== "") {
             Ui.moveCaret(edit, move, extending, codeKinds.indexOf(itemAt(row).kind) >= 0)
@@ -1479,6 +1487,34 @@ Flickable {
             goTo(target)
     }
 
+    // Makes view move `move` (Ui.viewMove): Home, End and the Page keys
+    // scroll, as AppKit's, unless they select.
+    function viewMove(move, extend) {
+        const s = selection()
+        const last = blocks.count - 1
+        switch (move) {
+        case "home":
+        case "end":
+            if (!extend)
+                return Ui.scrollMove(view, move)
+            move = move === "home" ? "top" : "bottom"
+            break
+        case "pageUp":
+        case "pageDown":
+            return Ui.scrollMove(view, move)
+        case "caretPageUp":
+        case "caretPageDown":
+            return page(move === "caretPageUp" ? -1 : 1, extend)
+        case "centre":
+            return centreCaret()
+        }
+        if (!extend)
+            move === "top" ? jumpTop() : jumpBottom()
+        else if (move === "top")
+            select(s.aRow, s.aPos, 0, 0)
+        else
+            select(s.aRow, s.aPos, last, editAt(last) ? editAt(last).length : 1)
+    }
     function jumpTop() {
         contentY = 0
         select(0, 0, 0, 0)

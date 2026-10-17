@@ -1,0 +1,61 @@
+# Typora Mac's other AppKit text keys (Ui.caretKeys): Home/End and the
+# Page keys scroll and leave the caret, ⇧Home/⇧End select to the
+# document's ends, ⌥PgUp/⌥PgDn and ⌃V move the caret a page, ⌃L centres
+# it, ⌃T swaps the characters at it, ⌃O breaks the block after it, ⌃Y
+# puts back what ⌘⌫ or ⌃K took, and ⌥⌫, ⌘⌫, ⌥⌦ and ⌃K at a block's
+# edge join it to the next as Backspace and Delete do.
+eval Prefs.macKeys = true
+write @DIR@/doc.md abcd\n\nfirst second\n\nline 3\n\nline 4\n\nline 5\n\nline 6\n\nline 7\n\nline 8\n\nline 9\n\nline 10\n\nline 11\n\nline 12\n\nline 13\n\nline 14\n\nline 15\n\nline 16\n\nline 17\n\nline 18\n\nline 19\n\nline 20\n\nline 21\n\nline 22\n\nline 23\n\nline 24\n\nline 25\n\nline 26\n\nline 27\n\nline 28\n\nline 29\n\nline 30\n\nline 31\n\nline 32\n\nline 33\n\nline 34\n\nline 35\n\nline 36\n\nline 37\n\nline 38\n\nline 39\n\nline 40\n\nline 41\n\nline 42\n\nlast\n
+cmd openPath @DIR@/doc.md
+wait 500
+caret 0 2
+key End
+wait 100
+check view.contentY > 0 && view.currentRow === 0 && view.editAt(0).cursorPosition === 2
+key Home
+wait 100
+check view.contentY === 0 && view.editAt(0).cursorPosition === 2
+key PgDown
+wait 100
+check view.contentY > 0 && view.currentRow === 0
+key PgUp
+wait 100
+check view.contentY === 0
+key Alt+PgDown
+wait 100
+check view.currentRow > 5
+key Ctrl+Up Meta+V
+wait 100
+check view.currentRow > 5
+key Ctrl+Up Shift+End
+check view.selection().zRow === 42
+key Ctrl+Up
+caret 30 0
+key Home Meta+L
+wait 100
+check view.contentY > 0 && view.currentRow === 30
+# ⌃T swaps the characters each side of the caret, or the last two.
+caret 0 2
+key Meta+T
+check view.editAt(0).text === "acbd" && view.editAt(0).cursorPosition === 3
+key Meta+E Meta+T
+check view.editAt(0).text === "acdb"
+# ⌃O breaks the block and leaves the caret before the break.
+caret 1 5
+key Meta+O
+wait 100
+check view.editAt(1).text === "first" && view.editAt(2).text === "second" && view.currentRow === 1 && view.editAt(1).cursorPosition === 5
+# ⌃K at a block's end joins the next; ⌘⌫ at its start, the one before.
+key Meta+K
+check view.editAt(1).text === "firstsecond"
+key Meta+K
+check view.editAt(1).text === "first"
+key Meta+Y
+check view.editAt(1).text === "firstsecond"
+caret 1 0
+key Ctrl+Backspace
+wait 100
+check view.editAt(0).text === "acdbfirstsecond"
+key Meta+A Meta+K Meta+Y Meta+Y
+check view.editAt(0).text === "acdbfirstsecondacdbfirstsecond"
+dump @OUT@

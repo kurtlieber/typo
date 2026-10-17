@@ -403,8 +403,16 @@ Flickable {
             const shift = event.modifiers & Qt.ShiftModifier
             const s = selectionStart, e = selectionEnd
             const move = Ui.caretMove(event)
-            if (move !== "") {
-                Ui.moveCaret(edit, move, shift, true)
+            if (move === "centre" || move === "pageUp" || move === "pageDown" || (move === "home" || move === "end") && !shift) {
+                move === "centre" ? source.centre() : Ui.scrollMove(source, move)
+                event.accepted = true
+            } else if (move === "caretPageUp" || move === "caretPageDown") {
+                const r = cursorRectangle
+                const p = positionAt(r.x, r.y + r.height / 2 + (move === "caretPageUp" ? -0.9 : 0.9) * source.height)
+                shift ? moveCursorSelection(p, TextEdit.SelectCharacters) : cursorPosition = p
+                event.accepted = true
+            } else if (move !== "") {
+                Ui.moveCaret(edit, move === "home" ? "top" : move === "end" ? "bottom" : move, shift, true)
                 event.accepted = true
             } else if (plain && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
                 if (shift)
