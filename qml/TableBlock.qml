@@ -806,6 +806,7 @@ Item {
 
                 TextEdit {
                     id: edit
+                    readOnly: table.editor.readonly
                     x: table.padX
                     y: table.padY
                     width: Math.max(0, cell.width - 2 * table.padX)
@@ -1079,7 +1080,7 @@ Item {
     Item {
         id: bar
         // Typora takes the toolbar away while a column is dragged.
-        visible: table.active && !table.movingColumn
+        visible: table.active && !table.movingColumn && !table.editor.readonly
         x: -4 * table.scale
         y: -height - 2 * table.scale
         width: table.width + 8 * table.scale

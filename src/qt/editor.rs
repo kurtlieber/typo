@@ -34,6 +34,9 @@ pub mod qobject {
         #[qproperty(bool, crlf)]
         /// The file's encoding, as Reopen with Encoding names it.
         #[qproperty(QString, encoding)]
+        /// View ▸ Readonly Mode: no edits reach the document. Opening
+        /// another file ends it.
+        #[qproperty(bool, readonly)]
         #[qproperty(bool, can_undo, cxx_name = "canUndo")]
         #[qproperty(bool, can_redo, cxx_name = "canRedo")]
         #[qproperty(i32, words)]
@@ -800,6 +803,7 @@ pub struct EditorRust {
     footnotes: QString,
     inline_revision: i32,
     doc_id: i32,
+    readonly: bool,
     doc: Document,
     history: History,
     /// Layout facts per row that depend on its neighbours.
@@ -870,6 +874,7 @@ impl Default for EditorRust {
             footnotes: QString::from("{}"),
             inline_revision: 0,
             doc_id: DOCS.fetch_add(1, Ordering::Relaxed),
+            readonly: false,
             doc,
             history: History::default(),
             derived,
@@ -1122,6 +1127,9 @@ impl qobject::Editor {
 
     /// Replace the whole document (open, new, reload).
     fn reset(mut self: Pin<&mut Self>, doc: Document, file: Option<PathBuf>) {
+        if self.file != file {
+            self.as_mut().set_readonly(false);
+        }
         self.as_mut().rust_mut().syncing = true;
         unsafe { self.as_mut().begin_reset_model() };
         {
@@ -1205,6 +1213,9 @@ impl qobject::Editor {
     }
 
     fn set_source(mut self: Pin<&mut Self>, text: &QString, line: i32) {
+        if self.readonly {
+            return;
+        }
         let mut new = md::parse_with(&text.to_string(), self.opts.latex_delimiters, self.opts.remap);
         md::history::adopt_ids(&self.doc.blocks, &mut new.blocks);
         let row = md::serialize::block_at_line(&new, line.max(0) as usize);
@@ -1465,6 +1476,9 @@ impl qobject::Editor {
     }
 
     fn edited(mut self: Pin<&mut Self>, row: i32, text: &QString, caret: i32) {
+        if self.readonly {
+            return;
+        }
         if self.syncing {
             return;
         }
@@ -1528,6 +1542,9 @@ impl qobject::Editor {
         arg: i32,
         text: &QString,
     ) -> bool {
+        if self.readonly {
+            return false;
+        }
         let name = name.to_string();
         match name.as_str() {
             "undo" => return self.undo_redo(false),
@@ -1566,6 +1583,9 @@ impl qobject::Editor {
     }
 
     fn set_info(mut self: Pin<&mut Self>, row: i32, info: &QString) -> bool {
+        if self.readonly {
+            return false;
+        }
         let Some(at) = pos_of(&self.doc, row, 0) else { return false };
         let old = self.doc.blocks.clone();
         if !edit::set_info(&mut self.as_mut().rust_mut().doc, at.block, &info.to_string()) {
@@ -1577,6 +1597,9 @@ impl qobject::Editor {
     }
 
     fn set_math_tags(mut self: Pin<&mut Self>, row: i32, before: &QString, after: &QString) -> bool {
+        if self.readonly {
+            return false;
+        }
         let Some(at) = pos_of(&self.doc, row, 0) else { return false };
         let old = self.doc.blocks.clone();
         if !edit::set_math_tags(&mut self.as_mut().rust_mut().doc, at.block, &before.to_string(), &after.to_string()) {
@@ -1688,6 +1711,9 @@ impl qobject::Editor {
         whole_word: bool,
         regex: bool,
     ) -> i32 {
+        if self.readonly {
+            return -1;
+        }
         let opts = query::FindOptions { case_sensitive, whole_word, regex };
         let Some(at) = pos_of(&self.doc, row, 0) else { return -1 };
         let cell = usize::try_from(r).ok().zip(usize::try_from(c).ok());
@@ -1725,6 +1751,9 @@ impl qobject::Editor {
         whole_word: bool,
         regex: bool,
     ) -> i32 {
+        if self.readonly {
+            return 0;
+        }
         let opts = query::FindOptions { case_sensitive, whole_word, regex };
         let (query, with) = (query.to_string(), with.to_string());
         let Some(first) = query::find(&self.doc, &query, &opts).ok().and_then(|f| f.first().map(|m| m.block)) else {
@@ -1738,6 +1767,9 @@ impl qobject::Editor {
     }
 
     fn cell_edited(mut self: Pin<&mut Self>, row: i32, r: i32, c: i32, text: &QString) {
+        if self.readonly {
+            return;
+        }
         if self.syncing {
             return;
         }
@@ -1753,6 +1785,9 @@ impl qobject::Editor {
     }
 
     fn table_command(mut self: Pin<&mut Self>, row: i32, name: &QString, r: i32, c: i32, a: i32, b: i32) -> QString {
+        if self.readonly {
+            return QString::default();
+        }
         let (Some(at), Ok(r), Ok(c)) = (pos_of(&self.doc, row, 0), usize::try_from(r), usize::try_from(c)) else {
             return QString::default();
         };
@@ -1812,6 +1847,9 @@ impl qobject::Editor {
 
     #[allow(clippy::too_many_arguments)]
     fn replace_cell_span(mut self: Pin<&mut Self>, row: i32, r1: i32, c1: i32, p1: i32, r2: i32, c2: i32, p2: i32, text: &QString) -> QString {
+        if self.readonly {
+            return QString::default();
+        }
         let Some((i, a, z)) = self.cell_span(row, r1, c1, p1, r2, c2, p2) else { return QString::default() };
         let old = self.doc.blocks.clone();
         let Some(((r, c), at)) = table::replace_span(&mut self.as_mut().rust_mut().doc, i, a, z, &text.to_string()) else {
@@ -2203,6 +2241,9 @@ impl qobject::Editor {
     }
 
     fn toggle_task(mut self: Pin<&mut Self>, row: i32) {
+        if self.readonly {
+            return;
+        }
         let Some(i) = usize::try_from(row).ok().filter(|&i| i < self.doc.blocks.len()) else { return };
         let old = self.doc.blocks.clone();
         md::edit::toggle_task(&mut self.as_mut().rust_mut().doc, i);
@@ -2234,6 +2275,9 @@ impl qobject::Editor {
     }
 
     fn set_line_ending(mut self: Pin<&mut Self>, crlf: bool) {
+        if self.readonly {
+            return;
+        }
         let ending = if crlf { md::LineEnding::CrLf } else { md::LineEnding::Lf };
         if self.doc.line_ending != ending {
             self.as_mut().rust_mut().doc.line_ending = ending;
@@ -2303,6 +2347,9 @@ impl qobject::Editor {
         paths: &QString,
         create: bool,
     ) -> QString {
+        if self.readonly {
+            return QString::default();
+        }
         let (Some(anchor), Some(caret)) = (pos_of(&self.doc, a_row, a_pos), pos_of(&self.doc, z_row, z_pos)) else {
             return QString::default();
         };
@@ -2416,6 +2463,9 @@ impl qobject::Editor {
     }
 
     fn relocate_image(mut self: Pin<&mut Self>, row: i32, pos: i32, target: &QString, move_file: bool) -> QString {
+        if self.readonly {
+            return QString::default();
+        }
         let Some((p, range, src, _)) = self.image_here(row, pos) else { return QString::default() };
         let new_src = match self.copy_image(&src, &target.to_string(), move_file) {
             Ok(Some(new_src)) => new_src,
@@ -2452,6 +2502,9 @@ impl qobject::Editor {
     }
 
     fn delete_image(mut self: Pin<&mut Self>, row: i32, pos: i32) -> bool {
+        if self.readonly {
+            return false;
+        }
         let Some((p, range, ..)) = self.image_here(row, pos) else { return false };
         let old = self.doc.blocks.clone();
         let mut text = self.doc.blocks[p.block].text.clone();
@@ -2464,6 +2517,9 @@ impl qobject::Editor {
     }
 
     fn relocate_all_images(mut self: Pin<&mut Self>, folder: &QString, move_file: bool, row: i32, pos: i32) -> QString {
+        if self.readonly {
+            return QString::default();
+        }
         let folder = PathBuf::from(folder.to_string());
         let root = self.image_root_path();
         let file = self.file.clone();
@@ -2567,6 +2623,9 @@ impl qobject::Editor {
     }
 
     fn set_image_setting(mut self: Pin<&mut Self>, name: &QString, folder: &QString, row: i32, pos: i32) -> bool {
+        if self.readonly {
+            return false;
+        }
         let key = if name.to_string() == "copy" { "typora-copy-images-to" } else { "typora-root-url" };
         let folder = folder.to_string();
         let value = match self.file.as_deref().and_then(Path::parent) {

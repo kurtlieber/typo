@@ -1584,6 +1584,8 @@ Flickable {
     // Paste as Plain Text, and any paste into a code block, takes only the
     // text.
     function paste(plain) {
+        if (editor.readonly)
+            return
         const t = tableAt()
         if (t) {
             t.paste(plain)

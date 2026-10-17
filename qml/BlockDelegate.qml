@@ -9,6 +9,8 @@ Item {
     id: block
 
     required property var editor
+    // View ▸ Readonly Mode: nothing takes input or shows its source.
+    readonly property bool locked: editor.readonly
     // The EditorView, which handles structural keys.
     property Item host
     required property int index
@@ -463,7 +465,7 @@ Item {
             }
             readonly property bool failed: image !== "" && (missing || picture.status === Image.Error)
             readonly property bool pictured: image !== "" && picture.status === Image.Ready
-            readonly property bool expanded: edit.activeFocus || block.found
+            readonly property bool expanded: edit.live || block.found
             readonly property bool sourceShown: !pictured || expanded
             // A Text's own height can't follow its implicit height without
             // a binding loop, so the hint's room is reckoned here.
@@ -538,6 +540,8 @@ Item {
                 id: edit
                 width: parent.width
                 text: block.text
+                readOnly: block.locked
+                readonly property bool live: activeFocus && !readOnly
                 textFormat: TextEdit.PlainText
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
@@ -570,20 +574,20 @@ Item {
                         Qt.callLater(() => block.host.emojiSuggest.typed(edit))
                 }
                 onCursorPositionChanged: {
-                    hl.caretMoved(activeFocus || block.found ? cursorPosition : -1)
+                    hl.caretMoved(live || block.found ? cursorPosition : -1)
                     if (block.host) {
                         block.host.emojiSuggest.caretMoved(edit)
                         block.host.caretMoved()
                     }
                 }
-                onActiveFocusChanged: {
-                    hl.caretMoved(activeFocus || block.found ? cursorPosition : -1)
+                onLiveChanged: {
+                    hl.caretMoved(live || block.found ? cursorPosition : -1)
                     if (block.host)
                         block.host.emojiSuggest.caretMoved(edit)
                 }
                 Connections {
                     target: block
-                    function onFoundChanged() { hl.caretMoved(edit.activeFocus || block.found ? edit.cursorPosition : -1) }
+                    function onFoundChanged() { hl.caretMoved(edit.live || block.found ? edit.cursorPosition : -1) }
                 }
                 Component.onCompleted: {
                     hl.dim(block.dimmed, -1)
@@ -869,6 +873,7 @@ Item {
             TextEdit {
                 id: code
                 readonly property var highlighter: hl
+                readOnly: block.locked
                 // Unwrapped, as wide as its longest line.
                 width: Prefs.codeWrap ? codeView.width : undefined
                 opacity: fence.folded ? 0 : 1
@@ -985,6 +990,7 @@ Item {
 
                 TextInput {
                     id: langInput
+                    readOnly: block.locked
                     anchors.fill: parent
                     leftPadding: 10 * block.scale
                     rightPadding: 10 * block.scale
@@ -1133,7 +1139,7 @@ Item {
             id: mathItem
             readonly property Item editItem: source
             readonly property alias tagFields: tagFields
-            readonly property bool editing: source.activeFocus || tagFields.focused || block.found
+            readonly property bool editing: (source.activeFocus || tagFields.focused) && !block.locked || block.found
             readonly property real pad: 10 * block.scale
             width: parent ? parent.width : 0
             height: editing ? panel.height : rendered.height + 2 * pad
@@ -1182,6 +1188,7 @@ Item {
                 TextEdit {
                     id: source
                     readonly property var highlighter: texHighlighter
+                    readOnly: block.locked
                     x: mathItem.pad
                     y: before.y + before.height + 4 * block.scale
                     width: parent.width - 2 * mathItem.pad
@@ -1242,6 +1249,7 @@ Item {
                     model: block.info === "$$" ? [before, after] : []
                     TextInput {
                         required property Item modelData
+                        readOnly: block.locked
                         required property int index
                         readonly property bool braced: text !== "" || activeFocus
                         x: modelData.x + modelData.width
@@ -1354,7 +1362,7 @@ Item {
         Item {
             id: htmlItem
             readonly property Item editItem: source
-            readonly property bool editing: source.activeFocus || block.found
+            readonly property bool editing: source.activeFocus && !block.locked || block.found
             readonly property string look: block.editor.htmlLook(block.text)
             // The <details> the reader opened or closed, by order.
             property var toggled: []
@@ -1448,6 +1456,7 @@ Item {
                 TextEdit {
                     id: source
                     readonly property var highlighter: htmlHighlighter
+                    readOnly: block.locked
                     x: htmlItem.pad
                     y: 6 * block.scale
                     width: parent.width - 2 * htmlItem.pad

@@ -6,7 +6,7 @@ Rectangle {
     id: caret
     width: 1.5
     color: Theme.cursor
-    property bool blinking: parent && parent.activeFocus
+    property bool blinking: parent && parent.activeFocus && !parent.readOnly
     // Hidden while something else has the pointer's attention, such as a
     // table row being dragged.
     property bool hidden: false

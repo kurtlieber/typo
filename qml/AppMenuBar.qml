@@ -65,6 +65,7 @@ MenuBar {
             lineEndingMenu.removeAction(finalNewlineCmd)
             findMenu.removeAction(replaceNext)
             viewMenu.removeAction(wordCountPopover)
+            viewMenu.removeAction(readonlyCmd)
         }
     }
 
@@ -185,8 +186,8 @@ MenuBar {
             bar.lookAround()
             fit()
         }
-        Cmd { text: qsTr("Undo"); cmd: "undo"; shortcut: "Ctrl+Z"; enabled: bar.app.editor.canUndo }
-        Cmd { text: qsTr("Redo"); cmd: "redo"; shortcut: "Ctrl+Y"; enabled: bar.app.editor.canRedo }
+        Cmd { text: qsTr("Undo"); cmd: "undo"; shortcut: "Ctrl+Z"; enabled: bar.app.editor.canUndo && !bar.app.editor.readonly }
+        Cmd { text: qsTr("Redo"); cmd: "redo"; shortcut: "Ctrl+Y"; enabled: bar.app.editor.canRedo && !bar.app.editor.readonly }
         TSep {}
         Cmd { text: qsTr("Cut"); cmd: "cut"; shortcut: "Ctrl+X" }
         Cmd { text: qsTr("Copy"); cmd: "copy"; shortcut: "Ctrl+C" }
@@ -243,8 +244,8 @@ MenuBar {
         TMenu {
             id: lineEndingMenu
             title: qsTr("Line Endings")
-            Cmd { text: qsTr("Windows Line Endings (CRLF)"); cmd: "lineEnding"; arg: "crlf"; checkable: true; checked: bar.app.editor.crlf }
-            Cmd { text: qsTr("Unix Line Endings (LF)"); cmd: "lineEnding"; arg: "lf"; checkable: true; checked: !bar.app.editor.crlf }
+            Cmd { text: qsTr("Windows Line Endings (CRLF)"); cmd: "lineEnding"; arg: "crlf"; checkable: true; checked: bar.app.editor.crlf; enabled: !bar.app.editor.readonly }
+            Cmd { text: qsTr("Unix Line Endings (LF)"); cmd: "lineEnding"; arg: "lf"; checkable: true; checked: !bar.app.editor.crlf; enabled: !bar.app.editor.readonly }
             TSep { id: finalSep }
             Cmd { id: finalNewlineCmd; text: qsTr("Insert Final New Line On Save"); cmd: "finalNewline"; checkable: true; checked: bar.finalNewline }
         }
@@ -468,7 +469,8 @@ MenuBar {
         Cmd { text: qsTr("Articles"); cmd: "sidebarView"; arg: 1; shortcut: "Ctrl+Shift+2"; checkable: true; checked: Ui.sidebar && Ui.sidebarView === 1 }
         Cmd { text: qsTr("File Tree"); cmd: "sidebarView"; arg: 2; shortcut: "Ctrl+Shift+3"; checkable: true; checked: Ui.sidebar && Ui.sidebarView === 2 }
         TSep {}
-        Cmd { text: qsTr("Source Code Mode"); cmd: "sourceMode"; shortcut: "Ctrl+/"; checkable: true; checked: Ui.sourceMode }
+        Cmd { text: qsTr("Source Code Mode"); cmd: "sourceMode"; shortcut: "Ctrl+/"; checkable: true; checked: Ui.sourceMode; enabled: !bar.app.editor.readonly }
+        Cmd { id: readonlyCmd; text: qsTr("Readonly Mode"); cmd: "readonly"; checkable: true; checked: bar.app.editor.readonly }
         TSep {}
         Cmd { text: qsTr("Focus Mode"); cmd: "focusMode"; shortcut: "F8"; checkable: true; checked: Ui.focusMode }
         Cmd { text: qsTr("Typewriter Mode"); cmd: "typewriter"; shortcut: "F9"; checkable: true; checked: Ui.typewriter }

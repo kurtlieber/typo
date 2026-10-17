@@ -370,6 +370,7 @@ Flickable {
 
     TextEdit {
         id: edit
+        readOnly: source.editor.readonly
         x: source.pageX + 60 * source.zoom
         y: Ui.typewriter ? source.typewriterRoom : 30 * source.zoom
         width: source.pageWidth - 90 * source.zoom

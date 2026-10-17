@@ -448,7 +448,7 @@ ApplicationWindow {
         "saveAs", "saveAll", "moveTo", "revealInSidebar", "deleteFile", "clearRecent", "reload", "encoding", "openLocation", "close", "quit", "lineEnding", "pref", "smartTiming", "preferences", "sidebar",
         "quickOpen", "newFileInFolder", "refreshFolder", "searchFolder", "sidebarView", "sourceMode", "focusMode",
         "typewriter", "statusBar", "fullscreen", "alwaysOnTop", "zoom", "theme", "find", "replace", "replaceNext", "findNext",
-        "findPrevious", "wordCount", "emoji", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
+        "findPrevious", "wordCount", "emoji", "readonly", "switchDocument", "help", "website", "about", "export", "exportPrevious", "exportOverwrite", "print", "import"]
 
     // Every menu item, shortcut and button runs a command here.
     function run(cmd, arg) {
@@ -638,7 +638,20 @@ ApplicationWindow {
                 Ui.sidebar = true
             }
             return
-        case "sourceMode": toggleSource(); return
+        case "sourceMode":
+            if (!model.readonly)
+                toggleSource()
+            return
+        case "readonly":
+            settle()
+            if (model.readonly || !model.modified)
+                model.readonly = !model.readonly
+            else
+                dialog.ask(qsTr("Readonly Mode"),
+                           qsTr("You have unsaved changes. Do you want to save them before entering Read-Only Mode ?"),
+                           [qsTr("Save"), qsTr("Enter Without Saving"), qsTr("Cancel")],
+                           i => i === 0 ? save(ok => model.readonly = ok) : model.readonly = i === 1)
+            return
         case "focusMode":
             Ui.focusMode = !Ui.focusMode
             modeNotice("focus")
@@ -890,6 +903,8 @@ ApplicationWindow {
     // The image Copy Image to… or Rename or Move Image to… asked about.
     property var imageTarget: null
     function relocateImage(img, target, move) {
+        if (model.readonly)
+            return
         let error
         if (img.cell) {
             const r = JSON.parse(model.copyImageFile(img.src, target, move))

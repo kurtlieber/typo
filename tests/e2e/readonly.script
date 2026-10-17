@@ -1,0 +1,39 @@
+# View ▸ Readonly Mode: typing, Enter, a format command and Undo leave the
+# document alone until it is turned off. With unsaved changes it asks
+# first; Cancel stays editable, Enter Without Saving locks it as it is.
+write @DIR@/doc.md Text here.\n
+cmd openPath @DIR@/doc.md
+wait 400
+caret 0 4
+cmd readonly
+wait 200
+check model.readonly && !model.modified
+type  more
+key Return
+cmd strong
+key Ctrl+Z
+wait 200
+check model.markdown() === "Text here.\n" && !model.modified
+cmd sourceMode
+wait 200
+check !Ui.sourceMode
+cmd readonly
+wait 200
+check !model.readonly
+caret 0 4
+type  more
+wait 200
+check model.modified
+cmd readonly
+wait 200
+check dialog.visible && dialog.buttons.join() === "Save,Enter Without Saving,Cancel"
+answer 2
+wait 200
+check !model.readonly
+cmd readonly
+wait 200
+answer 1
+wait 200
+check model.readonly && model.modified
+type  lost
+dump @OUT@
