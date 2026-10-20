@@ -271,8 +271,9 @@ impl Highlight {
         let first = old.iter().zip(&new).take_while(|(l, n)| l.text == **n).count();
         let room = old.len().min(new.len()) - first;
         let suffix = (1..=room).take_while(|k| old[old.len() - k].text == new[new.len() - k]).count();
+        let start = (ParseState::new(syntax), ScopeStack::new());
         let mut state = match first {
-            0 => (ParseState::new(syntax), ScopeStack::new()),
+            0 => start.clone(),
             i => old[i - 1].state.clone(),
         };
         self.lines = old[..first].to_vec();
@@ -281,7 +282,9 @@ impl Highlight {
             // the same way, and so does everything after it.
             if i > first && i >= new.len() - suffix {
                 let j = i + old.len() - new.len();
-                if old[j - 1].state == state {
+                // Old line 0 was entered in the start's state.
+                let before = if j == 0 { &start } else { &old[j - 1].state };
+                if *before == state {
                     self.lines.extend_from_slice(&old[j..]);
                     break;
                 }
@@ -457,5 +460,18 @@ mod tests {
         // Closing it restores the last line.
         h.update("c", "/* int a; */\nint b;\nint c;");
         assert!(h.runs(2).iter().any(|(_, t)| *t != Token::Comment));
+    }
+
+    #[test]
+    fn a_line_above_the_first_keeps_the_rest() {
+        // All the old lines follow the new one, the first of them now
+        // entered in the state the block starts in.
+        let mut h = Highlight::default();
+        h.update("c", "int a;\nint b;");
+        assert_eq!(h.update("c", "\nint a;\nint b;"), 0);
+        assert_eq!(h.runs(1).first().map(|r| r.1), Some(Token::Keyword));
+        assert_eq!(h.runs(2).first().map(|r| r.1), Some(Token::Keyword));
+        h.update("c", "/*\nint a;\nint b;");
+        assert!(h.runs(2).iter().all(|(_, t)| *t == Token::Comment), "{:?}", h.runs(2));
     }
 }
