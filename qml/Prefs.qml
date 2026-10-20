@@ -252,13 +252,14 @@ QtObject {
     }
 
     // Recently opened files, newest first, and files closed in any window,
-    // for Reopen Closed File.
-    property var recentFiles: []
+    // for Reopen Closed File. Lists of strings, not var: Qt 6.11 stores a
+    // JavaScript array as a QJSValue, which it can't write to the file.
+    property list<string> recentFiles: []
     // Folders opened in the sidebar, newest first, and those pinned in its
     // Recent Locations, which come first and stay.
-    property var recentFolders: []
-    property var pinnedFolders: []
-    property var closedFiles: []
+    property list<string> recentFolders: []
+    property list<string> pinnedFolders: []
+    property list<string> closedFiles: []
 
     // What persists. A window writes only the key that changed and reads the
     // others back every second, so a preference changed in one window
