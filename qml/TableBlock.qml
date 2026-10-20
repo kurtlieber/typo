@@ -855,8 +855,10 @@ Item {
                             table.editor.cellEdited(table.owner.index, cell.r, cell.c, text)
                             cursorPosition = at
                         }
+                        // The cell can go before the call does, as when
+                        // its row is dragged.
                         if (table.host && activeFocus)
-                            Qt.callLater(() => table.host.emojiSuggest.typed(edit))
+                            Qt.callLater(() => { if (table) table.host.emojiSuggest.typed(edit) })
                     }
                     onHeightChanged: rowsLater.restart()
                     onCursorPositionChanged: {

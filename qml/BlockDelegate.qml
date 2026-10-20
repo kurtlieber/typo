@@ -602,7 +602,7 @@ Item {
                     if (text.indexOf("\n") >= 0)
                         hl.refresh()
                     if (block.host && activeFocus)
-                        Qt.callLater(() => block.host.emojiSuggest.typed(edit))
+                        Qt.callLater(() => { if (block) block.host.emojiSuggest.typed(edit) })
                 }
                 onCursorPositionChanged: {
                     hl.caretMoved(live || block.found ? cursorPosition : -1)
