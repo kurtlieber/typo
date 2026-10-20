@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 out=$(realpath -m "$1")
 shift
-cargo build --quiet 2>&1 | grep -v "^warning: typo@0.1.0:" | grep -E "^error" -A8 || true
+cargo build --quiet 2>&1 | grep -v "^warning: typo@[^:]*:" | grep -E "^error" -A8 || true
 config=$(mktemp -d)
 trap 'rm -rf "$config"' EXIT
 XDG_CONFIG_HOME=$config XDG_DATA_HOME=$config/data QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
