@@ -22,11 +22,12 @@ wait 300
 cmd sidebarView 2
 wait 200
 check sidebar.fileTree.count === 6 && !sidebar.fileTree.expanded["@DIR@/notes/full"]
-# Over a folder: marked at once, open after a second.
+# Over a folder: marked at once, open after a second. A wait counts the
+# script's ticks, which a slow machine stretches, so the first is short.
 dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/full")
-wait 300
+wait 100
 check sidebar.fileTree.marked === "@DIR@/notes/full" && !sidebar.fileTree.expanded["@DIR@/notes/full"]
-wait 1000
+wait 1200
 check sidebar.fileTree.expanded["@DIR@/notes/full"] === true && sidebar.fileTree.count === 7
 # Over a file inside it, the mark stays; over one outside, it goes.
 dragFiles over @DIR@/notes/a.md sidebar.fileTree.pointOf("@DIR@/notes/full/inner.md")

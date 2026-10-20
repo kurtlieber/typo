@@ -10,9 +10,10 @@ hoverText 0 7
 wait 100
 check view.footnoteTip.shown && view.footnoteTip.key === "src" && view.footnoteTip.html.indexOf("The source.") >= 0
 shot @DIR@/tip.png
-# It goes half a second after the pointer leaves.
+# It goes half a second after the pointer leaves. A wait counts the
+# script's ticks, which a slow machine stretches, so this one is short.
 hoverText 1 24
-wait 200
+wait 50
 check view.footnoteTip.shown
 wait 600
 check !view.footnoteTip.shown

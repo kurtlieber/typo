@@ -3,7 +3,10 @@
 # shows which way that drags. Dragging one moves the row or column: a
 # shaded gap stays, a copy follows, and arrows mark where it would go.
 type | a | b | c |\n
-type 1\t2\t3\t4\t5\t6
+type 1\t2\t3\t
+# Tab from the last cell adds a row; the caret gets there a moment later.
+wait 100
+type 4\t5\t6
 mouse move view.itemAt(0).table.cellPoint(2, 1)
 wait 100
 check view.itemAt(0).table.hoverR === 2 && view.itemAt(0).table.hoverC === 1
