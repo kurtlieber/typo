@@ -30,6 +30,7 @@ Script steps, one per line:
 | `check EXPR` | fails the test unless a JavaScript expression is true (`Desktop.exists("@DIR@/a.svg")`) |
 | `cmd NAME [ARG]` | runs a menu command, as `app.run(NAME, ARG)` |
 | `wait MS` | lets the UI settle |
+| `until MS EXPR` | waits until a JavaScript expression is true, MS at most (a `check` after it tells) |
 | `dump PATH` | writes the document's markdown to PATH |
 | `write PATH TEXT` | writes TEXT to PATH (`\n` for a line break), as another program would |
 | `choose PATH` | answers the next file chooser with PATH (`\n` between several); an empty PATH cancels it |

@@ -1764,15 +1764,18 @@ ApplicationWindow {
         property var lines: []
         property int at: 0
         property int idle: 0
+        property string until: ""
         property int port: 0
         property var keys: []
         interval: 10
         repeat: true
         onTriggered: {
-            if (idle > 0) {
+            if (idle > 0 && !(until && win.holds(until))) {
                 idle--
                 return
             }
+            idle = 0
+            until = ""
             if (keys.length > 0) {
                 const k = keys.shift()
                 if (k.chord) {
@@ -1817,6 +1820,11 @@ ApplicationWindow {
         target: null
         onActiveChanged: if (active) from = Ui.zoom
         onActiveScaleChanged: if (active) Ui.zoom = Math.max(Math.pow(1.2, -7), Math.min(Math.pow(1.2, 8), from * activeScale))
+    }
+
+    // Whether a script's JavaScript expression holds.
+    function holds(expr) {
+        return !!eval(expr)
     }
 
     function step(line) {
@@ -1947,6 +1955,14 @@ ApplicationWindow {
         case "wait":
             script.idle = Math.ceil(Number(rest) / script.interval)
             return
+        // Wait until EXPR holds, MS at most: for what takes its time, as
+        // the Mac's media player starting.
+        case "until": {
+            const gap = rest.indexOf(" ")
+            script.idle = Math.ceil(Number(rest.substring(0, gap)) / script.interval)
+            script.until = rest.substring(gap + 1)
+            return
+        }
         case "cmd": {
             const [c, a] = rest.split(" ")
             run(c, a === undefined ? undefined : (isNaN(Number(a)) ? a : Number(a)))

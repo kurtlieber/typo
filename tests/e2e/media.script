@@ -2,8 +2,7 @@
 # centred at its own size (its first frame until it plays), audio's bar at
 # the start of the line, and the source hidden but while the caret is in
 # it. An HTML block of one plays too. The bar's button plays and pauses.
-# Fails on the Mac: AVFoundation answers on the Cocoa run loop, which the
-# offscreen platform doesn't run, so nothing loads.
+# On the Mac it runs in a real window (see bin/e2e).
 write @DIR@/doc.md <video src="@REPO@/tests/e2e/clip.mp4"></video>\n\n<audio controls>\n<source src="@REPO@/tests/e2e/tone.wav">\n</audio>\n\nend\n
 cmd openPath @DIR@/doc.md
 caret 2 0
@@ -20,10 +19,12 @@ wait 100
 check view.itemAt(0).body.sourceShown && view.itemAt(0).body.mediaPlayer.y > view.editAt(0).height
 # Play and pause, silent and muted.
 eval view.itemAt(1).body.mediaPlayer.item.player.audioOutput.muted = true
+# The Mac's player takes its time to start and stop.
 eval view.itemAt(1).body.controlAt(20 * Ui.zoom, view.itemAt(1).body.mediaPlayer.height / 2).activate()
-wait 300
+until 3000 view.itemAt(1).body.mediaPlayer.item.playing
 check view.itemAt(1).body.mediaPlayer.item.playing
 eval view.itemAt(1).body.controlAt(20 * Ui.zoom, view.itemAt(1).body.mediaPlayer.height / 2).activate()
+until 3000 !view.itemAt(1).body.mediaPlayer.item.playing
 check !view.itemAt(1).body.mediaPlayer.item.playing
 # One that won't load shows its source.
 caret 2 3

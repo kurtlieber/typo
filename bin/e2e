@@ -26,9 +26,14 @@ for name in "${names[@]}"; do
     mkdir -p "$dir/data"
     out=$dir/$name.md
     sed "s|@OUT@|$out|g; s|@SHOT@|$dir/$name.png|g; s|@DIR@|$dir|g; s|@REPO@|$PWD|g" "tests/e2e/$name.script" > "$dir/$name.script"
+    # Offscreen, but the media test on the Mac in a real window:
+    # AVFoundation answers on the Cocoa run loop, which offscreen doesn't
+    # run, so nothing would load.
+    platform=offscreen
+    [ "$(uname)" = Darwin ] && [ "$name" = media ] && platform=cocoa
     # perl's alarm stands in for timeout(1), which macOS doesn't have.
     # The export tests take a minute on GitHub's Mac runner.
-    XDG_CONFIG_HOME=$dir/config XDG_DATA_HOME=$dir/data QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
+    XDG_CONFIG_HOME=$dir/config XDG_DATA_HOME=$dir/data QT_QPA_PLATFORM=$platform QT_FORCE_STDERR_LOGGING=1 \
         perl -e 'alarm 180; exec @ARGV' target/debug/typo --size=1200x800 --cursor=0:0 --script="$dir/$name.script" \
         > "$dir/$name.log" 2>&1 || true
     # A pasted picture is named for the time it was pasted.
