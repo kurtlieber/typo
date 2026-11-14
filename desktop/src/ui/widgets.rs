@@ -51,7 +51,7 @@ svg!(CHECK, 10.0, r##"<path d="M1.5 5.2l2.4 2.4L8.5 2.6" fill="none" stroke="#ff
 /// Rune rounds text boxes up to device pixels and those fractions add up along a row.
 pub fn label(s: impl Into<String>, style: TextStyle, c: Color) -> El {
     let s: String = s.into();
-    let mono = matches!(style.family, rune::Family::Named("IBM Plex Mono" | "Courier Prime" | "Spline Sans Mono"));
+    let mono = crate::theme::is_mono(style.family);
     let n = s.chars().count();
     let ascii = in_mono_face(&s);
     let e = text(s).font(style).color(c);
@@ -67,7 +67,7 @@ fn in_mono_face(s: &str) -> bool {
 /// A label with padding inside its exact width (`extra` adds borders that take room).
 pub fn padded(s: impl Into<String>, style: TextStyle, c: Color, px: f32, py: f32, extra: f32) -> El {
     let s: String = s.into();
-    let mono = matches!(style.family, rune::Family::Named("IBM Plex Mono" | "Courier Prime" | "Spline Sans Mono"));
+    let mono = crate::theme::is_mono(style.family);
     let n = s.chars().count();
     let ascii = in_mono_face(&s);
     let e = text(s).font(style).color(c).px(px).py(py);

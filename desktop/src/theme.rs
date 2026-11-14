@@ -27,6 +27,8 @@ pub const FONTS: &[&[u8]] = &[
     include_bytes!("../../assets/fonts/CourierPrime-BoldItalic.ttf"),
     include_bytes!("../../assets/fonts/SplineSansMono-VF.ttf"),
     include_bytes!("../../assets/fonts/SplineSansMono-Italic-VF.ttf"),
+    include_bytes!("../../assets/fonts/JetBrainsMono-VF.ttf"),
+    include_bytes!("../../assets/fonts/JetBrainsMono-Italic-VF.ttf"),
 ];
 
 /// An editor font choice: its id in settings, its label and its family.
@@ -37,14 +39,21 @@ pub struct EditorFont {
     pub name: &'static str,
 }
 
-pub const EDITOR_FONTS: [EditorFont; 3] = [
+/// Each is 0.6 em a character, which `ui::widgets::label` relies on (`is_mono`).
+pub const EDITOR_FONTS: [EditorFont; 4] = [
     EditorFont { id: "plex", label: "IBM Plex Mono", family: Family::Named("IBM Plex Mono"), name: "IBM Plex Mono" },
     EditorFont { id: "courier", label: "Courier Prime", family: Family::Named("Courier Prime"), name: "Courier Prime" },
     EditorFont { id: "spline", label: "Spline Sans Mono", family: Family::Named("Spline Sans Mono"), name: "Spline Sans Mono" },
+    EditorFont { id: "jetbrains", label: "JetBrains Mono", family: Family::Named("JetBrains Mono"), name: "JetBrains Mono" },
 ];
 
 pub fn editor_font(id: &str) -> &'static EditorFont {
     EDITOR_FONTS.iter().find(|f| f.id == id).unwrap_or(&EDITOR_FONTS[0])
+}
+
+/// Whether `family` is one of the editor fonts, so each character is exactly 0.6 em wide.
+pub fn is_mono(family: Family) -> bool {
+    EDITOR_FONTS.iter().any(|f| f.family == family)
 }
 
 /// sRGB hex with a straight alpha, as CSS `rgba()` writes it.
