@@ -303,36 +303,41 @@ fn accent_block(v: V) -> El {
 fn editor(v: V) -> El {
     let p = v.p;
     let set = v.s.settings();
-    let mut cards = row().key("font-cards").w_full().gap(10.0).mt(14.0);
-    for f in &EDITOR_FONTS {
-        let on = set.font == f.id;
-        let id = f.id;
-        let mut b = col()
-            .key(format!("font-{id}"))
-            .grow(1.0)
-            .min_w(0.0)
-            .gap(8.0)
-            .pt(12.0)
-            .px(14.0)
-            .pb(14.0)
-            .radius(9.0)
-            .fill(p.bg)
-            .border(1.0, if on { p.acc } else { p.line })
-            .border_layout()
-            .role("radio")
-            .checked(on)
-            .label(f.label)
-            .on_press_tx(move |s: &mut App, tx: &mut Tx| {
-                s.settings_mut().font = id.into();
-                tx.set_font_families("Instrument Sans", theme::editor_font(id).name);
-            })
-            .child(label(f.label, sans(11.5, 400.0), if on { p.acc } else { p.mute }))
-            .child(label("## Field notes", rune::TextStyle::new(15.0, 400.0).family(f.family).lh(22.5), p.ink))
-            .child(label("Rain until 14:00.", rune::TextStyle::new(13.0, 400.0).family(f.family).lh(19.5), p.ink2));
-        if on {
-            b = b.box_shadow(rune::Shadow { x: 0.0, y: 0.0, blur: 0.0, spread: 1.0, color: p.acc, inset: false });
+    // Two cards a row: four in one row leave too little room for the samples.
+    let mut cards = col().key("font-cards").w_full().gap(10.0).mt(14.0);
+    for (i, pair) in EDITOR_FONTS.chunks(2).enumerate() {
+        let mut cards_row = row().key(format!("font-row-{i}")).w_full().gap(10.0);
+        for f in pair {
+            let on = set.font == f.id;
+            let id = f.id;
+            let mut b = col()
+                .key(format!("font-{id}"))
+                .grow(1.0)
+                .min_w(0.0)
+                .gap(8.0)
+                .pt(12.0)
+                .px(14.0)
+                .pb(14.0)
+                .radius(9.0)
+                .fill(p.bg)
+                .border(1.0, if on { p.acc } else { p.line })
+                .border_layout()
+                .role("radio")
+                .checked(on)
+                .label(f.label)
+                .on_press_tx(move |s: &mut App, tx: &mut Tx| {
+                    s.settings_mut().font = id.into();
+                    tx.set_font_families("Instrument Sans", theme::editor_font(id).name);
+                })
+                .child(label(f.label, sans(11.5, 400.0), if on { p.acc } else { p.mute }))
+                .child(label("## Field notes", rune::TextStyle::new(15.0, 400.0).family(f.family).lh(22.5), p.ink))
+                .child(label("Rain until 14:00.", rune::TextStyle::new(13.0, 400.0).family(f.family).lh(19.5), p.ink2));
+            if on {
+                b = b.box_shadow(rune::Shadow { x: 0.0, y: 0.0, blur: 0.0, spread: 1.0, color: p.acc, inset: false });
+            }
+            cards_row = cards_row.child(b);
         }
-        cards = cards.child(b);
+        cards = cards.child(cards_row);
     }
     let size = set.size;
     let step = |key: &str, t: &str, d: i32| {
