@@ -76,4 +76,5 @@ The Pages workflow is turned off in this fork: the website stays upstream's.
 
 - monarchy and anarchy: a chezmoi script in [kurtlieber/dotfiles](https://github.com/kurtlieber/dotfiles) installs a pinned release on a new host (app note under `homelab/.agents/rules/apps/` there). From then on, Typo's Update button keeps it current.
 - mbp: Typo's Update button keeps it current.
+- archie: no desktop. A systemd timer from kurtlieber/dotfiles runs `typo sync` on `~/Documents`.
 - Android: later, signed with Kurt's own key.

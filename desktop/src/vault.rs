@@ -199,7 +199,7 @@ impl Writer {
     }
 }
 
-fn apply(op: &Op) -> std::io::Result<()> {
+pub(crate) fn apply(op: &Op) -> std::io::Result<()> {
     match op {
         Op::Write { root, rel, text } => {
             let p = root.join(rel);

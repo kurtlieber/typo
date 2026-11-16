@@ -140,6 +140,15 @@ Typo works with Amazon S3, Hetzner, Azure Blob Storage, Google Cloud Storage, Cl
 
 Each notes folder syncs to its own remote folder, `quire/<folder name>/` unless you set another one in **Remote folder**. The default keeps Quire's name, so a folder that Quire synced syncs on in Typo. To sync one notes folder between two devices, give it the same remote folder on both.
 
+### Sync without the app
+
+`typo sync` syncs a notes folder once and exits, with no window, so a server without a desktop
+can keep the same notes. It reads the sync settings from Typo's state file, as the app does
+(`~/.config/typo/state.json` on Linux, or the file in `TYPO_STATE`). It syncs the Documents
+folder unless you name another with `--folder`. Run it from a timer, such as a systemd timer
+every 5 minutes. It keeps both versions of a note that changed on two devices, as the app does.
+Don't run it on a folder that Typo has open on the same computer.
+
 [`SYNC.md`](SYNC.md) describes the remote format, so other tools can read and write it.
 
 ## Not in this version

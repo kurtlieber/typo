@@ -240,6 +240,9 @@ or a URL that is not valid. Each try signs the request again. Downloads, uploads
   The sync starts 1.5 seconds after the change.
 - Every 5 minutes, when **When to sync** is **Every 5 min**.
 - When you select **Sync now** in the settings or in the command palette.
+- Each time `typo sync` runs. It syncs one folder with no window and exits, and a device with a
+  conflict copy syncs again at once to send it up. It has no pins of its own: it sends the pins
+  in its base, so it passes on what other devices changed.
 
 A device syncs only after **Test connection** passed with the current settings. When
 **When to sync** is **Manually**, only **Sync now** starts a sync.

@@ -1,4 +1,4 @@
-//! Command-line arguments: `typo [folder]` and `typo mcp --folder <path>`.
+//! Command-line arguments: `typo [folder]`, `typo mcp --folder <path>` and `typo sync`.
 
 use std::path::PathBuf;
 
@@ -38,12 +38,13 @@ pub fn run_subcommand() -> bool {
             }
             true
         }
+        Some("sync") => std::process::exit(crate::sync::headless::main(&args[1..])),
         Some("--version" | "-V") => {
             println!("typo {}", crate::update::CURRENT);
             true
         }
         Some("--help" | "-h") => {
-            println!("Typo, a plain editor for folders of Markdown files.\n\nUsage:\n  typo [folder]               Open the app, optionally on a folder\n  typo mcp --folder <path>    Serve a folder to AI apps over MCP (stdio)\n  typo --version              Print the version");
+            println!("Typo, a plain editor for folders of Markdown files.\n\nUsage:\n  typo [folder]               Open the app, optionally on a folder\n  typo mcp --folder <path>    Serve a folder to AI apps over MCP (stdio)\n  typo sync [--folder <path>] Sync a folder once, with no window (default: Documents)\n  typo --version              Print the version");
             true
         }
         _ => false,

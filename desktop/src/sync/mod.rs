@@ -10,6 +10,7 @@
 
 pub mod app;
 pub mod crypto;
+pub mod headless;
 pub mod sign;
 pub mod store;
 
@@ -43,6 +44,23 @@ impl Remote {
         let key = format!("{}|{}|{}|{}|{}", root.display(), self.provider, self.val("bucket", ""), self.val("container", ""), self.prefix);
         sign::sha256_hex(key.as_bytes())[..20].to_string()
     }
+}
+
+/// The remote of the notes folder at `root`, from the sync settings. None when sync is off.
+pub fn remote_for(sy: &crate::store::Sync, root: &Path) -> Option<Remote> {
+    if sy.provider == "none" {
+        return None;
+    }
+    let cfg = sy.cfg.get(&sy.provider).cloned().unwrap_or_default();
+    Some(Remote { provider: sy.provider.clone(), cfg, prefix: clean_prefix(&remote_folder(sy, root)), encrypt: sy.encrypt, pass: sy.pass.clone() })
+}
+
+/// The remote folder of the notes folder at `root`: the one in the settings, or
+/// `quire/<folder name>/`.
+pub fn remote_folder(sy: &crate::store::Sync, root: &Path) -> String {
+    let key = root.to_string_lossy().into_owned();
+    let name = root.file_name().map_or_else(|| key.clone(), |n| n.to_string_lossy().into_owned());
+    sy.folders.get(&key).filter(|p| !p.trim().is_empty()).cloned().unwrap_or_else(|| format!("quire/{name}/"))
 }
 
 /// The region the settings show first for a provider, used until one is picked.
@@ -319,6 +337,13 @@ fn load_base(p: &Option<PathBuf>) -> Base {
         .unwrap_or_default()
 }
 
+
+/// The pins in this device's last-sync record for `root`. `typo sync` keeps no pins of its
+/// own, so it sends these: it then never adds or removes a pin, and passes on what other devices
+/// did.
+pub fn base_pins(r: &Remote, root: &Path) -> BTreeSet<String> {
+    load_base(&base_path(r, root)).pins.unwrap_or_default()
+}
 
 pub fn device_name() -> String {
     // The kernel's name is always there on Linux. Apps from a launcher do not get $HOSTNAME.

@@ -634,3 +634,56 @@ fn pins_sync() {
     sync_pins(&laptop, &mut bucket, &r, &mut lp);
     assert_eq!(*bucket.0.lock().unwrap(), before);
 }
+
+/// Syncs as `typo sync` does: the pins in the last-sync record, then the outcome on the disk.
+fn headless_sync(d: &Device, bucket: &mut Mem, r: &Remote) -> Vec<String> {
+    let pins = load_base(&d.base).pins.unwrap_or_default();
+    let out = run_with_pins(bucket, r, &d.root, d.name, &d.base, &pins).unwrap();
+    headless::apply_outcome(&d.root, out).unwrap()
+}
+
+#[test]
+fn headless_sync_follows_the_apps_rules() {
+    let mut bucket = Mem::default();
+    let r = remote(true);
+    let (laptop, server) = (Device::new("headless", "laptop"), Device::new("headless", "archie"));
+    laptop.write("Plan.md", "one");
+    laptop.write("Old.md", "old");
+    laptop.write("Drafts/Idea.md", "idea");
+    let mut lp = set(&["Plan.md"]);
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    // The server gets the notes, and what it writes reaches the laptop.
+    assert!(headless_sync(&server, &mut bucket, &r).is_empty());
+    assert_eq!(server.read("Drafts/Idea.md").as_deref(), Some("idea"));
+    server.write("From Claude.md", "hi");
+    headless_sync(&server, &mut bucket, &r);
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    assert_eq!(laptop.read("From Claude.md").as_deref(), Some("hi"));
+    // The server keeps no pins of its own, so it neither drops nor adds one.
+    assert_eq!(lp, set(&["Plan.md"]));
+    lp = set(&["Drafts/Idea.md"]);
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    headless_sync(&server, &mut bucket, &r);
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    assert_eq!(lp, set(&["Drafts/Idea.md"]));
+    // A note deleted on the laptop moves to .trash on the server.
+    std::fs::remove_file(laptop.root.join("Old.md")).unwrap();
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    headless_sync(&server, &mut bucket, &r);
+    assert_eq!(server.read("Old.md"), None);
+    assert_eq!(server.read(".trash/Old.md").as_deref(), Some("old"));
+    // A note that changes on the server while a sync runs keeps its text. The download becomes
+    // a conflict copy, and the next sync sends it up.
+    laptop.write("Plan.md", "two");
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    let pins = load_base(&server.base).pins.unwrap_or_default();
+    let out = run_with_pins(&mut bucket, &r, &server.root, server.name, &server.base, &pins).unwrap();
+    server.write("Plan.md", "mine");
+    assert_eq!(headless::apply_outcome(&server.root, out).unwrap(), vec!["Plan (conflict laptop).md".to_string()]);
+    assert_eq!(server.read("Plan.md").as_deref(), Some("mine"));
+    assert_eq!(server.read("Plan (conflict laptop).md").as_deref(), Some("two"));
+    headless_sync(&server, &mut bucket, &r);
+    sync_pins(&laptop, &mut bucket, &r, &mut lp);
+    assert_eq!(laptop.read("Plan.md").as_deref(), Some("mine"));
+    assert_eq!(laptop.read("Plan (conflict laptop).md").as_deref(), Some("two"));
+}
