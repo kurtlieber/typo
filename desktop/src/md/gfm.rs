@@ -793,6 +793,24 @@ mod tests {
         }
     }
 
+    /// What Tab writes reads back as nested lists: three levels, and bullets under numbers.
+    #[test]
+    fn tab_indents_nest() {
+        fn depth(b: &[Block]) -> usize {
+            b.iter()
+                .map(|x| match x {
+                    Block::List { items, .. } => 1 + items.iter().map(|i| depth(&i.blocks)).max().unwrap_or(0),
+                    _ => 0,
+                })
+                .max()
+                .unwrap_or(0)
+        }
+        assert_eq!(depth(&blocks("- a\n  - b\n    - c\n- d")), 3);
+        assert_eq!(depth(&blocks("1. a\n   - b\n     1. c\n2. d")), 3);
+        assert_eq!(depth(&blocks("- [ ] a\n  - [ ] b")), 2);
+        assert_eq!(blocks("- a\n  - b\n    - c\n- d").len(), 1, "one list at the top");
+    }
+
     #[test]
     fn line_breaks_stay_and_setext_headings_read() {
         let b = blocks("one\ntwo  \nthree\\\nfour\\\n\nTitle\n---\n> q1\n> q2\n\n- a\n  more a\nlazy a\n- b");

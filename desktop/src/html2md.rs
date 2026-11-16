@@ -482,6 +482,8 @@ fn blocks(nodes: &[Node], cx: Cx, out: &mut Vec<String>) {
             "ul" | "ol" => {
                 let start = attr(attrs, "start").and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(1);
                 let mut items = Vec::new();
+                // The width of the last item's marker: a list under it starts at its text.
+                let mut pad = 2;
                 let mut n = start;
                 for k in kids {
                     let Node::El { tag: t, kids: lk, .. } = k else {
@@ -495,7 +497,10 @@ fn blocks(nodes: &[Node], cx: Cx, out: &mut Vec<String>) {
                             if let Some(last) = items.last_mut() {
                                 let s: &mut String = last;
                                 for l in sub.join("\n").lines() {
-                                    s.push_str("\n  ");
+                                    s.push('\n');
+                                    if !l.is_empty() {
+                                        s.push_str(&" ".repeat(pad));
+                                    }
                                     s.push_str(l);
                                 }
                             }
@@ -508,7 +513,8 @@ fn blocks(nodes: &[Node], cx: Cx, out: &mut Vec<String>) {
                     let mut parts = Vec::new();
                     blocks(lk, cx, &mut parts);
                     let body = parts.join("\n");
-                    let pad = " ".repeat(marker.len());
+                    pad = marker.len();
+                    let pad = " ".repeat(pad);
                     let mut item = format!("{marker}{task}");
                     for (i, l) in body.lines().enumerate() {
                         if i > 0 {
@@ -662,6 +668,10 @@ mod tests {
         let html = "<ul><li>One<ul><li>Inner</li></ul></li><li><p>Two</p><p>more</p></li></ul><ol start=3><li>Three<li>Four</ol>\
             <ul><li><input type=checkbox checked> Done</li><li><input type=checkbox> Open</li></ul>";
         assert_eq!(convert(html), "- One\n  - Inner\n- Two\n  more\n\n3. Three\n4. Four\n\n- [x] Done\n- [ ] Open");
+        // Three levels, a list inside an item and a list right inside a list, as Google Docs
+        // writes one. A list under a numbered item starts at the item's text.
+        let html = "<ol><li>One<ul><li>Inner<ol><li>Deep</li></ol></li></ul></li><ol><li>Sub</li></ol><li>Two</li></ol><ul><li>a</li><ul><li>b</li><ul><li>c</li></ul></ul></ul>";
+        assert_eq!(convert(html), "1. One\n   - Inner\n     1. Deep\n   1. Sub\n2. Two\n\n- a\n  - b\n    - c");
     }
 
     #[test]

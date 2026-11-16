@@ -421,10 +421,16 @@ fn on_editor_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
             follow_link_at_caret(s, tx);
             true
         }
+        // On a list item Tab nests it and Shift+Tab moves it out. Elsewhere Tab types two spaces.
         Key::Tab if !m.cmd && !m.alt => {
-            if !m.shift {
-                s.cur_edit().insert("  ");
-                s.after_edit();
+            let e = s.cur_edit();
+            match crate::format::indent(&e.text, e.anchor, e.focus, m.shift) {
+                Some(ed) => replace(s, ed),
+                None if !m.shift => {
+                    s.cur_edit().insert("  ");
+                    s.after_edit();
+                }
+                None => {}
             }
             true
         }
@@ -443,6 +449,14 @@ fn on_editor_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
                     };
                     if pos - ls >= text_at {
                         if line[text_at..].trim().is_empty() {
+                            // An empty nested item moves out a level. At the edge it ends the list.
+                            if l.indent > 0
+                                && let Some(ed) = crate::format::indent(&e.text, pos, pos, true)
+                            {
+                                replace(s, ed);
+                                typewriter(s, tx);
+                                return true;
+                            }
                             e.set_selection(ls, le);
                             e.insert("");
                         } else {
@@ -467,6 +481,17 @@ fn on_editor_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         }
         _ => false,
     }
+}
+
+/// One edit to the note, as one undo step.
+fn replace(s: &mut App, ed: crate::format::Edit) {
+    let e = s.cur_edit();
+    e.undo_group(|e| {
+        e.set_selection(ed.start, ed.end);
+        e.insert(&ed.insert);
+        e.set_selection(ed.sel.0, ed.sel.1);
+    });
+    s.after_edit();
 }
 
 /// Source highlighting for one line: spans and strikethrough ranges, as the design's `hlLine`.
