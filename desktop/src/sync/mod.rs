@@ -244,7 +244,7 @@ fn open_format(store: &dyn Store, r: &Remote, create: bool) -> Result<Option<cry
         let mut f = Format { version: 1, encrypted: r.encrypt, ..Default::default() };
         let keys = if r.encrypt {
             let salt = crypto::random(16);
-            let k = crypto::derive(&r.pass, &salt, crypto::ITERATIONS);
+            let k = crypto::derive_cached(&r.pass, &salt, crypto::ITERATIONS);
             f.kdf = Some("pbkdf2-sha256".into());
             f.iterations = Some(crypto::ITERATIONS);
             f.salt = Some(b64().encode(&salt));
@@ -264,7 +264,7 @@ fn open_format(store: &dyn Store, r: &Remote, create: bool) -> Result<Option<cry
         (true, true) => {}
     }
     let salt = f.salt.as_deref().and_then(|s| b64().decode(s).ok()).ok_or("The remote format has no salt.")?;
-    let k = crypto::derive(&r.pass, &salt, f.iterations.unwrap_or(crypto::ITERATIONS));
+    let k = crypto::derive_cached(&r.pass, &salt, f.iterations.unwrap_or(crypto::ITERATIONS));
     let check = f.check.as_deref().and_then(|s| b64().decode(s).ok()).ok_or("The remote format has no check value.")?;
     match crypto::open(&k, &check) {
         Ok(v) if v == b"quire" => Ok(Some(k)),
