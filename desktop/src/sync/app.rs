@@ -80,20 +80,13 @@ pub fn ago(ms: i64) -> String {
 impl App {
     /// The remote for the open folder, from the settings.
     pub fn remote(&self) -> Option<Remote> {
-        let sy = &self.settings().sync;
-        if sy.provider == "none" {
-            return None;
-        }
-        let cfg = sy.cfg.get(&sy.provider).cloned().unwrap_or_default();
-        let prefix = self.remote_folder();
-        Some(Remote { provider: sy.provider.clone(), cfg, prefix: super::clean_prefix(&prefix), encrypt: sy.encrypt, pass: sy.pass.clone() })
+        super::remote_for(&self.settings().sync, &self.vault.as_ref()?.path)
     }
 
     /// The remote folder of the open notes folder, as the settings show it.
     pub fn remote_folder(&self) -> String {
         let Some(v) = &self.vault else { return "quire/notes/".into() };
-        let key = v.path.to_string_lossy().into_owned();
-        self.settings().sync.folders.get(&key).filter(|p| !p.trim().is_empty()).cloned().unwrap_or_else(|| format!("quire/{}/", v.name))
+        super::remote_folder(&self.settings().sync, &v.path)
     }
 
     /// Sync is set up and its test passed.
