@@ -5,6 +5,9 @@
 # desktop file is attached and the Linux build's `typo --version` names it. Typo's Update
 # button then offers it.
 #
+# Before tagging, the GFM spec test (desktop/src/md/gfm/spec.rs) must pass, so a release can't
+# change Typo's Markdown unseen. It fails before anything is tagged.
+#
 # A merge that changes desktop/ without a new version fails here, so the change can't sit
 # unreleased unseen: quire-fork-watch in kurtlieber/dotfiles posts failed runs to its
 # "Failure alerts" issue.
@@ -44,6 +47,19 @@ jobs:
           # The branch's tip, not the pushed commit, when two merges come close together.
           ref: ${{ github.ref }}
           fetch-depth: 0
+
+      - name: Install Linux build packages
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libdbus-1-dev pkg-config
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      # The test runs in about 0.01 s; the minutes go to compiling the test build.
+      - name: GFM spec test
+        working-directory: desktop
+        run: cargo test --locked gfm_spec -- --nocapture
 
       - name: Tag the version
         id: tag
