@@ -1,6 +1,7 @@
 //! The window's view.
 
 mod editor;
+mod find;
 mod lock;
 mod outline;
 mod palette;
@@ -9,6 +10,7 @@ mod settings;
 mod settings_mcp;
 pub mod settings_sync;
 mod sidebar;
+mod tabmenu;
 mod titlebar;
 mod welcome;
 pub mod widgets;
@@ -45,10 +47,10 @@ impl V<'_> {
         self.is_vault() && self.s.focus && self.has_doc()
     }
     pub fn left_visible(&self) -> bool {
-        self.is_vault() && self.s.persist.left_open && !self.focus() && self.vw >= 680.0
+        self.is_vault() && self.s.lean.is_none() && self.s.persist.left_open && !self.focus() && self.vw >= 680.0
     }
     pub fn right_visible(&self) -> bool {
-        self.is_vault() && self.s.persist.right_open && !self.focus() && self.has_doc() && self.vw >= 1100.0
+        self.is_vault() && self.s.lean.is_none() && self.s.persist.right_open && !self.focus() && self.has_doc() && self.vw >= 1100.0
     }
 }
 
@@ -85,6 +87,9 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     };
     if s.tree_menu.is_some() {
         root = root.child(sidebar::tree_menu(v));
+    }
+    if s.tab_menu.is_some() {
+        root = root.child(tabmenu::tab_menu(v));
     }
     if s.lock_dialog.is_some() {
         root = root.child(lock::dialog(v));

@@ -155,13 +155,13 @@ fn unique(dir: &Path, name: &str) -> String {
 
 impl App {
     /// Where the pixels of an image in the active note come from.
-    pub fn image_source(&self, img: &Img) -> Source {
+    pub fn image_source_for(&self, img: &Img, note: Option<&str>) -> Source {
         let src = img.src.trim();
         if src.starts_with("http://") || src.starts_with("https://") {
             return Source::Url(src.to_string());
         }
         let Some(v) = &self.vault else { return Source::Missing(src.to_string()) };
-        let dir = self.active.as_deref().map_or("", md::dir);
+        let dir = note.map_or("", md::dir);
         if img.embed {
             let mut idx = self.images.index.borrow_mut();
             let all = idx.get_or_insert_with(|| list(&v.path));

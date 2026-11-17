@@ -48,6 +48,8 @@ Quire 1.0.0 and 1.1.0 still find 2.0.0, through GitHub's redirect, but they inst
 
 - **Markdown is GitHub Flavored Markdown** plus Obsidian's syntax, parsed by [comrak](https://github.com/kivikakk/comrak) in `desktop/src/md/gfm.rs` (1.1.0, [kurtlieber/dotfiles#636](https://github.com/kurtlieber/dotfiles/issues/636)). The preview, outline, tags, backlinks and the link rewrite on rename all read its tree. Source mode's highlighting still uses the line helpers in `desktop/src/md.rs`. The Android app keeps its own parser.
 
+- **Tabs have a right-click menu** (2.6.0, [kurtlieber/dotfiles#734](https://github.com/kurtlieber/dotfiles/issues/734)): close entries, note windows, a split into two panes, find and replace, copy path and delete. Upstream has none of it. The code is in `desktop/src/tabs.rs` (the menu's actions and the split), `notewin.rs` (note windows), `find.rs` and `ui/tabmenu.rs`, `ui/find.rs`. A note window is a second Rune window whose `App` has `lean` set: it keeps no folder of its own and sends each edit to the main window, which saves it. An upstream change to `ui/editor.rs` or `ui/titlebar.rs` needs a look at the split and the tab keys there.
+
 ## Releases
 
 The version in `desktop/Cargo.toml` is the release. A pull request that changes `desktop/` also:

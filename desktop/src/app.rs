@@ -154,6 +154,16 @@ pub struct App {
     pub lock_dialog: Option<String>,
     /// Why the last unlock failed.
     pub unlock_error: Option<String>,
+    /// The tab menu, open on one tab (`tabs.rs`).
+    pub tab_menu: Option<crate::tabs::TabMenu>,
+    /// A second pane beside or under the active one (`tabs.rs`).
+    pub split: Option<crate::tabs::Split>,
+    /// The find and replace bar over the note (`find.rs`).
+    pub find: Option<crate::find::Find>,
+    /// Notes open in windows of their own (`notewin.rs`).
+    pub note_windows: Vec<crate::notewin::NoteWindow>,
+    /// Set in a note window: this state draws one note and saves through the main window.
+    pub lean: Option<crate::notewin::Lean>,
 }
 
 /// A locked note while it is open.
@@ -166,64 +176,7 @@ pub fn init() -> App {
     let mut persist = store::load();
     let writer = Writer::start(None);
     seed_sample(&mut persist);
-    let mut app = App {
-        screen: Screen::Welcome,
-        persist,
-        vault: None,
-        names: Names::default(),
-        tabs: Vec::new(),
-        active: None,
-        recent: Vec::new(),
-        expanded: BTreeSet::new(),
-        pinned: Vec::new(),
-        pins_open: true,
-        mode: Mode::Source,
-        left_panel: Panel::Files,
-        query: TextEdit::new(""),
-        palette: None,
-        settings_open: false,
-        set_sec: Sec::Appearance,
-        focus: false,
-        vault_menu: false,
-        renaming: None,
-        creating: None,
-        prev_head: 0,
-        edits: HashMap::new(),
-        fields: HashMap::new(),
-        reveal: BTreeSet::new(),
-        sync_status: SyncStatus::Idle,
-        mcp_copied: false,
-        notice: None,
-        update: Default::default(),
-        writer,
-        dirty: BTreeSet::new(),
-        save_at: None,
-        state_at: None,
-        now: std::cell::Cell::new(0.0),
-        counts: HashMap::new(),
-        want_editor_focus: false,
-        sys_dark: std::cell::Cell::new(false),
-        view_h: std::cell::Cell::new(800.0),
-        mcp_copied_at: None,
-        mcp_http: None,
-        mcp_http_error: None,
-        mcp_http_failed_port: None,
-        last_caret: None,
-        key_moved: false,
-        waker: None,
-        watcher: None,
-        names_gen: 0,
-        theme_changed: None,
-        dragging: None,
-        tree_menu: None,
-        new_folder: None,
-        sync: Default::default(),
-        images: Default::default(),
-        drop_over: false,
-        unlocked: HashMap::new(),
-        lock_dialog: None,
-        unlock_error: None,
-    };
+    let mut app = App::blank(persist, writer);
     crate::theme::reload_omarchy();
     crate::update::clean_up();
     if let Some(from) = app.persist.updated_from.take() {
@@ -255,6 +208,75 @@ pub fn init() -> App {
         app.refresh_counts();
     }
     app
+}
+
+impl App {
+    /// A state with no folder open, for `init` and for a note window.
+    pub(crate) fn blank(persist: Persist, writer: Writer) -> App {
+        App {
+            screen: Screen::Welcome,
+            persist,
+            vault: None,
+            names: Names::default(),
+            tabs: Vec::new(),
+            active: None,
+            recent: Vec::new(),
+            expanded: BTreeSet::new(),
+            pinned: Vec::new(),
+            pins_open: true,
+            mode: Mode::Source,
+            left_panel: Panel::Files,
+            query: TextEdit::new(""),
+            palette: None,
+            settings_open: false,
+            set_sec: Sec::Appearance,
+            focus: false,
+            vault_menu: false,
+            renaming: None,
+            creating: None,
+            prev_head: 0,
+            edits: HashMap::new(),
+            fields: HashMap::new(),
+            reveal: BTreeSet::new(),
+            sync_status: SyncStatus::Idle,
+            mcp_copied: false,
+            notice: None,
+            update: Default::default(),
+            writer,
+            dirty: BTreeSet::new(),
+            save_at: None,
+            state_at: None,
+            now: std::cell::Cell::new(0.0),
+            counts: HashMap::new(),
+            want_editor_focus: false,
+            sys_dark: std::cell::Cell::new(false),
+            view_h: std::cell::Cell::new(800.0),
+            mcp_copied_at: None,
+            mcp_http: None,
+            mcp_http_error: None,
+            mcp_http_failed_port: None,
+            last_caret: None,
+            key_moved: false,
+            waker: None,
+            watcher: None,
+            names_gen: 0,
+            theme_changed: None,
+            dragging: None,
+            tree_menu: None,
+            new_folder: None,
+            sync: Default::default(),
+            images: Default::default(),
+            drop_over: false,
+            unlocked: HashMap::new(),
+            lock_dialog: None,
+            unlock_error: None,
+            tab_menu: None,
+            split: None,
+            find: None,
+            note_windows: Vec::new(),
+            lean: None,
+        }
+    }
 }
 
 /// The sample folder: `~/Documents/Field Notes`, as the design has it. If a folder with that
@@ -306,10 +328,15 @@ impl App {
     /// The active note's text. An unlocked note gives its plain text, and a locked note none.
     pub fn active_text(&self) -> &str {
         let Some(a) = &self.active else { return "" };
-        if let Some(u) = self.unlocked.get(a) {
+        self.note_text(a)
+    }
+
+    /// A note's text, or nothing while it is locked.
+    pub fn note_text(&self, p: &str) -> &str {
+        if let Some(u) = self.unlocked.get(p) {
             return &u.text;
         }
-        self.files().get(a).map_or("", |t| if crate::lock::is_locked(t) { "" } else { t.as_str() })
+        self.files().get(p).map_or("", |t| if crate::lock::is_locked(t) { "" } else { t.as_str() })
     }
 
     /// The note at `p` is locked and not open: its text needs the password.
@@ -411,8 +438,11 @@ impl App {
     /// Runs before each frame: writes due notes and settings, and picks up writer errors.
     pub fn poll(&mut self, t: f64, tx: &mut Tx) -> bool {
         self.now.set(t);
+        if self.lean.is_some() {
+            return self.poll_lean(tx);
+        }
         let now = Instant::now();
-        let mut changed = false;
+        let mut changed = self.poll_windows();
         if self.save_at.is_some_and(|due| t >= due) {
             self.flush_notes();
         } else if let Some(due) = self.save_at {
@@ -449,6 +479,10 @@ impl App {
 
     pub fn set_waker(&mut self, w: rune::Waker) {
         self.images.start(w.clone());
+        if self.lean.is_some() {
+            self.waker = Some(w);
+            return;
+        }
         self.theme_changed = Some(crate::watch::watch_theme(w.clone()));
         self.waker = Some(w);
         self.watch_vault();
@@ -590,6 +624,9 @@ impl App {
 
     pub fn flush_notes(&mut self) {
         self.save_at = None;
+        if self.lean.is_some() {
+            return;
+        }
         let Some(v) = &self.vault else { return };
         let wrote = !self.dirty.is_empty();
         for rel in std::mem::take(&mut self.dirty) {
@@ -604,6 +641,9 @@ impl App {
 
     pub fn flush_state(&mut self) {
         self.state_at = None;
+        if self.lean.is_some() {
+            return;
+        }
         self.store_session();
         self.writer.send(Op::SaveState(Box::new(self.persist.clone())));
     }
@@ -612,6 +652,9 @@ impl App {
     /// written on this thread, so nothing is lost when the process ends.
     pub fn flush_all(&mut self) {
         self.save_at = None;
+        if self.lean.is_some() {
+            return;
+        }
         self.writer.wait(Duration::from_secs(5));
         if let Some(v) = &self.vault {
             for rel in std::mem::take(&mut self.dirty) {
@@ -629,7 +672,13 @@ impl App {
         let _ = store::save(&self.persist);
     }
 
-    fn mark_dirty(&mut self, rel: &str) {
+    pub(crate) fn mark_dirty(&mut self, rel: &str) {
+        if self.lean.is_some() {
+            // A note window saves through the main window.
+            let text = self.files().get(rel).cloned().unwrap_or_default();
+            self.send_to_main(rel, text);
+            return;
+        }
         self.dirty.insert(rel.to_string());
         if self.save_at.is_none() {
             self.save_at = Some(self.now.get() + 0.5);
@@ -852,6 +901,15 @@ impl App {
             self.tabs.push(path.to_string());
         }
         let changed = self.active.as_deref() != Some(path);
+        // The note in the other pane: focus moves to that pane.
+        if let (Some(sp), Some(a)) = (&mut self.split, &self.active)
+            && sp.other == path
+            && a != path
+        {
+            sp.other = a.clone();
+            sp.other_first = !sp.other_first;
+        }
+        self.tab_menu = None;
         self.active = Some(path.to_string());
         let mut d = md::dir(path).to_string();
         while !d.is_empty() {
@@ -887,12 +945,28 @@ impl App {
 
     pub fn close_tab(&mut self, p: &str) {
         let Some(i) = self.tabs.iter().position(|x| x == p) else { return };
+        // Closing a pane's note closes the pane. The other pane's note stays.
+        let to_other = match &self.split {
+            Some(sp) if sp.other == p => {
+                self.split = None;
+                None
+            }
+            Some(sp) if self.active.as_deref() == Some(p) => {
+                let o = sp.other.clone();
+                self.split = None;
+                Some(o)
+            }
+            _ => None,
+        };
         self.tabs.remove(i);
         self.edits.remove(p);
         // A closed note locks again.
         self.unlocked.remove(p);
         if self.active.as_deref() == Some(p) {
-            self.active = self.tabs.get(i.min(self.tabs.len().saturating_sub(1))).cloned();
+            self.active = to_other.or_else(|| self.tabs.get(i.min(self.tabs.len().saturating_sub(1))).cloned());
+            if self.find.is_some() && self.active.is_none() {
+                self.find = None;
+            }
             if self.active.is_none() {
                 self.focus = false;
             }
@@ -970,6 +1044,11 @@ impl App {
         if t.is_empty() {
             return;
         }
+        if self.lean.is_some() {
+            // A note window shows one note: a link opens in the main window.
+            self.open_link_in_main(t);
+            return;
+        }
         match self.names.resolve(&t).map(str::to_string) {
             Some(p) => self.open_file(&p, None, tx),
             None => self.new_note(Some(&t), tx),
@@ -1045,6 +1124,7 @@ impl App {
                 *t = np.clone();
             }
         }
+        self.retarget(&|p| (p == old).then(|| np.clone()));
         self.active = Some(np);
         self.rebuild_names();
         self.focus_editor(tx);
@@ -1155,6 +1235,10 @@ impl App {
     pub fn escape(&mut self, tx: &mut Tx) -> bool {
         if self.palette.is_some() {
             self.close_palette(tx);
+        } else if self.tab_menu.is_some() {
+            self.tab_menu = None;
+        } else if self.find.is_some() {
+            self.close_find(tx);
         } else if self.settings_open {
             self.settings_open = false;
         } else if self.vault_menu {

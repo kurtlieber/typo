@@ -25,6 +25,11 @@ pub fn k(keys: &[&str]) -> String {
     if mac { parts.concat() } else { parts.join("+") }
 }
 
+/// The Replace shortcut's label.
+pub fn replace_keys() -> String {
+    if is_mac() { k(&["Mod", "Alt", "F"]) } else { k(&["Mod", "H"]) }
+}
+
 pub fn mod_click() -> String {
     format!("{}-click", if is_mac() { "⌘" } else { "Ctrl" })
 }
@@ -45,7 +50,15 @@ pub fn on_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     }
     let shift = ev.mods.shift;
     let Key::Command(c) = ev.key else { return false };
+    // A note window has one note: no palette, search, settings or new notes.
+    if s.lean.is_some() && !matches!((c, shift), ('f' | 'ƒ' | 'h' | 'b' | 'i' | 'k' | 'e', false)) {
+        return false;
+    }
     match (c, shift) {
+        // Replace is ⌥⌘F on macOS, where ⌘H hides the app.
+        ('f' | 'ƒ', false) if ev.mods.alt => s.open_find(true, tx),
+        ('f', false) => s.open_find(false, tx),
+        ('h', false) if !is_mac() => s.open_find(true, tx),
         ('f', true) => s.open_search(tx),
         ('b', false) => s.format(crate::format::Fmt::Bold, tx),
         ('i', false) => s.format(crate::format::Fmt::Italic, tx),
