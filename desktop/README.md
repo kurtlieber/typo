@@ -54,6 +54,7 @@ The script puts the binary in `~/.local/bin/typo`, the icon in `~/.local/share/i
 - Moves a note into a folder when you drag it onto the folder. Drop it on the folder name or on empty space to move it to the root. Links that spell out the old folder follow the note.
 - Moves deleted notes to `.trash` inside the folder.
 - Pins a note to the Pinned group at the top of the tree. Right-click the note and select **Pin**, drag it onto the group, select the pin button in the toolbar, or use "Pin note" in the command palette. The file stays in its folder. The tree shows the folder name next to the pinned note. Pins sync with the notes folder when sync is on. Without sync, they are saved in `state.json`.
+- Renames a folder from its right-click menu: **Rename folder** turns its row into a field. Every file in it moves with it, and open tabs, pins and links that spell out the folder, such as `[[Work/Plan]]`, follow. Links by note name alone don't change.
 - Deletes a folder from its right-click menu. A folder with notes asks first. The folder moves to `.trash` with every file in it, so you can get it back.
 - Picks up changes that other apps make to the folder while Typo is open.
 
@@ -129,5 +130,11 @@ cargo run -- --script events.json --snap shot.png --at mark:end   # play input e
   ```
 
   `live_store_check` also writes and deletes one small object, `.quire/probe.txt`.
+- `gfm_spec` checks Typo's Markdown against the GitHub Flavored Markdown spec: each of the spec's 672 examples goes through the parse the preview draws, and the result is compared with the spec's HTML. Every example Typo differs on is listed in `src/md/gfm/spec.rs`, `DEVIATIONS`, with the reason, and the test fails on any other difference. It runs with `cargo test`. **Run it before any major release**, and after a comrak upgrade, and read its summary line:
+
+  ```sh
+  cargo test gfm_spec -- --nocapture      # GFM spec: 583 match, 89 differ on purpose, ...
+  TYPO_SPEC=118 cargo test gfm_spec -- --nocapture   # one example: its Markdown, the spec's HTML and Typo's
+  ```
 - `TYPO_SMOOTHING` picks another text rasterizer, for comparing renders. `ref/` holds renders of the design in Chromium, used as the reference for pixel comparisons.
 - `vendor/winit` is Rune's winit with Wayland file drops and the touchpad scroll scale added. `Cargo.toml` points the `winit` patch at it.

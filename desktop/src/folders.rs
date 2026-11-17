@@ -38,10 +38,12 @@ pub struct TreeMenu {
     pub confirm: bool,
 }
 
-/// A folder being named in the tree.
+/// A folder being named in the tree: a new one inside `parent`, or the folder `rename`, whose
+/// row the field takes the place of.
 pub struct NewFolder {
     pub parent: String,
     pub edit: TextEdit,
+    pub rename: Option<String>,
 }
 
 /// A tree row key holds its path with `|` for `/`, since `/` separates keys in element paths.
@@ -135,7 +137,20 @@ impl App {
         }
         self.persist.left_open = true;
         self.left_panel = crate::app::Panel::Files;
-        self.new_folder = Some(NewFolder { parent: parent.to_string(), edit });
+        self.new_folder = Some(NewFolder { parent: parent.to_string(), edit, rename: None });
+        self.tree_menu = None;
+        tx.focus("new-folder", false);
+    }
+
+    /// Starts renaming `folder` in its own row, with its name selected.
+    pub fn start_rename_folder(&mut self, folder: &str, tx: &mut Tx) {
+        let name = folder.rsplit('/').next().unwrap_or(folder);
+        let mut edit = TextEdit::new(name);
+        edit.set_selection(0, name.len());
+        edit.focused = true;
+        self.persist.left_open = true;
+        self.left_panel = crate::app::Panel::Files;
+        self.new_folder = Some(NewFolder { parent: md::dir(folder).to_string(), edit, rename: Some(folder.to_string()) });
         self.tree_menu = None;
         tx.focus("new-folder", false);
     }
@@ -144,6 +159,10 @@ impl App {
         let Some(nf) = self.new_folder.take() else { return };
         let name = md::clean_name(&nf.edit.text);
         if name.is_empty() || name.starts_with('.') {
+            return;
+        }
+        if let Some(old) = nf.rename {
+            self.rename_folder(&old, &name);
             return;
         }
         let path = md::join(&nf.parent, &name);
@@ -160,6 +179,89 @@ impl App {
         if !nf.parent.is_empty() {
             self.expanded.insert(nf.parent);
         }
+        self.persist_later();
+        self.sync_after_save();
+    }
+
+    /// Renames `folder` to `name` in the same parent, with every note and file in it. Open tabs,
+    /// pins, carets and history follow, and so do links that spell out the old folder.
+    pub fn rename_folder(&mut self, folder: &str, name: &str) {
+        let to = md::join(md::dir(folder), name);
+        if folder.is_empty() || to == folder {
+            return;
+        }
+        let Some(v) = &self.vault else { return };
+        // A change of case only is the same folder on a disk that ignores case.
+        let taken = v.folders.contains(&to) || (v.path.join(&to).exists() && to.to_lowercase() != folder.to_lowercase());
+        if taken {
+            self.notice = Some(format!("A folder named {name} is already there."));
+            return;
+        }
+        // Pending writes go first, so the files to move are on disk.
+        self.flush_notes();
+        let pre = format!("{folder}/");
+        let moved = |p: &str| -> Option<String> {
+            if p == folder {
+                Some(to.clone())
+            } else {
+                p.strip_prefix(&pre).map(|rest| format!("{to}/{rest}"))
+            }
+        };
+        let update = self.settings().update_links;
+        let Some(v) = &mut self.vault else { return };
+        let root = v.path.clone();
+        let notes: Vec<(String, String)> = v.files.keys().filter_map(|p| moved(p).map(|n| (p.clone(), n))).collect();
+        for (from, n) in &notes {
+            if let Some(t) = v.files.remove(from) {
+                v.files.insert(n.clone(), t);
+            }
+            if let Some(b) = v.born.remove(from) {
+                v.born.insert(n.clone(), b);
+            }
+        }
+        for f in v.folders.iter_mut() {
+            if let Some(n) = moved(f) {
+                *f = n;
+            }
+        }
+        v.folders.sort();
+        self.writer.send(Op::Rename { root, from: folder.to_string(), to: to.clone() });
+        // Links by note name still find their notes. Links that spell out the folder follow it.
+        let mut rewritten = Vec::new();
+        if update {
+            for (p, t) in v.files.iter_mut() {
+                let mut nt = t.clone();
+                for (from, n) in &notes {
+                    nt = md::rewrite_links(&nt, md::strip_md(from), md::strip_md(n));
+                }
+                if nt != *t {
+                    *t = nt;
+                    rewritten.push(p.clone());
+                }
+            }
+        }
+        for (from, n) in &notes {
+            if let Some(u) = self.unlocked.remove(from) {
+                self.unlocked.insert(n.clone(), u);
+            }
+            if let Some(e) = self.edits.remove(from) {
+                self.edits.insert(n.clone(), e);
+            }
+        }
+        for p in rewritten {
+            let t = self.files().get(&p).cloned().unwrap_or_default();
+            self.set_text(&p, t);
+        }
+        for t in self.tabs.iter_mut().chain(self.recent.iter_mut()).chain(self.pinned.iter_mut()) {
+            if let Some(n) = moved(t) {
+                *t = n;
+            }
+        }
+        if let Some(n) = self.active.as_deref().and_then(moved) {
+            self.active = Some(n);
+        }
+        self.expanded = std::mem::take(&mut self.expanded).into_iter().map(|e| moved(&e).unwrap_or(e)).collect();
+        self.rebuild_names_pub();
         self.persist_later();
         self.sync_after_save();
     }
@@ -357,6 +459,77 @@ mod tests {
         assert_eq!(folder_at("root/body/sidebar/side-scroll/side-list/tree/file:Journal|2026.md/#1"), Some("Journal".into()));
         assert_eq!(folder_at("root/body/sidebar/side-scroll/side-list"), Some(String::new()));
         assert_eq!(folder_at("root/body/sheet/doc-scroll"), None);
+    }
+
+    /// Rename a folder from its menu: the notes, the folder inside it, tabs, pins and links
+    /// that spell out the folder all follow, on disk too.
+    #[test]
+    fn a_folder_renames_with_everything_in_it() {
+        use rune::{Env, Runtime};
+        let _env = crate::scroll_tests::ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!("typo-rename-folder-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        // SAFETY: the ENV lock keeps other tests that read these variables out.
+        unsafe {
+            std::env::set_var("HOME", &dir);
+            std::env::set_var("XDG_CONFIG_HOME", dir.join("cfg"));
+            std::env::set_var("XDG_DATA_HOME", dir.join("data"));
+        }
+        let root = dir.join("notes");
+        std::fs::create_dir_all(root.join("Work/Old")).unwrap();
+        std::fs::create_dir_all(root.join("Workshop")).unwrap();
+        std::fs::write(root.join("Work/Plan.md"), "# Plan").unwrap();
+        std::fs::write(root.join("Work/Old/Notes.md"), "See [[Work/Plan]] and [[Plan]].").unwrap();
+        std::fs::write(root.join("Workshop/Tools.md"), "Not in Work.").unwrap();
+        std::fs::write(root.join("Index.md"), "[[Work/Old/Notes|old]] and [[Workshop/Tools]]").unwrap();
+        std::fs::write(root.join("Work/photo.png"), [1u8, 2, 3]).unwrap();
+        let mut rt = Runtime::new(crate::app::init(), crate::ui::view, (1280.0, 800.0), Env { system_dark: false, scale: 1.0 });
+        let r2 = root.clone();
+        rt.update(move |s, tx| {
+            s.open_vault(r2, tx);
+            s.open_file("Work/Plan.md", None, tx);
+            s.toggle_pin("Work/Old/Notes.md");
+            s.expanded.insert("Work/Old".into());
+        });
+        rt.frame(1.0 / 60.0);
+        rt.update(|s, tx| {
+            s.open_tree_menu(MenuOn::Folder("Work".into()), 100.0, 100.0);
+            s.start_rename_folder("Work", tx);
+            let nf = s.new_folder.as_mut().unwrap();
+            assert_eq!(nf.edit.text, "Work");
+            nf.edit.replace_text("Projects");
+        });
+        rt.frame(1.0 / 60.0);
+        rt.update(|s, _| {
+            s.commit_new_folder();
+            s.flush_notes();
+            s.writer.wait(std::time::Duration::from_secs(5));
+            let files: Vec<&str> = s.files().keys().map(|k| k.as_str()).collect();
+            assert_eq!(files, ["Index.md", "Projects/Old/Notes.md", "Projects/Plan.md", "Workshop/Tools.md"]);
+            let v = s.vault.as_ref().unwrap();
+            assert_eq!(v.folders, ["Projects", "Projects/Old", "Workshop"]);
+            assert_eq!(s.active.as_deref(), Some("Projects/Plan.md"));
+            assert!(s.tabs.contains(&"Projects/Plan.md".to_string()));
+            assert_eq!(s.pinned, ["Projects/Old/Notes.md"]);
+            assert!(s.expanded.contains("Projects/Old"));
+            assert_eq!(s.files()["Index.md"], "[[Projects/Old/Notes|old]] and [[Workshop/Tools]]");
+            assert_eq!(s.files()["Projects/Old/Notes.md"], "See [[Projects/Plan]] and [[Plan]].");
+        });
+        rt.update(|s, _| {
+            s.flush_notes();
+            s.writer.wait(std::time::Duration::from_secs(5));
+        });
+        assert!(!root.join("Work").exists());
+        assert_eq!(std::fs::read(root.join("Projects/photo.png")).unwrap(), [1, 2, 3]);
+        assert_eq!(std::fs::read_to_string(root.join("Index.md")).unwrap(), "[[Projects/Old/Notes|old]] and [[Workshop/Tools]]");
+        assert_eq!(std::fs::read_to_string(root.join("Projects/Old/Notes.md")).unwrap(), "See [[Projects/Plan]] and [[Plan]].");
+        // A name that is taken leaves both folders as they are.
+        rt.update(|s, _| {
+            s.rename_folder("Projects", "Workshop");
+            assert!(s.notice.as_deref().is_some_and(|n| n.contains("already there")));
+            assert!(s.files().contains_key("Projects/Plan.md"));
+        });
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
