@@ -1,6 +1,6 @@
 [package]
 name = "typo"
-version = "2.5.0"
+version = "2.6.0"
 edition = "2024"
 license = "MIT"
 description = "A plain editor for folders of Markdown files."

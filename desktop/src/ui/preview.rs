@@ -164,6 +164,9 @@ fn on_link(s: &mut App, id: &str, tx: &mut Tx) {
 /// What draws one note.
 struct Pv<'a> {
     v: V<'a>,
+    /// The note drawn, and what its keys start with: "" in the focused pane.
+    note: &'a str,
+    prefix: &'a str,
     look: Look,
     names: &'a md::Names,
     used: HashSet<usize>,
@@ -175,10 +178,10 @@ impl Pv<'_> {
     /// a key of its own for a block nested on the same line.
     fn key(&mut self, line: usize) -> String {
         if self.used.insert(line) {
-            format!("pv-{line}")
+            format!("{}pv-{line}", self.prefix)
         } else {
             self.n += 1;
-            format!("b-{}", self.n)
+            format!("{}b-{}", self.prefix, self.n)
         }
     }
 }
@@ -194,6 +197,12 @@ struct Within {
 }
 
 pub fn preview(v: V) -> El {
+    let note = v.s.active.as_deref().unwrap_or("");
+    preview_of(v, v.s.active_text(), note, "")
+}
+
+/// A note's preview. Its keys start with `prefix`, so a second pane's don't clash.
+pub fn preview_of<'a>(v: V<'a>, text: &str, note: &'a str, prefix: &'a str) -> El {
     let s = v.s;
     let set = s.settings();
     let serif = set.preview_font == "serif";
@@ -208,12 +217,12 @@ pub fn preview(v: V) -> El {
         asc: if serif { 0.735 } else { 0.97 },
         desc: if serif { 0.265 } else { 0.25 },
     };
-    let blocks = md::tree(s.active_text());
-    let mut pv = Pv { v, look, names: &s.names, used: HashSet::new(), n: 0 };
+    let blocks = md::tree(text);
+    let mut pv = Pv { v, note, prefix, look, names: &s.names, used: HashSet::new(), n: 0 };
     // Collapsed top margin left after the breadcrumb's 30 px bottom margin.
     let mut prev_mb: f32 = if v.focus() { 0.0 } else { 30.0 };
     let mut first = true;
-    let mut out = col().key("preview").w_full();
+    let mut out = col().key(format!("{prefix}preview")).w_full();
     for b in blocks.iter() {
         let (mt, mb, el_) = block(&mut pv, b, Within::default());
         let gap = if first { (mt - prev_mb).max(0.0) } else { mt.max(prev_mb) };
@@ -251,7 +260,7 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
         Block::Image { line, images } => {
             let mut c = col().key(pv.key(*line)).w_full().gap(em * 0.6);
             for (i, img) in images.iter().enumerate() {
-                c = c.child(picture(v, img, &pv.look).key(format!("img-{i}")));
+                c = c.child(picture(v, img, &pv.look, pv.note).key(format!("img-{i}")));
             }
             (em * 0.4, em * 0.95, c)
         }
@@ -437,7 +446,7 @@ fn properties(pv: &mut Pv, key: String, props: &[(String, Vec<Inline>)]) -> El {
 
 /// One image at its own size, or narrower to fit the column. A box holds its place while it
 /// loads, and a line says so when there is no file.
-fn picture(v: V, img: &md::Img, look: &Look) -> El {
+fn picture(v: V, img: &md::Img, look: &Look, note_path: &str) -> El {
     let p = v.p;
     let s = v.s;
     let note = |msg: String| {
@@ -449,7 +458,7 @@ fn picture(v: V, img: &md::Img, look: &Look) -> El {
             .fill(p.code)
             .child(label(msg, theme::sans(look.size * 0.8, 400.0), p.mute).wrap().grow(1.0).shrink())
     };
-    let handle = match s.image_source(img) {
+    let handle = match s.image_source_for(img, Some(note_path)) {
         crate::images::Source::File(path) => s.images.file(&path).map(Ok),
         crate::images::Source::Url(url) => match s.images.remote(&url) {
             crate::images::Remote::Ready(i) => Some(Ok(i)),

@@ -6,6 +6,7 @@
 mod app;
 mod cli;
 mod commands;
+mod find;
 mod folders;
 mod format;
 mod html2md;
@@ -15,10 +16,12 @@ mod lock;
 mod lock_app;
 mod mcp;
 mod md;
+mod notewin;
 mod pins;
 mod sample;
 mod store;
 mod sync;
+mod tabs;
 mod theme;
 mod ui;
 mod update;
@@ -45,9 +48,53 @@ fn scene_focus(s: &mut App) {
 fn scene_settings(s: &mut App) {
     s.settings_open = true;
 }
+/// At least three tabs open, the first one active.
+fn scene_tabs(s: &mut App) {
+    let mut names: Vec<String> = s.files().keys().filter(|p| !s.note_locked(p)).cloned().collect();
+    names.sort();
+    for n in names {
+        if s.tabs.len() >= 3 {
+            break;
+        }
+        if !s.tabs.contains(&n) {
+            s.tabs.push(n);
+        }
+    }
+    if s.active.is_none() {
+        s.active = s.tabs.first().cloned();
+    }
+    s.ensure_edit();
+}
+fn scene_menu(s: &mut App) {
+    scene_tabs(s);
+    let p = s.tabs.get(1).cloned().unwrap_or_default();
+    s.open_tab_menu(&p, 470.0, 30.0);
+    if let Some(m) = &mut s.tab_menu {
+        m.copy_open = true;
+    }
+}
+fn scene_split(s: &mut App) {
+    scene_tabs(s);
+    let other = s.tabs.iter().find(|t| Some(*t) != s.active.as_ref()).cloned().unwrap_or_default();
+    s.split = Some(tabs::Split { dir: tabs::Dir::Right, other, other_first: false });
+}
+fn scene_find(s: &mut App) {
+    scene_tabs(s);
+    s.mode = app::Mode::Source;
+    let mut f = find::Find::new(true);
+    f.q = rune::TextEdit::new("the");
+    f.rep = rune::TextEdit::new("a");
+    s.find = Some(f);
+    if let Some(&(a, b)) = s.find_matches().get(1) {
+        s.cur_edit().set_selection(a, b);
+        if let Some(f) = &mut s.find {
+            f.cur = Some(1);
+        }
+    }
+}
 
 /// Text rasterization. `TYPO_SMOOTHING` picks another mode, for comparing renders.
-fn smoothing() -> rune::FontSmoothing {
+pub(crate) fn smoothing() -> rune::FontSmoothing {
     use rune::FontSmoothing as F;
     match std::env::var("TYPO_SMOOTHING").as_deref() {
         Ok("windfoil-chromium") => F::WindfoilChromium,
@@ -91,15 +138,19 @@ fn main() {
         on_key: Some(keys::on_key),
         poll: Some(|s: &mut App, t, tx| s.poll(t, tx)),
         setup: Some(|s: &mut App, waker| s.set_waker(waker)),
-        scenes: &[("welcome", scene_welcome), ("preview", scene_preview), ("dark", scene_dark), ("focus", scene_focus), ("settings", scene_settings)],
+        scenes: &[("welcome", scene_welcome), ("preview", scene_preview), ("dark", scene_dark), ("focus", scene_focus), ("settings", scene_settings), ("menu", scene_menu), ("split", scene_split), ("find", scene_find)],
         ..AppSpec::new("Typo", (1280.0, 800.0), app::init, ui::view)
     };
-    rune::App::new(spec)
+    let app = rune::App::new(spec)
         .font_smoothing(smoothing())
         .chrome(rune::Chrome { full_size_content: true, traffic_lights: Some((14.0, 17.0)), drag_regions: true })
         .titlebar(rune::Titlebar::new(42.0))
-        .on_close(|s: &mut App, _tx| s.flush_all())
-        .run();
+        .on_close(|s: &mut App, _tx| {
+            s.flush_all();
+            s.close_note_windows();
+        });
+    notewin::set_main(app.handle());
+    app.run();
 }
 
 #[cfg(test)]

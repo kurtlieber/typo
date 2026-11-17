@@ -260,6 +260,7 @@ impl App {
         if let Some(n) = self.active.as_deref().and_then(moved) {
             self.active = Some(n);
         }
+        self.retarget(&moved);
         self.expanded = std::mem::take(&mut self.expanded).into_iter().map(|e| moved(&e).unwrap_or(e)).collect();
         self.rebuild_names_pub();
         self.persist_later();
@@ -320,6 +321,7 @@ impl App {
         if self.active.as_deref() == Some(from) {
             self.active = Some(to.clone());
         }
+        self.retarget(&|p| (p == from).then(|| to.clone()));
         if !folder.is_empty() {
             self.expanded.insert(folder.to_string());
         }

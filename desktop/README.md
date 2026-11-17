@@ -34,6 +34,16 @@ The script puts the binary in `~/.local/bin/typo`, the icon in `~/.local/share/i
 - Turns formatted text that you paste into Markdown. A copy from a web page, a document or a mail app keeps its headings, bold, italic, links, lists, quotes, code blocks and tables. A copy with no formatting, such as one from a code editor, pastes as plain text, and so does every paste inside a code block.
 - Makes a link when you paste a web address over selected text: `[text](https://…)`.
 
+### Tabs
+
+- Right-click a tab for its menu:
+  - **Close**, **Close others**, **Close tabs after** and **Close all**.
+  - **Move to new window** opens the note in a window of its own and closes its tab. **Open in new window** keeps the tab. A note window has the note's title, its editor and the edit and preview toggle. The main window saves each edit, and a change made there or by sync shows in the note window at once. Note windows close with the main window and don't open again when Typo starts. A locked note stays in the main window.
+  - **Split right** and **Split down** show the note beside the active note, or under it, with one tab bar for both. Selecting a tab opens it in the pane you used last, which has an accent line at its top. Each pane has a close button.
+  - **Find…** and **Replace…** open the find bar on the note.
+  - **Copy path** copies the note's absolute path, or a Markdown link to it from the top of the folder: `[Name](Folder/Name.md)`.
+  - **Delete file** moves the note to `.trash`, as **Delete note** in the file tree does.
+
 ### Images
 
 - Shows images in the preview: `![alt](path)` relative to the note, `![[name.png]]` anywhere in the folder, and `https://` images. PNG, JPEG, GIF, WebP, BMP, SVG and AVIF work.
@@ -46,6 +56,7 @@ The script puts the binary in `~/.local/bin/typo`, the icon in `~/.local/share/i
 - Rewrites links in other notes when you rename a note.
 - Finds tags (`#tag`), searches every note (`Ctrl+Shift+F`), and lists headings and backlinks.
 - Opens any note with the quick switcher (`Ctrl+O`) and runs any command from the palette (`Ctrl+P`).
+- Finds text in the note with `Ctrl+F`, and replaces it with `Ctrl+H` (`⌥⌘F` on macOS). The bar at the top right of the note matches plain text; **Aa** matches case. `Enter` goes to the next match and `Shift+Enter` to the one before. In the replace field, `Enter` replaces the selected match and `Ctrl+Enter` replaces every match, which one undo takes back. In the preview, find switches the note to source.
 
 ### Folders
 
@@ -118,7 +129,7 @@ Typo keeps a record of the last sync for each folder and bucket in `sync/` in it
 ```sh
 cargo test                                               # unit tests
 cargo run -- --snap shot.png --size 1280x800 --scale 2   # render a frame headless
-cargo run -- --snap shot.png --scene dark                # scenes: welcome, preview, dark, focus, settings
+cargo run -- --snap shot.png --scene dark                # scenes: welcome, preview, dark, focus, settings, menu, split, find
 cargo run -- --script events.json --snap shot.png --at mark:end   # play input events, then render
 ```
 

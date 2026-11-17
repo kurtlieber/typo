@@ -9,7 +9,13 @@ use crate::md;
 use crate::theme::{mono, sans};
 
 pub fn titlebar(v: V) -> El {
-    if v.focus() { focus_bar(v) } else { bar(v) }
+    if v.s.lean.is_some() {
+        lean_bar(v)
+    } else if v.focus() {
+        focus_bar(v)
+    } else {
+        bar(v)
+    }
 }
 
 fn bar(v: V) -> El {
@@ -92,7 +98,8 @@ fn tab(v: V, path: &str) -> El {
     let on = v.s.active.as_deref() == Some(path);
     let open_path = path.to_string();
     let close_path = path.to_string();
-    let key = format!("tab:{path}");
+    // A `/` in a key reads as a path, so the folder separator becomes `|`, as in the tree.
+    let key = format!("tab:{}", path.replace('/', "|"));
     let mut t = row()
         .key(key)
         .h(38.0)
@@ -111,6 +118,10 @@ fn tab(v: V, path: &str) -> El {
         .help(path.to_string())
         .pointer_buttons([PointerButton::Primary, PointerButton::Middle])
         .no_window_drag()
+        .on_secondary_press({
+            let p = path.to_string();
+            move |s: &mut App, at, _| s.open_tab_menu(&p, at.x, at.y)
+        })
         .on_press_tx(move |s: &mut App, tx| {
             if tx.button() == PointerButton::Middle {
                 s.close_tab(&open_path);
@@ -164,4 +175,30 @@ fn focus_bar(v: V) -> El {
         )
         .child(el().w(v.trailing));
     el().key("titlebar").h(42.0).w_full().window_drag().hover_group().hover_motion(rune::Spring::new(0.25, 0.0), rune::Spring::new(0.25, 0.0)).child(inner)
+}
+
+/// A note window's bar: the note's name and the source and preview toggle.
+fn lean_bar(v: V) -> El {
+    let p = v.p;
+    let s = v.s;
+    let name = s.active.as_deref().map(md::base).unwrap_or_default().to_string();
+    let (glyph, help) = if s.mode == Mode::Source {
+        (&EYE, format!("Show preview ({})", crate::keys::k(&["Mod", "E"])))
+    } else {
+        (&CODE, format!("Show source ({})", crate::keys::k(&["Mod", "E"])))
+    };
+    row()
+        .key("titlebar")
+        .h(42.0)
+        .w_full()
+        .pl(14.0)
+        .pr(10.0)
+        .gap(10.0)
+        .center_y()
+        .window_drag()
+        .paint_order(3)
+        .child(dots(p))
+        .child(label(name, sans(13.0, 500.0), p.ink).key("lean-title").truncate().grow(1.0).shrink().min_w(0.0))
+        .child(icon_button(p, "mode", glyph, 16.0, &help).role("switch").checked(s.mode == Mode::Preview).on_press_tx(|s: &mut App, tx| s.toggle_mode(tx)))
+        .child(el().w(v.trailing))
 }

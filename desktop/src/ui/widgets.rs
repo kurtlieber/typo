@@ -17,6 +17,7 @@ svg!(CLOSE, 8.0, r#"<path d="M1 1l6 6M7 1L1 7" fill="none" stroke="currentColor"
 svg!(CLOSE_THIN, 8.0, r#"<path d="M1 1l6 6M7 1L1 7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>"#);
 svg!(PLUS, 12.0, r#"<path d="M6 1.5v9M1.5 6h9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>"#);
 svg!(CHEVRON_DOWN, 10.0, r#"<path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>"#);
+svg!(CHEVRON_UP, 10.0, r#"<path d="M2 6.5l3-3 3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>"#);
 svg!(CHEVRON_RIGHT, 8.0, r#"<path d="M2.5 1l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>"#);
 svg!(FOLDER, 16.0, r#"<path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.5 1.6h4.9A1.5 1.5 0 0 1 14 6.1v5.4a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/>"#);
 svg!(FOLDER_OPEN, 16.0, r#"<path d="M2 11.5v-7A1.5 1.5 0 0 1 3.5 3h2.6l1.5 1.6h3.9A1.5 1.5 0 0 1 13 6.1V7" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M2.3 12.3l1.5-4.1A1.5 1.5 0 0 1 5.2 7.2h8.2a.9.9 0 0 1 .85 1.2l-1.3 3.6a1.5 1.5 0 0 1-1.4 1H3.4a1.2 1.2 0 0 1-1.1-.7z" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/>"#);
