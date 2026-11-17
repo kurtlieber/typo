@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use rune::{Color, El, ScrollSpec, Span, col, el, icon, rich, row, text, text_input};
 
 use super::V;
-use super::widgets::{CHEVRON_DOWN, CHEVRON_RIGHT, CLOSE, FOLDER, FOLDER_OPEN, FOLDER_PLUS, PIN, PLUS, SEARCH, label};
+use super::widgets::{CHEVRON_DOWN, CHEVRON_RIGHT, CLOSE, FOLDER, FOLDER_OPEN, FOLDER_PLUS, PIN, PLUS, SEARCH, SYNC, label};
 use crate::folders::{MenuOn, row_key};
 use crate::app::{App, Panel, Sel};
 use crate::keys::k;
@@ -59,7 +59,30 @@ pub fn sidebar(v: V) -> El {
     }
 
     if s.left_panel == Panel::Files {
-        tabs = tabs.child(el().grow(1.0)).child(
+        tabs = tabs.child(el().grow(1.0));
+        if s.sync_ready() {
+            let busy = s.sync.busy();
+            let tip = if busy { "Syncing…" } else { "Sync now" };
+            tabs = tabs.child(
+                row()
+                    .key("sync-button")
+                    .size(24.0, 24.0)
+                    .center()
+                    .radius(6.0)
+                    .hover(p.hover)
+                    .hover_group()
+                    .role("button")
+                    .label(tip)
+                    .help(tip)
+                    .on_press(|s: &mut App| {
+                        if !s.sync.busy() {
+                            s.sync_now();
+                        }
+                    })
+                    .child(if busy { icon(&SYNC, 15.0).color(p.acc) } else { icon(&SYNC, 15.0).color(p.mute).group_color(p.ink) }),
+            );
+        }
+        tabs = tabs.child(
             row()
                 .key("new-folder-button")
                 .size(24.0, 24.0)
