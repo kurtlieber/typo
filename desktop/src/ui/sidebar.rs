@@ -205,8 +205,8 @@ fn files_panel(v: V) -> El {
 fn walk(v: V, n: &Node, depth: usize, rows: &mut Vec<El>) {
     let s = v.s;
     if let Some(nf) = &s.new_folder {
-        if nf.parent == n.path {
-            rows.push(new_folder_row(v, depth, &nf.edit));
+        if nf.parent == n.path && nf.rename.is_none() {
+            rows.push(new_folder_row(v, depth, &nf.edit, false));
         }
     }
     let mut names: Vec<&String> = n.folders.keys().collect();
@@ -217,6 +217,13 @@ fn walk(v: V, n: &Node, depth: usize, rows: &mut Vec<El>) {
         let path = f.path.clone();
         let menu_path = f.path.clone();
         let add_path = f.path.clone();
+        if let Some(nf) = s.new_folder.as_ref().filter(|nf| nf.rename.as_deref() == Some(f.path.as_str())) {
+            rows.push(new_folder_row(v, depth, &nf.edit, true));
+            if open {
+                walk(v, f, depth + 1, rows);
+            }
+            continue;
+        }
         let add = row()
             .key("add")
             .size(20.0, 20.0)
@@ -331,8 +338,8 @@ fn tree_row(v: V, key: &str, name: &str, depth: usize, folder: bool, open: bool,
     r.child(text(name).font(sans(13.5, weight)).color(color).truncate().grow(1.0).shrink().min_w(0.0))
 }
 
-/// The row where a new folder gets its name.
-fn new_folder_row(v: V, depth: usize, edit: &rune::TextEdit) -> El {
+/// The row where a new folder gets its name, or a folder its new name.
+fn new_folder_row(v: V, depth: usize, edit: &rune::TextEdit, rename: bool) -> El {
     let p = v.p;
     row()
         .key("new-folder-row")
@@ -354,8 +361,8 @@ fn new_folder_row(v: V, depth: usize, edit: &rune::TextEdit) -> El {
                     .color(p.ink)
                     .placeholder("Folder name", theme::hex("#9a9184"))
                     .caret(p.ink, p.sel)
-                    .label("New folder name")
-                    .on_edit(|s: &mut App| &mut s.new_folder.get_or_insert_with(|| crate::folders::NewFolder { parent: String::new(), edit: rune::TextEdit::new("") }).edit)
+                    .label(if rename { "Folder name" } else { "New folder name" })
+                    .on_edit(|s: &mut App| &mut s.new_folder.get_or_insert_with(|| crate::folders::NewFolder { parent: String::new(), edit: rune::TextEdit::new(""), rename: None }).edit)
                     .on_submit(|s: &mut App, _| s.commit_new_folder())
                     .on_input_key(|s: &mut App, ev: &rune::KeyEvent, _| {
                         if ev.key == rune::Key::Escape {
@@ -368,8 +375,8 @@ fn new_folder_row(v: V, depth: usize, edit: &rune::TextEdit) -> El {
         )
 }
 
-/// The tree's menu, at the pointer: new notes and folders, rename or delete for a note, and
-/// delete for a folder.
+/// The tree's menu, at the pointer: new notes and folders, and rename or delete for a note or
+/// a folder.
 pub fn tree_menu(v: V) -> El {
     let p = v.p;
     let Some(m) = &v.s.tree_menu else { return el() };
@@ -380,10 +387,11 @@ pub fn tree_menu(v: V) -> El {
     let mut items: Vec<(&str, Run)> = Vec::new();
     match m.on.clone() {
         MenuOn::Folder(f) => {
-            let (f2, f3) = (f.clone(), f.clone());
+            let (f2, f3, f4) = (f.clone(), f.clone(), f.clone());
             let (mx, my) = (m.x, m.y);
             items.push(("New note here", Box::new(move |s, tx| s.new_note_in(Some(&f), None, tx))));
             items.push(("New folder here", Box::new(move |s, tx| s.start_new_folder(&f2, tx))));
+            items.push(("Rename folder", Box::new(move |s, tx| s.start_rename_folder(&f4, tx))));
             items.push(("Delete folder", Box::new(move |s, _| s.ask_delete_folder(&f3, mx, my))));
         }
         MenuOn::Note(n) => {

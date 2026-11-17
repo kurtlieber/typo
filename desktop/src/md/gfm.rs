@@ -691,6 +691,9 @@ fn value_inlines(s: &str) -> Vec<Inline> {
 }
 
 #[cfg(test)]
+mod spec;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
