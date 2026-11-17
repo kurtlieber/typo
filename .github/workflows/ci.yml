@@ -1,0 +1,98 @@
+# Tests Typo on every pull request and push to main that changes desktop/. Ship tags a release
+# from main (FORK.md, "Releases"), so a failure here shows on the pull request, before the merge.
+#
+# - test: every test in desktop/ on Linux, the GFM spec test included. The tests that need a real
+#   sync store are #[ignore]d and don't run.
+# - check: compiles on macOS and Windows, which release.yml builds but no test runs on.
+# - version: a pull request that changes desktop/ raises the version past the latest release and
+#   rewrites the release notes for it. Without that, Ship fails after the merge.
+name: CI
+
+on:
+  pull_request:
+    paths: ["desktop/**", .github/release-notes.md, .github/workflows/ci.yml]
+  push:
+    branches: [main]
+    paths: ["desktop/**", .github/workflows/ci.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build packages
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libdbus-1-dev pkg-config
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: cargo test
+        run: cargo test --locked
+
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+
+      - name: cargo check
+        run: cargo check --locked --all-targets
+
+  version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The version and the release notes
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$BASE" HEAD -- desktop; then
+            echo "desktop/ is unchanged: no new version needed"; exit 0
+          fi
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' desktop/Cargo.toml | head -1)
+          latest=$(gh api "repos/$REPO/releases/latest" --jq .tag_name)
+          echo "this pull request is Typo $version; the latest release is $latest"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::desktop/Cargo.toml's version \"$version\" is not X.Y.Z"; exit 1
+          fi
+          if [ "v$version" = "$latest" ] || [ "$(printf '%s\n' "${latest#v}" "$version" | sort -V | tail -1)" != "$version" ]; then
+            echo "::error::this pull request changes desktop/, so raise the version in desktop/Cargo.toml past ${latest#v} (FORK.md, Releases)"; exit 1
+          fi
+          if ! grep -qF "Typo $version" .github/release-notes.md; then
+            echo "::error::.github/release-notes.md doesn't name Typo $version: rewrite it for this release (FORK.md, Releases)"; exit 1
+          fi
