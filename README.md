@@ -133,7 +133,7 @@ Typo keeps a copy of your notes in object storage that you control. The desktop 
 Typo works with Amazon S3, Hetzner, Azure Blob Storage, Google Cloud Storage, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, Scaleway, OVHcloud and any other S3-compatible server, such as MinIO.
 
 - **Encrypt before upload** encrypts each note with AES-256-GCM before upload. The key comes from your passphrase, so the provider stores neither note names nor note text. If you lose the passphrase, nobody can open the remote copy.
-- **When to sync** is **On save**, **Every 5 min** or **Manually**. **Sync now** is also in the command palette.
+- **When to sync** is **On save**, **Every 5 min** or **Manually**. To sync at any time, select the sync button at the top of the file tree, or **Sync now** in the command palette.
 - When two devices change the same note, Typo keeps both versions. The other device's text goes to `<name> (conflict <device>).md` next to the note.
 - Images in the notes folder sync too, up to 50 MB each.
 - Folders sync too, empty ones included. A note or a folder that you delete on one device moves to `.trash` on the other devices.
