@@ -55,7 +55,7 @@ The version in `desktop/Cargo.toml` is the release. A pull request that changes 
 1. Raises that version. Use three numbers, `X.Y.Z`: the updater reads no more. `cargo build` updates `desktop/Cargo.lock` to match.
 2. Rewrites `.github/release-notes.md` for the new version.
 
-Before any major release, run the GFM spec test in `desktop/`: `cargo test gfm_spec -- --nocapture` (`desktop/README.md`, "Develop"). It must pass, and a new entry in its `DEVIATIONS` list needs a reason in the pull request.
+Ship runs the GFM spec test (`cargo test gfm_spec`, `desktop/README.md`, "Develop") before it tags a release, and a failure stops the release before anything is tagged. Run it yourself before a pull request that changes Markdown: a new entry in its `DEVIATIONS` list needs a reason in the pull request.
 
 Kurt's merge ships it, under his standing yes for this fork's releases (2026-11-13, #597). `.github/workflows/ship.yml` then:
 
