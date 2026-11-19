@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/mark-on-ink.svg">
-    <img src="assets/brand/mark.svg" width="88" height="88" alt="">
-  </picture>
+  <img src="assets/brand/icon.svg" width="88" height="88" alt="">
 </p>
 
 <h1 align="center">typo</h1>

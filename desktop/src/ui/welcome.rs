@@ -2,7 +2,7 @@
 
 use rune::{Color, El, ScrollSpec, col, el, row, text, text_input};
 
-use super::widgets::{MARK, MARK_ON_INK, dots, label, primary_button};
+use super::widgets::{MARK, dots, label, primary_button};
 use super::{V, baseline_shift};
 use crate::app::App;
 use crate::store::tilde;
@@ -28,7 +28,7 @@ pub fn welcome(v: V) -> El {
         .gap(14.0)
         .center_y()
         .label("Typo")
-        .child(rune::icon(if p.dark { &MARK_ON_INK } else { &MARK }, 48.0).a11y_hidden())
+        .child(rune::icon(&MARK, 48.0).a11y_hidden())
         .child(label("typo", sans(52.0, 600.0).lh(52.0).tracking(-0.045 * 52.0), p.ink).a11y_hidden());
     let title = col()
         .key("brand")

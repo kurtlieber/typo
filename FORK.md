@@ -4,7 +4,7 @@ Typo is Kurt Lieber's fork of [bjarneo/quire](https://github.com/bjarneo/quire),
 
 ## The name
 
-The fork shipped as Quire up to 1.1.0, from `kurtlieber/quire`. With 2.0.0 the app and the repository are Typo ([kurtlieber/dotfiles#642](https://github.com/kurtlieber/dotfiles/issues/642)). GitHub redirects `kurtlieber/quire` here. Kurt's earlier, unrelated editor that had this name is archived as [kurtlieber/typo-archived](https://github.com/kurtlieber/typo-archived).
+The fork shipped as Quire up to 1.1.0, from `kurtlieber/quire`. With 2.0.0 the app and the repository are Typo ([kurtlieber/dotfiles#642](https://github.com/kurtlieber/dotfiles/issues/642)). GitHub redirects `kurtlieber/quire` here. Kurt's earlier, unrelated editor that had this name is archived as [kurtlieber/typo-archived](https://github.com/kurtlieber/typo-archived). Since 2.6.2 Typo uses that editor's logo, the t and amber caret, in place of Quire's three sheets (`assets/brand/README.md`).
 
 What changed name: the binary (`typo`, `Typo.app`, `typo.exe`), the release files (`typo-<version>-…`), the window and launcher names, the app's folders (`~/.config/typo` and `~/.local/share/typo` on Linux), the `TYPO_*` environment variables, the MCP server name and the updater's user agent.
 
