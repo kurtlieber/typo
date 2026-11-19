@@ -186,21 +186,17 @@ fn doc_scroll(v: V) -> El {
         let pad_x = if focus { clamp(20.0, v.vw * 0.06, 64.0) } else { clamp(20.0, v.vw * 0.05, 56.0) };
         let (pad_t, pad_b) = if focus { (v.vh * 0.16, v.vh * 0.48) } else { (34.0, v.vh * 0.38) };
         let ch = if focus { 68.0 } else { 72.0 };
-        let mut column = col()
-            .key("doc-col")
-            .w_full()
-            .pt(pad_t)
-            .pb(pad_b)
-            .px(pad_x)
-            .on_press_tx(|s: &mut App, tx| {
-                // A click below the text puts the caret at the end, as the design's column does.
-                if s.mode == Mode::Source {
-                    let e = s.cur_edit();
-                    let n = e.text.len();
-                    e.set_selection(n, n);
-                    s.focus_editor(tx);
-                }
+        let mut column = col().key("doc-col").w_full().pt(pad_t).pb(pad_b).px(pad_x);
+        if s.mode == Mode::Source {
+            // A click below the text puts the caret at the end, as the design's column does.
+            // The preview has no handler here, so its text takes presses for selection.
+            column = column.on_press_tx(|s: &mut App, tx| {
+                let e = s.cur_edit();
+                let n = e.text.len();
+                e.set_selection(n, n);
+                s.focus_editor(tx);
             });
+        }
         if s.settings().width == "readable" {
             column = column.max_w(size * 0.6 * ch + 2.0 * pad_x);
         }

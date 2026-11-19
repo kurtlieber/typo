@@ -43,6 +43,8 @@ struct Rich {
     spans: Vec<Span>,
     strikes: Vec<(usize, usize, Option<Color>)>,
     links: Vec<(std::ops::Range<usize>, String)>,
+    /// The spaces that pad inline code and tags: drawn, not copied.
+    pads: Vec<std::ops::Range<usize>>,
 }
 
 /// The style that inline markup around a run gives it.
@@ -130,6 +132,8 @@ impl Rich {
         let c = self.text.len();
         self.text.push(' ');
         let d = self.text.len();
+        self.pads.push(a..b);
+        self.pads.push(c..d);
         if space > 0.5 {
             self.spans.push(Span { mono: true, size: Some(space), bg: Some(bg), bg_pad: pad_y, ..Span::new(a, b) });
             self.spans.push(Span { mono: true, size: Some(space), bg: Some(bg), bg_pad: pad_y, ..Span::new(c, d) });
@@ -137,7 +141,8 @@ impl Rich {
         self.spans.push(Span { mono: true, size: Some(size), color, bg: Some(bg), bg_pad: pad_y, ..Span::new(b, c) });
     }
 
-    fn el(self, style: TextStyle, color: Color) -> El {
+    /// The block's text, which people can select and copy (`selectable`).
+    fn el(self, style: TextStyle, color: Color, p: &Pal) -> El {
         let mut e = rich(if self.text.is_empty() { " ".to_string() } else { self.text }, self.spans).font(style).color(color).wrap().span_radius(4.0);
         for (a, b, c) in self.strikes {
             e = e.strike(a, b, c);
@@ -145,7 +150,10 @@ impl Rich {
         for (r, id) in self.links {
             e = e.link(Link::new(r, id));
         }
-        e.on_link(on_link)
+        for r in self.pads {
+            e = e.uncopied(r);
+        }
+        e.on_link(on_link).selectable(true).selection_color(p.sel_editor)
     }
 }
 
@@ -171,6 +179,8 @@ struct Pv<'a> {
     names: &'a md::Names,
     used: HashSet<usize>,
     n: usize,
+    /// The list marker ("- ", "1. ") that a copy puts before the next block's text.
+    lead: Option<String>,
 }
 
 impl Pv<'_> {
@@ -194,6 +204,18 @@ struct Within {
     tight: bool,
     /// In a done task.
     done: bool,
+    /// How many lists hold it.
+    depth: usize,
+}
+
+/// Copying puts a blank line between blocks, as a browser copies paragraphs; `lead` is a list
+/// item's marker.
+fn copyable(e: El, breaks: u8, lead: Option<String>) -> El {
+    let e = e.copy_breaks(breaks, breaks);
+    match lead {
+        Some(l) => e.copy_prefix(l),
+        None => e,
+    }
 }
 
 pub fn preview(v: V) -> El {
@@ -218,11 +240,12 @@ pub fn preview_of<'a>(v: V<'a>, text: &str, note: &'a str, prefix: &'a str) -> E
         desc: if serif { 0.265 } else { 0.25 },
     };
     let blocks = md::tree(text);
-    let mut pv = Pv { v, note, prefix, look, names: &s.names, used: HashSet::new(), n: 0 };
+    let mut pv = Pv { v, note, prefix, look, names: &s.names, used: HashSet::new(), n: 0, lead: None };
     // Collapsed top margin left after the breadcrumb's 30 px bottom margin.
     let mut prev_mb: f32 = if v.focus() { 0.0 } else { 30.0 };
     let mut first = true;
-    let mut out = col().key(format!("{prefix}preview")).w_full();
+    // One selection across the note's blocks, as on a web page.
+    let mut out = col().key(format!("{prefix}preview")).w_full().selection_group(true);
     for b in blocks.iter() {
         let (mt, mb, el_) = block(&mut pv, b, Within::default());
         let gap = if first { (mt - prev_mb).max(0.0) } else { mt.max(prev_mb) };
@@ -252,6 +275,7 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
     let p = v.p;
     let em = pv.look.size;
     let body = pv.look.body();
+    let lead = pv.lead.take();
     match b {
         Block::Props { line, props } => {
             let key = pv.key(*line);
@@ -272,7 +296,11 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
                 .radius(8.0)
                 .fill(p.code)
                 .scroll_x()
-                .child(el().py(14.0).px(18.0).child(text(if t.is_empty() { " ".to_string() } else { t.clone() }).font(style).color(p.ink2)));
+                .child(el().py(14.0).px(18.0).child(copyable(
+                    text(if t.is_empty() { " ".to_string() } else { t.clone() }).font(style).color(p.ink2).selectable(true).selection_color(p.sel_editor),
+                    2,
+                    lead,
+                )));
             (em * 1.2, em * 1.3, e)
         }
         Block::Heading { line, level, inlines } => {
@@ -286,7 +314,7 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
             let style = TextStyle::new(size, wt).family(pv.look.family).lh(size * lh).tracking(size * track);
             let mut r = Rich::default();
             r.inlines(inlines, Ctx::default(), p, &pv.look, pv.names);
-            let e = r.el(style, p.ink).key(pv.key(*line)).w_full().role("heading").level(*level as u32).label(md::plain(inlines).trim().to_string());
+            let e = copyable(r.el(style, p.ink, p), 2, lead).key(pv.key(*line)).w_full().role("heading").level(*level as u32).label(md::plain(inlines).trim().to_string());
             (size * mt, size * mb, e)
         }
         Block::Rule { line } => (em * 2.2, em * 2.2, el().key(pv.key(*line)).h(1.0).w_full().fill(p.line)),
@@ -302,6 +330,12 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
             let text_base = pv.look.baseline(em, em * pv.look.lh, pv.look.asc, pv.look.desc);
             for (i, it) in items.iter().enumerate() {
                 let done = it.task == Some(true);
+                let mark = match it.task {
+                    Some(true) => "- [x] ".to_string(),
+                    Some(false) => "- [ ] ".to_string(),
+                    None if *ordered => format!("{}{delim} ", start + i),
+                    None => "- ".to_string(),
+                };
                 let marker = if let Some(done) = it.task {
                     let sz = em * 0.85;
                     let top = text_base - sz + em * 0.1;
@@ -330,7 +364,9 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
                 } else {
                     row().key("bullet").w(em).justify_center().child(text("•").font(body).color(p.acc))
                 };
-                let inner = stack(pv, &it.blocks, Within { tight: *tight, done, ..w });
+                pv.lead = Some(format!("{}{mark}", "  ".repeat(w.depth)));
+                let inner = stack(pv, &it.blocks, Within { tight: *tight, done, depth: w.depth + 1, ..w });
+                pv.lead = None;
                 let li = row()
                     .key(format!("li-{}", it.line))
                     .w_full()
@@ -359,7 +395,8 @@ fn block(pv: &mut Pv, b: &Block, w: Within) -> (f32, f32, El) {
                 r.strikes.push((0, r.text.len(), Some(p.mark)));
             }
             let (style, color) = if w.quote { (body.italic(), p.ink2) } else { (body, p.ink) };
-            (mt, mb, r.el(style, color).key(pv.key(*line)).w_full())
+            // A tight list's items copy on lines of their own.
+            (mt, mb, copyable(r.el(style, color, p), if w.tight { 1 } else { 2 }, lead).key(pv.key(*line)).w_full())
         }
     }
 }
@@ -407,7 +444,7 @@ fn table(pv: &mut Pv, key: String, align: &[Align], rows: &[Vec<Vec<Inline>>]) -
                 .py(pad_y)
                 .border_sides([if ri == 0 { 1.0 } else { 0.0 }, 1.0, 1.0, if ci == 0 { 1.0 } else { 0.0 }], p.line)
                 .role("cell")
-                .child(rich.el(style, p.ink).w_full().align(a));
+                .child(rich.el(style, p.ink, p).w_full().align(a));
             if ri == 0 {
                 cell = cell.fill(p.code);
             }
@@ -437,8 +474,8 @@ fn properties(pv: &mut Pv, key: String, props: &[(String, Vec<Inline>)]) -> El {
                 .gap(em * 0.9)
                 .items_start()
                 .role("row")
-                .child(label(k.clone(), style, p.mute).wrap().w(kw))
-                .child(r.el(style, p.ink2).grow(1.0).shrink().min_w(0.0)),
+                .child(label(k.clone(), style, p.mute).wrap().w(kw).selectable(true).selection_color(p.sel_editor))
+                .child(r.el(style, p.ink2, p).grow(1.0).shrink().min_w(0.0)),
         );
     }
     c
@@ -529,4 +566,87 @@ fn tag_line(v: V, look: &Look, key: String, tags: Vec<&str>) -> El {
         );
     }
     r
+}
+
+#[cfg(test)]
+mod tests {
+    use rune::{Env, Key, KeyEvent, Mods, Runtime};
+
+    use crate::app::{App, Mode};
+
+    const NOTE: &str = "# Title\n\nFirst `code` para.\n\n- one\n- [x] two\n\nLast para #demo.";
+
+    fn frames(rt: &mut Runtime<App>) {
+        rt.frame(1.0 / 60.0);
+        rt.settle_all();
+        for _ in 0..2 {
+            rt.frame(1.0 / 60.0);
+        }
+    }
+
+    fn command(rt: &mut Runtime<App>, c: char) {
+        rt.key(KeyEvent { key: Key::Command(c), mods: Mods { cmd: true, ..Mods::default() } });
+        frames(rt);
+    }
+
+    /// A drag selects across the preview's blocks, and Cmd+A then Cmd+C copies the whole note
+    /// as text: a blank line between blocks, list markers, no padding around inline code or tags.
+    /// Links in the text still follow a click.
+    #[test]
+    fn preview_text_selects_and_copies() {
+        let _env = crate::scroll_tests::ENV.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!("typo-preview-copy-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        // SAFETY: the ENV lock keeps other tests that read these variables out.
+        unsafe {
+            std::env::set_var("HOME", &dir);
+            std::env::set_var("XDG_CONFIG_HOME", dir.join("cfg"));
+            std::env::set_var("XDG_DATA_HOME", dir.join("data"));
+        }
+        let mut rt = Runtime::new(crate::app::init(), crate::ui::view, (1280.0, 800.0), Env { system_dark: false, scale: 1.0 });
+        let clipboard = rune::clipboard::memory();
+        rt.use_clipboard(&clipboard);
+        rt.frame(1.0 / 60.0);
+        rt.update(|s, _| {
+            let a = s.active.clone().unwrap();
+            s.set_text(&a, NOTE.to_string());
+            s.mode = Mode::Preview;
+        });
+        frames(&mut rt);
+
+        // Drag from the title's first letter into the last paragraph.
+        let (title, _) = rt.presented("pv-0").expect("the title shows");
+        let (last, _) = rt.presented("pv-7").expect("the last paragraph shows");
+        let (x0, y0) = (title[0] + 2.0, title[1] + title[3] / 2.0);
+        let (x1, y1) = (last[0] + 30.0, last[1] + last[3] / 2.0);
+        rt.pointer_move(x0, y0);
+        rt.pointer_down(x0, y0);
+        for i in 1..=10 {
+            let t = i as f32 / 10.0;
+            rt.pointer_move(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
+            rt.frame(1.0 / 60.0);
+        }
+        rt.pointer_up(x1, y1);
+        frames(&mut rt);
+        let dragged = rt.selected_text().unwrap_or_default();
+        assert!(dragged.starts_with("Title") && dragged.contains("First code para.") && dragged.ends_with("Las"), "the drag selects across blocks: {dragged:?}");
+
+        command(&mut rt, 'a');
+        command(&mut rt, 'c');
+        let copied = clipboard.text().map(|t| t.to_string());
+        assert_eq!(copied.as_deref(), Some("Title\n\nFirst code para.\n\n- one\n- [x] two\n\nLast para #demo."));
+
+        // A click on a link in selectable text still follows it.
+        rt.update(|_, tx| tx.clear_text_selection());
+        frames(&mut rt);
+        let (x, y) = rt.find("tag:demo").expect("the tag shows");
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        frames(&mut rt);
+        let mut query = String::new();
+        rt.update(|s, _| query = s.query.text.clone());
+        assert_eq!(query, "#demo", "a click on the tag searches for it");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
