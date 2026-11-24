@@ -687,3 +687,65 @@ fn headless_sync_follows_the_apps_rules() {
     assert_eq!(laptop.read("Plan.md").as_deref(), Some("mine"));
     assert_eq!(laptop.read("Plan (conflict laptop).md").as_deref(), Some("two"));
 }
+
+/// A bucket that runs `hook` once, just before the first note object is read: another device
+/// uploads in the gap between this device's manifest read and its download.
+struct Racy {
+    inner: Mem,
+    hook: Mutex<Option<Box<dyn FnOnce(&Mem) + Send>>>,
+}
+
+impl Store for Racy {
+    fn get(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        if !key.starts_with(".quire/") {
+            if let Some(h) = self.hook.lock().unwrap().take() {
+                h(&self.inner);
+            }
+        }
+        self.inner.get(key)
+    }
+    fn put(&self, key: &str, body: &[u8]) -> Result<(), String> {
+        self.inner.put(key, body)
+    }
+    fn delete(&self, key: &str) -> Result<(), String> {
+        self.inner.delete(key)
+    }
+    fn place(&self) -> String {
+        "mem".into()
+    }
+}
+
+#[test]
+fn upload_during_download_is_no_conflict() {
+    for encrypt in [false, true] {
+        let mut bucket = Mem::default();
+        let r = remote(encrypt);
+        let tag = format!("race{encrypt}");
+        let (laptop, server) = (Device::new(&tag, "laptop"), Device::new(&tag, "server"));
+        laptop.write("Untitled.md", "v1");
+        laptop.sync(&mut bucket, &r);
+        // The server reads the manifest (v1). Before it downloads the note, the laptop saves v2
+        // and syncs: the note's object, whose name never changes, now holds v2.
+        let racy = Racy {
+            inner: bucket.clone(),
+            hook: Mutex::new(Some(Box::new({
+                let (root, base, r) = (laptop.root.clone(), laptop.base.clone(), r.clone());
+                move |m: &Mem| {
+                    std::fs::write(root.join("Untitled.md"), "v2").unwrap();
+                    run_with(m, &r, &root, "laptop", &base).unwrap().save_base().unwrap();
+                }
+            }))),
+        };
+        let out = run_with(&racy, &r, &server.root, server.name, &server.base).unwrap();
+        headless::apply_outcome(&server.root, out).unwrap();
+        assert_eq!(server.read("Untitled.md").as_deref(), Some("v2"));
+        // The laptop types on. Only the laptop ever changed the note, so the server must take
+        // v3 and keep no conflict copy.
+        laptop.write("Untitled.md", "v3");
+        laptop.sync(&mut bucket, &r);
+        let out = run_with(&bucket, &r, &server.root, server.name, &server.base).unwrap();
+        assert_eq!(out.conflicts, Vec::<String>::new(), "encrypt={encrypt}");
+        headless::apply_outcome(&server.root, out).unwrap();
+        assert_eq!(server.read("Untitled.md").as_deref(), Some("v3"));
+    }
+}

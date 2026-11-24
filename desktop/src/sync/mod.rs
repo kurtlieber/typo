@@ -348,8 +348,23 @@ pub fn base_pins(r: &Remote, root: &Path) -> BTreeSet<String> {
 pub fn device_name() -> String {
     // The kernel's name is always there on Linux. Apps from a launcher do not get $HOSTNAME.
     let read = |p: &str| std::fs::read_to_string(p).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-    let h = read("/proc/sys/kernel/hostname").or_else(|| read("/etc/hostname"));
+    let h = read("/proc/sys/kernel/hostname").or_else(|| read("/etc/hostname")).or_else(mac_name);
     h.or_else(|| std::env::var("COMPUTERNAME").ok()).or_else(|| std::env::var("HOSTNAME").ok()).unwrap_or_else(|| "desktop".into())
+}
+
+/// The Mac's local host name, as System Settings shows it under General, Sharing. A Mac has
+/// neither file above, and an app from the Dock gets no $HOSTNAME, so without it every Mac
+/// was "desktop".
+#[cfg(target_os = "macos")]
+fn mac_name() -> Option<String> {
+    let out = std::process::Command::new("/usr/sbin/scutil").args(["--get", "LocalHostName"]).output().ok()?;
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (out.status.success() && !s.is_empty()).then_some(s)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn mac_name() -> Option<String> {
+    None
 }
 
 pub fn conflict_path(p: &str, device: &str, taken: &BTreeSet<String>) -> String {
@@ -580,7 +595,12 @@ fn run_with_pins(store: &dyn Store, r: &Remote, root: &Path, device: &str, bp: &
             Step::Up(p) => ups.push((p.to_string(), body(&local[p].0)?.into_owned())),
             Step::Down(p, e, seen) => {
                 if let Some(data) = got.remove(&e.object) {
-                    new_base.insert(p.to_string(), e.hash.clone());
+                    // The base holds what came down, not the manifest's hash: an object's name
+                    // never changes, so another device can upload a newer version between this
+                    // sync's manifest read and its download. With the manifest's hash, the next
+                    // sync takes the newer text on disk for a change here and keeps both.
+                    let h = if md::is_image(p) { hash(&data) } else { hash(String::from_utf8_lossy(&data).replace("\r\n", "\n").as_bytes()) };
+                    new_base.insert(p.to_string(), h);
                     give(&mut out, p.to_string(), data, seen, e.device.clone());
                 }
             }

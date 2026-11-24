@@ -76,7 +76,8 @@ writes this file. Every later device reads it first and stops with an error in t
 `folders` has no folders. `pins` lists the pinned notes. A manifest without `pins` comes from a
 version without pins. Such a manifest says nothing about pins, so a device keeps its own pins
 and writes them. `time` is the upload time in milliseconds since 1970. `device` is the
-name of the device that uploaded the file. The desktop app uses the host name. The Android app
+name of the device that uploaded the file. The desktop app uses the host name, and on a Mac the
+local host name from System Settings, General, Sharing. The Android app
 uses the device model.
 
 ## Encryption
@@ -164,6 +165,11 @@ holds each path that is in step after this sync. If a local write fails, delete 
 that says a file is in step when the old version is still on disk makes the next sync upload
 the old version over the newer remote one. Without a base, the next sync keeps both versions of
 each file that differs.
+
+For a file that came down, the base holds the hash of the bytes that came down, not the hash in
+the manifest. A note keeps one object name for all its versions, so another device can upload a
+newer version between this sync's manifest read and its download. With the manifest's hash, the
+next sync takes the newer text on disk for a change on this device, and keeps both versions.
 
 ## Conflicts
 
